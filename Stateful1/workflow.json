@@ -157,20 +157,20 @@
                                     "not": {
                                         "startsWith": [
                                             "@variables('EmptyArr')",
-                                            []
+                                            "{}"
                                         ]
                                     }
                                 },
                                 {
                                     "endsWith": [
-                                        {},
+                                        "{}",
                                         0
                                     ]
                                 },
                                 {
                                     "not": {
                                         "endsWith": [
-                                            "",
+                                            "@null",
                                             false
                                         ]
                                     }
@@ -215,7 +215,7 @@
                         "Terminate_1": {
                             "type": "Terminate",
                             "inputs": {
-                                "runStatus": "asfdasdfadsf",
+                                "runStatus": "Failed",
                                 "runError": {
                                     "code": "afawef",
                                     "message": "fareoiugoareu"
@@ -278,14 +278,23 @@
             },
             "Switch": {
                 "type": "Switch",
-                "expression": {},
+                "expression": "@variables('str')",
                 "default": {
                     "actions": {
                         "HTTP-copy_4": {
                             "type": "Http",
                             "inputs": {
                                 "uri": "http://localhost",
-                                "method": "GET"
+                                "method": "GET",
+                                "authentication": {
+                                    "type": "ActiveDirectoryOAuth",
+                                    "authority": "optional authority",
+                                    "tenant": "tenant",
+                                    "audience": "audience",
+                                    "clientId": "client",
+                                    "pfx": "pfx",
+                                    "password": "pfx pass"
+                                }
                             },
                             "runtimeConfiguration": {
                                 "contentTransfer": {
@@ -311,7 +320,7 @@
                                 }
                             }
                         },
-                        "case": 1
+                        "case": "aa"
                     },
                     "Case 2": {
                         "actions": {
@@ -358,7 +367,7 @@
                                 }
                             }
                         },
-                        "case": []
+                        "case": "substring('asdfasdfasfd',3,6)"
                     },
                     "Case 4": {
                         "actions": {
@@ -392,7 +401,7 @@
                                 }
                             }
                         },
-                        "case": "@null"
+                        "case": "ccc"
                     }
                 },
                 "runAfter": {
