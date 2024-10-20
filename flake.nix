@@ -1,6 +1,3 @@
-let
-  includeVscode = false;
-in
 {
   description = "Dev flake for IllogicApps";
 
@@ -15,6 +12,9 @@ in
       nixpkgs,
       flake-utils,
     }:
+    let
+      includeVscode = true;
+    in
     flake-utils.lib.eachDefaultSystem (
       system:
       let
