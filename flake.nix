@@ -1,5 +1,5 @@
 let
-  includeVscode = true;
+  includeVscode = false;
 in
 {
   description = "Dev flake for IllogicApps";
