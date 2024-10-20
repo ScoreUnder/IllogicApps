@@ -10,4 +10,10 @@ let logicApp = readLogicApp examplePath
 
 printfn "%A" logicApp
 
+logicApp.definition.actions
+|> LogicAppActionSupport.fromKvps
+|> Seq.toList
+|> LogicAppBaseAction.getAllChildren
+|> printfn "%A"
+
 Simulator.Trigger logicApp (JsonValue.Create("FAKE INPUT")) |> ignore
