@@ -10,8 +10,11 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        buildRequires = with pkgs;
-          [ (with dotnetCorePackages; combinePackages [ sdk_6_0 sdk_8_0 ]) ];
+        myDotnetSdk = pkgs.dotnetCorePackages.sdk_8_0;
+        myDotnetRuntime = pkgs.dotnetCorePackages.runtime_8_0;
+        functionAppsDotnetSdk = pkgs.dotnetCorePackages.sdk_6_0;
+        shellRequires = with pkgs;
+          [ (dotnetCorePackages.combinePackages [ myDotnetSdk functionAppsDotnetSdk ]) ];
       in {
         packages.default = pkgs.buildDotnetModule {
           pname = "IllogicApps";
@@ -19,6 +22,8 @@
           src = ./.;
           nugetDeps = ./deps.nix;
           projectFile = "IllogicApps.Test/IllogicApps.Test.fsproj";
+          dotnet-sdk = myDotnetSdk;
+          dotnet-runtime = myDotnetRuntime;
         };
         devShells.default = pkgs.mkShellNoCC {
           packages = with pkgs; [
@@ -28,7 +33,7 @@
             nodejs
             azurite
           ];
-          buildInputs = buildRequires;
+          buildInputs = shellRequires;
         };
       });
 }
