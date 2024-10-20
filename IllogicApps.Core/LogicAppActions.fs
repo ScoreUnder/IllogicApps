@@ -68,7 +68,7 @@ type If() =
 
 
 type Switch() =
-    inherit Scope()
+    inherit Action()
 
     member val Expression: JsonNode = JsonValue.Create(null) with get, set
     member val Default = new SwitchDefault() with get, set
