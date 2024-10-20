@@ -5,6 +5,7 @@ open System.Collections.Generic
 open System.Text.Json
 open System.Text.Json.Nodes
 open System.Text.Json.Serialization
+open IllogicApps.Core.LogicAppSpec
 
 type SetVariableSingle() =
     member val Name: string = "" with get, set
@@ -21,6 +22,7 @@ type VariableType =
 type InitializeVariableSingle() =
     member val Name: string = "" with get, set
     member val Value: JsonNode option = None with get, set
+
     [<JsonPropertyName("type")>]
     member val VariableType: VariableType = Object with get, set
 
@@ -30,6 +32,14 @@ type HttpResponseInputs =
     { body: obj option
       headers: IDictionary<string, string> option
       statusCode: int }
+
+type SwitchDefault() =
+    member val Actions: ActionGraph = Map.empty with get, set
+
+type SwitchCase() =
+    inherit SwitchDefault()
+
+    member val Case: JsonNode = JsonValue.Create(null) with get, set
 
 type UntilLimit = { count: int; timeout: string }
 

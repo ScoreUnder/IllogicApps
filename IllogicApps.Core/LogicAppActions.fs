@@ -6,7 +6,6 @@ open System.Text.Json.Nodes
 open IllogicApps.Core
 open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Core.LogicAppActionSupport
-open IllogicApps.Core.LogicAppBaseAction
 open System.Text.Json
 
 // Triggers
@@ -60,6 +59,31 @@ type If() =
         { status = result
           inputs = None
           outputs = Some(makeObject [ "expression", JsonValue.Create(conditionResult) ]) }
+
+type Switch() =
+    inherit Scope()
+
+    member val Expression: JsonNode = JsonValue.Create(null) with get, set
+    member val Default = new SwitchDefault() with get, set
+    member val Cases: Map<string, SwitchCase> = Map.empty with get, set
+
+    override this.Execute(context: SimulatorContext) =
+        printfn "Switch Begin"
+        let value = context.EvaluateLanguage this.Expression in
+        printfn "Switch Value: %A" value
+
+        let result =
+            this.Cases.Values
+            |> Seq.tryFind (fun case -> case.Case = value)
+            |> Option.map (fun case -> case.Actions)
+            |> Option.defaultValue this.Default.Actions
+            |> context.ExecuteGraph in
+
+        printfn "Switch End"
+
+        { status = result
+          inputs = None
+          outputs = Some(makeObject [ "expression", value ]) }
 
 type Until() =
     inherit Scope()
