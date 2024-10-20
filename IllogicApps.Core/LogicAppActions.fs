@@ -6,6 +6,7 @@ open System.Text.Json.Nodes
 open IllogicApps.Core
 open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Core.LogicAppActionSupport
+open IllogicApps.Core.LogicAppBaseAction
 open System.Text.Json
 
 // Triggers
@@ -40,6 +41,8 @@ type Scope() =
           inputs = None
           outputs = None }
 
+    override this.GetChildren() : BaseAction list = this.Actions.Values |> Seq.toList
+
 type If() =
     inherit Scope()
 
@@ -59,6 +62,10 @@ type If() =
         { status = result
           inputs = None
           outputs = Some(makeObject [ "expression", JsonValue.Create(conditionResult) ]) }
+
+    override this.GetChildren() : BaseAction list =
+        Seq.append this.Actions.Values this.ElseActions.Values |> Seq.toList
+
 
 type Switch() =
     inherit Scope()
@@ -84,6 +91,11 @@ type Switch() =
         { status = result
           inputs = None
           outputs = Some(makeObject [ "expression", value ]) }
+
+    override this.GetChildren() : BaseAction list =
+        this.Cases.Values
+        |> Seq.fold (fun acc case -> Seq.append acc case.Actions.Values) this.Default.Actions.Values
+        |> Seq.toList
 
 type Until() =
     inherit Scope()
