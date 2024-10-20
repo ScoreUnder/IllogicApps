@@ -77,7 +77,7 @@ type Switch() =
     override this.Execute(context: SimulatorContext) =
         printfn "Switch Begin"
         let value = context.EvaluateLanguage this.Expression in
-        printfn "Switch Value: %A" value
+        printfn "Switch Value: %O" value
 
         let result =
             this.Cases.Values
@@ -145,7 +145,7 @@ type Terminate() =
     member val Inputs = { runError = None; runStatus = "" } with get, set
 
     override this.Execute(context: SimulatorContext) =
-        printfn "Terminate: %s (%A)" this.Inputs.runStatus this.Inputs.runError
+        printfn "Terminate: %s (%O)" this.Inputs.runStatus this.Inputs.runError
 
         context.StopExecuting
         <| match this.Inputs.runStatus with
@@ -180,7 +180,7 @@ type InitializeVariable() =
 
             (variable.Name, value))
         |> List.iter (fun (name, value) ->
-            printfn "InitializeVariable: %s = %A" name value
+            printfn "InitializeVariable: %s = %O" name value
 
             if context.Variables.ContainsKey(name) then
                 failwithf "Variable '%s' already exists" name
@@ -220,7 +220,7 @@ type SetVariable() =
     member val Inputs = new SetVariableSingle() with get, set
 
     override this.Execute(context: SimulatorContext) =
-        printfn "SetVariable: %s = %A" this.Inputs.Name this.Inputs.Value
+        printfn "SetVariable: %s = %O" this.Inputs.Name this.Inputs.Value
 
         if not (context.Variables.ContainsKey(this.Inputs.Name)) then
             failwithf "Variable '%s' does not exist" this.Inputs.Name
@@ -245,7 +245,7 @@ type AppendToStringVariable() =
     member val Inputs = new SetVariableSingle() with get, set
 
     override this.Execute(context: SimulatorContext) =
-        printfn "AppendToStringVariable: %s = %A" this.Inputs.Name this.Inputs.Value
+        printfn "AppendToStringVariable: %s = %O" this.Inputs.Name this.Inputs.Value
 
         if not (context.Variables.ContainsKey(this.Inputs.Name)) then
             failwithf "Variable '%s' does not exist" this.Inputs.Name
@@ -273,9 +273,9 @@ type Compose() =
     member val Inputs: JsonNode = JsonValue.Create(null) with get, set
 
     override this.Execute(context: SimulatorContext) =
-        printfn "Compose: %A" this.Inputs
+        printfn "Compose: %O" this.Inputs
         let result = context.EvaluateLanguage this.Inputs
-        printfn "Compose Result: %A" result
+        printfn "Compose Result: %O" result
 
         { status = Succeeded
           inputs = Some(result)
@@ -290,7 +290,7 @@ type Response() =
           statusCode = 0 } with get, set
 
     override this.Execute(context: SimulatorContext) =
-        printfn "Response: %A" this.Inputs
+        printfn "Response: %O" this.Inputs
 
         let inputsObject =
             new JsonObject(

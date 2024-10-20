@@ -48,7 +48,7 @@ module private SimulatorHelper =
     let arrayOfObjects (node: JsonNode) =
         match node with
         | :? JsonArray as a -> a |> Seq.map (fun o -> o.AsObject())
-        | _ -> failwithf "Expected array of objects, got %A" node
+        | _ -> failwithf "Expected array of objects, got %O" node
 
     let rec jsonMapStrs (f: string -> JsonNode) (node: JsonNode) =
         match node.GetValueKind() with
@@ -67,11 +67,11 @@ module private SimulatorHelper =
     let evaluateLanguageStr (str: string) : JsonNode =
         if str.StartsWith("@") then
             // Whole thing needs replacing with the output of the expression
-            printfn "Not implemented: expression evaluation: %s" str
+            printfn "Not implemented: expression evaluation: %A" str
             JsonValue.Create(str)
         else if str.Contains("@") then
             // Always a string, but may contain sub-expressions
-            printfn "Not implemented: sub-expression evaluation: %s" str
+            printfn "Not implemented: sub-expression evaluation: %A" str
             JsonValue.Create(str)
         else
             JsonValue.Create(str)
