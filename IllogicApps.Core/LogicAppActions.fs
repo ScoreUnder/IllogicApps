@@ -101,7 +101,7 @@ type Switch() =
 type Until() =
     inherit Scope()
 
-    member val Expression = JsonValue.Create("") with get, set
+    member val Expression: JsonValue = JsonValue.Create("") with get, set
     member val Limit = { count = 0; timeout = "" } with get, set
 
     override this.Execute(context: SimulatorContext) =
@@ -270,7 +270,7 @@ type AppendToStringVariable() =
 type Compose() =
     inherit Action()
 
-    member val Inputs = JsonValue.Create(null) with get, set
+    member val Inputs: JsonNode = JsonValue.Create(null) with get, set
 
     override this.Execute(context: SimulatorContext) =
         printfn "Compose: %A" this.Inputs
@@ -292,6 +292,29 @@ type Response() =
     override this.Execute(context: SimulatorContext) =
         printfn "Response: %A" this.Inputs
 
+        let inputsObject =
+            new JsonObject(
+                let inline addKeyValuePair
+                    (key: string)
+                    (value: JsonNode option)
+                    (seq: seq<KeyValuePair<string, JsonNode>>)
+                    =
+                    value
+                    |> Option.map (fun v -> new KeyValuePair<string, JsonNode>(key, v))
+                    |> Option.toList
+                    |> Seq.append seq
+
+                [ new KeyValuePair<string, JsonNode>("statusCode", JsonValue.Create(this.Inputs.statusCode)) ]
+                |> addKeyValuePair "body" this.Inputs.body
+                |> addKeyValuePair
+                    "headers"
+                    (this.Inputs.headers
+                     |> Option.map (fun h ->
+                         h
+                         |> Seq.map (fun kv -> kv.Key, (JsonValue.Create(kv.Value): JsonNode))
+                         |> makeObject))
+            )
+
         { status = Succeeded
-          inputs = Some(JsonValue.Create(this.Inputs) |> context.EvaluateLanguage)
+          inputs = Some(inputsObject |> context.EvaluateLanguage)
           outputs = None }

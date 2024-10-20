@@ -29,7 +29,7 @@ type InitializeVariableSingle() =
 type 'a VariablesInputs = { variables: 'a list }
 
 type HttpResponseInputs =
-    { body: obj option
+    { body: JsonNode option
       headers: IDictionary<string, string> option
       statusCode: int }
 
@@ -53,8 +53,8 @@ type TerminateInputs =
 
 let defaultExpression () : Expression = new JsonObject()
 
-let makeObject (pairs: (string * JsonNode) list) : JsonNode =
-    new JsonObject(pairs |> List.map (fun (k, v) -> new KeyValuePair<string, JsonNode>(k, v)))
+let makeObject (pairs: (string * JsonNode) seq) : JsonNode =
+    new JsonObject(pairs |> Seq.map (fun (k, v) -> new KeyValuePair<string, JsonNode>(k, v)))
 
 let defaultForType typ : JsonNode =
     match typ with
