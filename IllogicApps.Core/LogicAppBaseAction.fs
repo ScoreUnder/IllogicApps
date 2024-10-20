@@ -19,6 +19,15 @@ type BaseAction() =
     abstract member GetChildren: unit -> (string * BaseAction) list
     default this.GetChildren() = []
 
+let getAllChildren start =
+    let rec aux (from: (string * BaseAction) list) acc=
+        from
+        |> List.collect (fun (_, a) -> a.GetChildren())
+        |> function
+            | [] -> from @ acc
+            | next -> aux next (from @ acc)
+    in aux start []
+
 type UnknownAction() =
     inherit BaseAction()
     member val Original = JsonObject() with get, set
