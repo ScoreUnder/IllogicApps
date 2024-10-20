@@ -227,17 +227,18 @@ type SetVariable() =
 
         typecheck context.Variables.[this.Inputs.Name] this.Inputs.Value
 
-        context.Variables.[this.Inputs.Name] <- this.Inputs.Value
+        let value = this.Inputs.Value |> context.EvaluateLanguage
+
+        context.Variables.[this.Inputs.Name] <- value
 
         { status = Succeeded
           inputs =
             Some(
-                new JsonObject(
-                    [ new KeyValuePair<string, JsonNode>("name", JsonValue.Create(this.Inputs.Name))
-                      new KeyValuePair<string, JsonNode>("value", this.Inputs.Value) ]
-                )
+                makeObject [ "name", JsonValue.Create(this.Inputs.Name); "value", value ]
             )
-          outputs = None }
+          outputs = Some(
+            makeObject [ "body", makeObject [ "name", JsonValue.Create(this.Inputs.Name); "value", value ] ]
+          ) }
 
 type AppendToStringVariable() =
     inherit Action()
