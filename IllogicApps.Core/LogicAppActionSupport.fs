@@ -90,3 +90,8 @@ let coerce (typ: VariableType) (value: JsonNode) : JsonNode =
     | :? FormatException ->
         raise
         <| new InvalidOperationException($"Failed to coerce value {value} to type {typ}")
+
+let toKvp (k: 'a, v: 'b) = new KeyValuePair<'a, 'b>(k, v)
+let fromKvp (kvp: KeyValuePair<'a, 'b>) = kvp.Key, kvp.Value
+let toKvps seq = Seq.map toKvp seq
+let fromKvps seq = Seq.map fromKvp seq

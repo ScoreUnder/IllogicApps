@@ -16,7 +16,7 @@ type BaseAction() =
     member val RunAfter: Map<string, Status list> option = None with get, set
 
     abstract member Execute: SimulatorContext -> ActionResult
-    abstract member GetChildren: unit -> BaseAction list
+    abstract member GetChildren: unit -> (string * BaseAction) list
     default this.GetChildren() = []
 
 type UnknownAction() =

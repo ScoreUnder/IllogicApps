@@ -41,7 +41,7 @@ type Scope() =
           inputs = None
           outputs = None }
 
-    override this.GetChildren() : BaseAction list = this.Actions.Values |> Seq.toList
+    override this.GetChildren() : (string * BaseAction) list = this.Actions |> fromKvps |> Seq.toList
 
 type If() =
     inherit Scope()
@@ -63,8 +63,8 @@ type If() =
           inputs = None
           outputs = Some(makeObject [ "expression", JsonValue.Create(conditionResult) ]) }
 
-    override this.GetChildren() : BaseAction list =
-        Seq.append this.Actions.Values this.ElseActions.Values |> Seq.toList
+    override this.GetChildren() : (string * BaseAction) list =
+        Seq.append this.Actions this.ElseActions |> fromKvps |> Seq.toList
 
 
 type Switch() =
@@ -92,9 +92,10 @@ type Switch() =
           inputs = None
           outputs = Some(makeObject [ "expression", value ]) }
 
-    override this.GetChildren() : BaseAction list =
+    override this.GetChildren() : (string * BaseAction) list =
         this.Cases.Values
-        |> Seq.fold (fun acc case -> Seq.append acc case.Actions.Values) this.Default.Actions.Values
+        |> Seq.fold (fun acc case -> Seq.append acc case.Actions) this.Default.Actions
+        |> fromKvps
         |> Seq.toList
 
 type Until() =
