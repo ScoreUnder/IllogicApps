@@ -64,8 +64,8 @@ module private SimulatorHelper =
         | JsonValueKind.String -> f <| node.GetValue<string>()
         | _ -> node.DeepClone()
 
-    let evaluateLanguageStr (str: string) : JsonNode =
-        if str.StartsWith("@") then
+    let evaluateLanguageStr simContext (str: string) : JsonNode =
+        if str.StartsWith("@") && not (str.StartsWith("@{")) then
             // Whole thing needs replacing with the output of the expression
             printfn "Not implemented: expression evaluation: %A" str
             JsonValue.Create(str)
@@ -136,6 +136,6 @@ type Simulator private (triggerOutput: JsonNode) =
 
         eval expr
 
-    override this.EvaluateLanguage expr = expr |> jsonMapStrs evaluateLanguageStr
+    override this.EvaluateLanguage expr = expr |> jsonMapStrs (evaluateLanguageStr this)
 
     override this.StopExecuting status = this.TerminationStatus <- Some status
