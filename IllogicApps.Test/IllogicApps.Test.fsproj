@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IllogicApps.Core\IllogicApps.Core.fsproj" />
+    <ProjectReference Include="..\IllogicApps.Simulator\IllogicApps.Simulator.fsproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="SimulatorContext.fs" />
+    <Compile Include="LogicAppBaseAction.fs" />
+    <Compile Include="LogicAppSpec.fs" />
+    <Compile Include="LogicAppActionSupport.fs" />
+    <Compile Include="LogicAppActions.fs" />
+    <Compile Include="ReadLogicApp.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FSharp.SystemTextJson" Version="1.3.13" />
+  </ItemGroup>
+</Project>
