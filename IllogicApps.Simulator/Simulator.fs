@@ -1,6 +1,7 @@
 namespace IllogicApps.Simulator
 
 open System.Collections.Generic
+open System.Text.Json
 open System.Text.Json.Nodes
 open IllogicApps.Core
 open IllogicApps.Simulator.LanguageCondition
@@ -48,6 +49,32 @@ module private SimulatorHelper =
         match node with
         | :? JsonArray as a -> a |> Seq.map (fun o -> o.AsObject())
         | _ -> failwithf "Expected array of objects, got %A" node
+
+    let rec jsonMapStrs (f: string -> JsonNode) (node: JsonNode) =
+        match node.GetValueKind() with
+        | JsonValueKind.Undefined -> failwith "Undefined value"
+        | JsonValueKind.Object ->
+            new JsonObject(
+                node.AsObject()
+                |> Seq.map (fun kv ->
+                    new KeyValuePair<string, JsonNode>((f kv.Key).GetValue<string>(), jsonMapStrs f kv.Value))
+            )
+            : JsonNode
+        | JsonValueKind.Array -> new JsonArray(node.AsArray() |> Seq.map (jsonMapStrs f) |> Seq.toArray)
+        | JsonValueKind.String -> f <| node.GetValue<string>()
+        | _ -> node.DeepClone()
+
+    let evaluateLanguageStr (str: string) : JsonNode =
+        if str.StartsWith("@") then
+            // Whole thing needs replacing with the output of the expression
+            printfn "Not implemented: expression evaluation: %s" str
+            JsonValue.Create(str)
+        else if str.Contains("@") then
+            // Always a string, but may contain sub-expressions
+            printfn "Not implemented: sub-expression evaluation: %s" str
+            JsonValue.Create(str)
+        else
+            JsonValue.Create(str)
 
 open SimulatorHelper
 
@@ -109,9 +136,6 @@ type Simulator private (triggerOutput: JsonNode) =
 
         eval expr
 
-    override this.EvaluateLanguage expr =
-        printfn "NOT IMPLEMENTED EvaluateLanguage: %A" expr
-        // TODO
-        expr
+    override this.EvaluateLanguage expr = expr |> jsonMapStrs evaluateLanguageStr
 
     override this.StopExecuting status = this.TerminationStatus <- Some status
