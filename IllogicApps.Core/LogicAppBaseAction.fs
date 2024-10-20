@@ -64,7 +64,7 @@ type ActionResolver(actionsNamespace: string) =
                 | None ->
                     let act = JsonSerializer.Deserialize<UnknownAction>(jsonObj, options)
                     act.Original <- jsonObj
-                    act :> BaseAction
+                    act : BaseAction
         with ex ->
             raise (
                 new JsonException($"Failed to deserialize action of type '{actionTypeStr}', as object {jsonObj}", ex)
