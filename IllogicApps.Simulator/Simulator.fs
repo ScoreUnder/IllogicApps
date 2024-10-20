@@ -139,3 +139,7 @@ type Simulator private (triggerOutput: JsonNode) =
     override this.EvaluateLanguage expr = expr |> jsonMapStrs (evaluateLanguageStr this)
 
     override this.StopExecuting status = this.TerminationStatus <- Some status
+
+    override this.ExternalServiceRequest request =
+        printfn "External service request: %A" request
+        ()

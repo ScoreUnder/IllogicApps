@@ -2,6 +2,7 @@ namespace IllogicApps.Core
 
 open System.Collections.Generic
 open System.Text.Json.Nodes
+open ExternalServiceTypes
 
 type Status =
     | Succeeded
@@ -27,3 +28,4 @@ and [<AbstractClass>] SimulatorContext(triggerOutput: JsonNode) =
     abstract member StopExecuting: Status -> unit
     abstract member EvaluateCondition: Expression -> bool
     abstract member EvaluateLanguage: JsonNode -> JsonNode
+    abstract member ExternalServiceRequest: ExternalServiceRequestType -> unit

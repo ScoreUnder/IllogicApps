@@ -318,3 +318,38 @@ type Response() =
         { status = Succeeded
           inputs = Some(inputsObject |> context.EvaluateLanguage)
           outputs = None }
+
+// HTTP actions
+
+type Http() =
+    inherit Action()
+
+    member val Inputs: HttpInputs =
+        { method = ""
+          uri = ""
+          headers = None
+          body = None
+          queries = None
+          cookie = None
+          authentication = None } with get, set
+
+    override this.Execute(context: SimulatorContext) =
+        printfn "HTTP: %A" this.Inputs
+
+        let result = ref <| new ExternalServiceTypes.HttpRequestReply() in
+
+        context.ExternalServiceRequest <| ExternalServiceTypes.HttpRequest (
+            new ExternalServiceTypes.HttpRequest(
+                Method = this.Inputs.method,
+                Uri = this.Inputs.uri,
+                Headers = (this.Inputs.headers |> Option.defaultValue Map.empty),
+                Body = (this.Inputs.body |> Option.map (fun v -> v.ToString())),
+                QueryParameters = (this.Inputs.queries |> Option.defaultValue Map.empty),
+                Cookie = this.Inputs.cookie,
+                Authentication = this.Inputs.authentication
+            ),
+            result)
+
+        { status = Succeeded
+          inputs = Some(JsonValue.Create(this.Inputs).Deserialize<JsonObject>())
+          outputs = Some(JsonValue.Create(result).Deserialize<JsonObject>()) }

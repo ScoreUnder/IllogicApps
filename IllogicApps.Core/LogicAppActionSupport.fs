@@ -51,6 +51,15 @@ type TerminateInputs =
     { runStatus: string
       runError: TerminateRunError option }
 
+type HttpInputs =
+    { method: string
+      uri: string
+      headers: Map<string, string> option
+      queries: Map<string, string> option
+      body: JsonNode option
+      cookie: string option
+      authentication: JsonObject option }
+
 let defaultExpression () : Expression = new JsonObject()
 
 let makeObject (pairs: (string * JsonNode) seq) : JsonNode =
