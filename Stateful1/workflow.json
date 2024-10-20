@@ -1,0 +1,415 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Initialize_variable": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "test",
+                            "type": "object",
+                            "value": {
+                                "test": true
+                            }
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_variable_1": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Compose": {
+                "type": "Compose",
+                "inputs": [
+                    "xx"
+                ],
+                "runAfter": {
+                    "Initialize_variable_2": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Set_variable": {
+                "type": "SetVariable",
+                "inputs": {
+                    "name": "test",
+                    "value": {
+                        "result": "@outputs('Compose')"
+                    }
+                },
+                "runAfter": {
+                    "Compose_2": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Response": {
+                "type": "Response",
+                "kind": "Http",
+                "inputs": {
+                    "statusCode": 200,
+                    "headers": {
+                        "header1": "value1"
+                    },
+                    "body": "@outputs('Compose_2')"
+                },
+                "runAfter": {
+                    "Set_variable": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Compose_1": {
+                "type": "Compose",
+                "inputs": "just a string",
+                "runAfter": {
+                    "Compose": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Compose_2": {
+                "type": "Compose",
+                "inputs": {
+                    "@{outputs('Compose')}": "@outputs('Compose')",
+                    "not interpolated": " @outputs('Compose')"
+                },
+                "runAfter": {
+                    "Compose_1": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Condition": {
+                "type": "If",
+                "expression": {
+                    "and": [
+                        {
+                            "equals": [
+                                "red",
+                                "blue"
+                            ]
+                        },
+                        {
+                            "or": [
+                                {
+                                    "equals": [
+                                        "green",
+                                        "green"
+                                    ]
+                                },
+                                {
+                                    "contains": [
+                                        "blah",
+                                        "wow"
+                                    ]
+                                },
+                                {
+                                    "not": {
+                                        "contains": [
+                                            "asdf",
+                                            "nowow"
+                                        ]
+                                    }
+                                },
+                                {
+                                    "not": {
+                                        "equals": [
+                                            "i",
+                                            "h"
+                                        ]
+                                    }
+                                },
+                                {
+                                    "greater": [
+                                        "x",
+                                        "x"
+                                    ]
+                                },
+                                {
+                                    "greaterOrEquals": [
+                                        "l",
+                                        "rr"
+                                    ]
+                                },
+                                {
+                                    "less": [
+                                        "u",
+                                        "ke"
+                                    ]
+                                },
+                                {
+                                    "lessOrEquals": [
+                                        "a",
+                                        "gg"
+                                    ]
+                                },
+                                {
+                                    "startsWith": [
+                                        "a",
+                                        "fu"
+                                    ]
+                                },
+                                {
+                                    "not": {
+                                        "startsWith": [
+                                            "@variables('EmptyArr')",
+                                            []
+                                        ]
+                                    }
+                                },
+                                {
+                                    "endsWith": [
+                                        {},
+                                        0
+                                    ]
+                                },
+                                {
+                                    "not": {
+                                        "endsWith": [
+                                            "",
+                                            false
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "actions": {
+                    "Scope": {
+                        "type": "Scope",
+                        "actions": {
+                            "Response-copy": {
+                                "type": "Response",
+                                "kind": "Http",
+                                "inputs": {
+                                    "statusCode": 200
+                                }
+                            }
+                        }
+                    }
+                },
+                "else": {
+                    "actions": {
+                        "Until": {
+                            "type": "Until",
+                            "expression": "@not(startsWith(1,2))",
+                            "limit": {
+                                "count": 60,
+                                "timeout": "PT1H"
+                            },
+                            "actions": {
+                                "Append_to_string_variable": {
+                                    "type": "AppendToStringVariable",
+                                    "inputs": {
+                                        "name": "str",
+                                        "value": "xxx"
+                                    }
+                                }
+                            }
+                        },
+                        "Terminate_1": {
+                            "type": "Terminate",
+                            "inputs": {
+                                "runStatus": "asfdasdfadsf",
+                                "runError": {
+                                    "code": "afawef",
+                                    "message": "fareoiugoareu"
+                                }
+                            },
+                            "runAfter": {
+                                "Until": [
+                                    "SUCCEEDED"
+                                ]
+                            },
+                            "trackedProperties": {
+                                "tracked": "thing",
+                                "fawefwa": [
+                                    1,
+                                    2
+                                ]
+                            }
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Response": [
+                        "SUCCEEDED"
+                    ],
+                    "Initialize_variable_2": [
+                        "SUCCEEDED",
+                        "TIMEDOUT",
+                        "SKIPPED",
+                        "FAILED"
+                    ]
+                }
+            },
+            "Initialize_variable_1": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "str",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "runAfter": {}
+            },
+            "Initialize_variable_2": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "EmptyArr",
+                            "type": "array"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_variable": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Switch": {
+                "type": "Switch",
+                "expression": {},
+                "default": {
+                    "actions": {
+                        "HTTP-copy_4": {
+                            "type": "Http",
+                            "inputs": {
+                                "uri": "http://localhost",
+                                "method": "GET"
+                            },
+                            "runtimeConfiguration": {
+                                "contentTransfer": {
+                                    "transferMode": "Chunked"
+                                }
+                            }
+                        }
+                    }
+                },
+                "cases": {
+                    "Case": {
+                        "actions": {
+                            "HTTP": {
+                                "type": "Http",
+                                "inputs": {
+                                    "uri": "http://localhost",
+                                    "method": "GET"
+                                },
+                                "runtimeConfiguration": {
+                                    "contentTransfer": {
+                                        "transferMode": "Chunked"
+                                    }
+                                }
+                            }
+                        },
+                        "case": 1
+                    },
+                    "Case 2": {
+                        "actions": {
+                            "HTTP-copy": {
+                                "type": "Http",
+                                "inputs": {
+                                    "uri": "http://localhost",
+                                    "method": "GET"
+                                },
+                                "runtimeConfiguration": {
+                                    "contentTransfer": {
+                                        "transferMode": "Chunked"
+                                    }
+                                }
+                            }
+                        },
+                        "case": "oatmeal"
+                    },
+                    "Case 3": {
+                        "actions": {
+                            "HTTP-copy_1": {
+                                "type": "Http",
+                                "inputs": {
+                                    "uri": "http://localhost",
+                                    "method": "GET",
+                                    "headers": {
+                                        "[]": "{}",
+                                        "null": "false",
+                                        "shit": "poop"
+                                    },
+                                    "queries": {
+                                        "bla": "blah",
+                                        "ijoj": "oioij",
+                                        "[]": "[]",
+                                        "{}": "{}"
+                                    },
+                                    "body": {},
+                                    "cookie": "{}"
+                                },
+                                "runtimeConfiguration": {
+                                    "contentTransfer": {
+                                        "transferMode": "Chunked"
+                                    }
+                                }
+                            }
+                        },
+                        "case": []
+                    },
+                    "Case 4": {
+                        "actions": {
+                            "HTTP-copy_2": {
+                                "type": "Http",
+                                "inputs": {
+                                    "uri": "http://localhost",
+                                    "method": "GET"
+                                },
+                                "runtimeConfiguration": {
+                                    "contentTransfer": {
+                                        "transferMode": "Chunked"
+                                    }
+                                }
+                            }
+                        },
+                        "case": "{}"
+                    },
+                    "Case 5": {
+                        "actions": {
+                            "HTTP-copy_3": {
+                                "type": "Http",
+                                "inputs": {
+                                    "uri": "http://localhost",
+                                    "method": "GET"
+                                },
+                                "runtimeConfiguration": {
+                                    "contentTransfer": {
+                                        "transferMode": "Chunked"
+                                    }
+                                }
+                            }
+                        },
+                        "case": "@null"
+                    }
+                },
+                "runAfter": {
+                    "Response": [
+                        "SUCCEEDED"
+                    ]
+                }
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "triggers": {
+            "When_a_HTTP_request_is_received": {
+                "type": "Request",
+                "kind": "Http"
+            }
+        }
+    },
+    "kind": "Stateful"
+}
