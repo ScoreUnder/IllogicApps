@@ -1,0 +1,80 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Condition": {
+                "type": "If",
+                "expression": {
+                    "and": [
+                        {
+                            "equals": [
+                                1,
+                                1
+                            ]
+                        }
+                    ]
+                },
+                "actions": {
+                    "Compose": {
+                        "type": "Compose",
+                        "inputs": "c"
+                    },
+                    "Compose_2": {
+                        "type": "Compose",
+                        "inputs": "d",
+                        "runAfter": {
+                            "Compose": [
+                                "SKIPPED"
+                            ]
+                        }
+                    },
+                    "Compose_2-copy": {
+                        "type": "Compose",
+                        "inputs": "d",
+                        "runAfter": {
+                            "Compose_2": [
+                                "SKIPPED"
+                            ]
+                        }
+                    }
+                },
+                "else": {
+                    "actions": {
+                        "Compose_1": {
+                            "type": "Compose",
+                            "inputs": "b"
+                        },
+                        "Compose_3": {
+                            "type": "Compose",
+                            "inputs": "a",
+                            "runAfter": {
+                                "Compose_1": [
+                                    "SKIPPED"
+                                ]
+                            }
+                        },
+                        "Compose_3-copy": {
+                            "type": "Compose",
+                            "inputs": "a",
+                            "runAfter": {
+                                "Compose_3": [
+                                    "SKIPPED"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "runAfter": {}
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "triggers": {
+            "When_a_HTTP_request_is_received": {
+                "type": "Request",
+                "kind": "Http"
+            }
+        }
+    },
+    "kind": "Stateful"
+}
