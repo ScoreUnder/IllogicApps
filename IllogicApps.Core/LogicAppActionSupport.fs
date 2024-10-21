@@ -31,7 +31,7 @@ type 'a VariablesInputs = { variables: 'a list }
 type HttpResponseInputs =
     { body: JsonNode option
       headers: IDictionary<string, string> option
-      statusCode: int }
+      statusCode: JsonNode }
 
 type SwitchDefault() =
     member val Actions: ActionGraph = Map.empty with get, set

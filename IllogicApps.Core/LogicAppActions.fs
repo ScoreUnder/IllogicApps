@@ -296,36 +296,50 @@ type Response() =
     member val Inputs =
         { body = None
           headers = None
-          statusCode = 0 } with get, set
+          statusCode = JsonValue.Create(0) } with get, set
 
     override this.Execute(context: SimulatorContext) =
         printfn "Response: %O" this.Inputs
 
+        let inline addKeyValuePair (key: string) (value: JsonNode option) (seq: seq<KeyValuePair<string, JsonNode>>) =
+            value
+            |> Option.map (fun v -> new KeyValuePair<string, JsonNode>(key, v))
+            |> Option.toList
+            |> Seq.append seq
+
+        let inline kvToJsonValues seq =
+            Seq.map (fun (k, v) -> k, (JsonValue.Create(box v): JsonNode)) seq
+
+        let processedBody = this.Inputs.body |> Option.map context.EvaluateLanguage
+
+        let processedHeaders =
+            this.Inputs.headers
+            |> Option.map (Seq.map (fun kv -> kv.Key, (context.EvaluateLanguage kv.Value).ToString()))
+
+        let processedStatusCode = context.EvaluateLanguage(this.Inputs.statusCode)
+
         let inputsObject =
             new JsonObject(
-                let inline addKeyValuePair
-                    (key: string)
-                    (value: JsonNode option)
-                    (seq: seq<KeyValuePair<string, JsonNode>>)
-                    =
-                    value
-                    |> Option.map (fun v -> new KeyValuePair<string, JsonNode>(key, v))
-                    |> Option.toList
-                    |> Seq.append seq
-
-                [ new KeyValuePair<string, JsonNode>("statusCode", JsonValue.Create(this.Inputs.statusCode)) ]
-                |> addKeyValuePair "body" this.Inputs.body
-                |> addKeyValuePair
-                    "headers"
-                    (this.Inputs.headers
-                     |> Option.map (fun h ->
-                         h
-                         |> Seq.map (fun kv -> kv.Key, (JsonValue.Create(kv.Value): JsonNode))
-                         |> makeObject))
+                [ new KeyValuePair<string, JsonNode>("statusCode", processedStatusCode) ]
+                |> addKeyValuePair "body" processedBody
+                |> addKeyValuePair "headers" (processedHeaders |> Option.map (kvToJsonValues >> makeObject))
             )
+            |> context.EvaluateLanguage
+
+        context.ExternalServiceRequest
+        <| ExternalServiceTypes.HttpResponse(
+            new ExternalServiceTypes.HttpRequestReply(
+                StatusCode = processedStatusCode.GetValue<int>(),
+                Headers = (processedHeaders |> Option.map Map.ofSeq |> Option.defaultValue Map.empty),
+                Body =
+                    (processedBody
+                     |> Option.map (fun f -> f.DeepClone())
+                     |> Option.defaultValue (JsonValue.Create(null)))
+            )
+        )
 
         { status = Succeeded
-          inputs = Some(inputsObject |> context.EvaluateLanguage)
+          inputs = Some(inputsObject)
           outputs = None }
 
 // HTTP actions

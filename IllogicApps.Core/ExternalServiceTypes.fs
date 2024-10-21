@@ -16,7 +16,9 @@ type HttpRequest() =
 type HttpRequestReply() =
     override this.ToString() = JsonSerializer.Serialize(this)
     member val StatusCode = 0 with get, set
-    member val Headers = Map.empty with get, set
+    member val Headers = Map.empty<string, string> with get, set
     member val Body: JsonNode = JsonValue.Create(null) with get, set
 
-type ExternalServiceRequestType = HttpRequest of HttpRequest * (HttpRequestReply ref)
+type ExternalServiceRequestType =
+    | HttpRequest of HttpRequest * (HttpRequestReply ref)
+    | HttpResponse of HttpRequestReply
