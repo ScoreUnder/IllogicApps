@@ -24,26 +24,37 @@ module private SimulatorHelper =
         |> Seq.map (fun (k, v) -> (k, v |> Seq.map snd |> List.ofSeq))
         |> Map.ofSeq
 
-    let areDependenciesSatisfied (actionResults: IDictionary<string, ActionResult>) (action: IGraphExecutable) =
-        action.RunAfter
-        |> Option.defaultValue emptyDependencyList
-        |> Seq.forall (fun kv ->
-            let requiredStatuses = kv.Value
+    type DependencyStatus =
+        | Satisfied
+        | Completed
+        | Incomplete
 
-            match kv.Key with
-            | "" -> true
-            | depName ->
-                match actionResults.TryGetValue(depName) with
-                | true, actionResult -> Seq.contains actionResult.status requiredStatuses
-                | _ -> false)
+    let mergeDependencyStatus acc status =
+        match acc, status with
+        | Incomplete, _ -> Incomplete
+        | _, Incomplete -> Incomplete
+        | Completed, _ -> Completed
+        | _, Completed -> Completed
+        | Satisfied, Satisfied -> Satisfied
 
-    let areDependenciesCompleted (actionResults: IDictionary<string, ActionResult>) (action: IGraphExecutable) =
+    let calculateDependencyStatus (actionResults: IDictionary<string, ActionResult>) (action: IGraphExecutable) =
+        let calcSingleDependency dep requiredStatuses =
+            match actionResults.TryGetValue(dep) with
+            | true, actionResult ->
+                if Seq.contains actionResult.status requiredStatuses then
+                    Satisfied
+                else
+                    Completed
+            | _ -> Incomplete
+
         action.RunAfter
-        |> Option.defaultValue emptyDependencyList
-        |> Seq.forall (fun kv ->
-            match kv.Key with
-            | "" -> true
-            | depName -> actionResults.ContainsKey(depName))
+        |> Option.defaultValue Map.empty
+        |> Seq.fold
+            (fun acc kv ->
+                let requiredStatuses = kv.Value
+                let depStatus = calcSingleDependency kv.Key requiredStatuses
+                mergeDependencyStatus acc depStatus)
+            Satisfied
 
     let trimLeaves
         (actions: Map<string, #IGraphExecutable>)
@@ -172,25 +183,25 @@ type Simulator private (triggerOutput: JsonNode) =
                     match remainingActions.TryGetValue actionName with
                     | false, _ -> executeNext rest
                     | true, action ->
-                        if areDependenciesSatisfied this.ActionResults action then
+                        match calculateDependencyStatus this.ActionResults action with
+                        | Satisfied ->
                             remainingActions.Remove actionName |> ignore
                             let result = action.Execute this
                             this.RecordActionResult actionName result
 
-                            let nextActions = rest @ (getNextActions actionName)
-                            executeNext nextActions
-                        else if areDependenciesCompleted this.ActionResults action then
+                            rest @ (getNextActions actionName)
+                        | Completed ->
                             // This action's dependencies are in the wrong state, skip it
                             remainingActions.Remove actionName |> ignore
                             this.RecordActionResult actionName skippedResult
                             action.GetChildren() |> this.ForceSkipAll
 
-                            let nextActions = rest @ (getNextActions actionName)
-                            executeNext nextActions
-                        else
+                            rest @ (getNextActions actionName)
+                        | Incomplete ->
                             // This action's dependencies are not yet complete, try again once something else finishes
                             // (it's ok to not put it back in the queue, as it will be re-added when its next dependency is completed)
-                            executeNext rest
+                            rest
+                        |> executeNext
 
         executeNext (getNextActions "")
 
@@ -201,7 +212,6 @@ type Simulator private (triggerOutput: JsonNode) =
         |> trimLeaves actions this.ActionResults
         |> Seq.map (fun name -> this.ActionResults.[name].status)
         |> Seq.fold mergeStatus Succeeded
-
 
     override this.EvaluateCondition expr =
         let rec eval (expr: Expression) =
