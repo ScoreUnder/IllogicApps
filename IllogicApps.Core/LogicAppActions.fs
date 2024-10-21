@@ -41,7 +41,10 @@ type Scope() =
           inputs = None
           outputs = None }
 
-    override this.GetChildren() : (string * BaseAction) list = this.Actions |> fromKvps |> Seq.toList
+    override this.GetChildren() : (string * IGraphExecutable) list =
+        this.Actions
+        |> Seq.map (fun kv -> kv.Key, (kv.Value: IGraphExecutable))
+        |> Seq.toList
 
 type If() =
     inherit Scope()
@@ -54,7 +57,13 @@ type If() =
         let conditionResult = context.EvaluateCondition this.Expression in // TODO
         printfn "If Condition: %b" conditionResult
 
-        let actions = if conditionResult then this.Actions else this.Else.Actions in
+        let (actions, otherActions) =
+            if conditionResult then
+                this.Actions, this.Else.Actions
+            else
+                this.Else.Actions, this.Actions in
+
+        context.ForceSkipAll otherActions
 
         let result = context.ExecuteGraph actions in
         printfn "If End"
@@ -63,8 +72,10 @@ type If() =
           inputs = None
           outputs = Some(makeObject [ "expression", JsonValue.Create(conditionResult) ]) }
 
-    override this.GetChildren() : (string * BaseAction) list =
-        Seq.append this.Actions this.Else.Actions |> fromKvps |> Seq.toList
+    override this.GetChildren() : (string * IGraphExecutable) list =
+        Seq.append this.Actions this.Else.Actions
+        |> Seq.map (fun kv -> kv.Key, (kv.Value: IGraphExecutable))
+        |> Seq.toList
 
 
 type Switch() =
@@ -79,12 +90,19 @@ type Switch() =
         let value = context.EvaluateLanguage this.Expression in
         printfn "Switch Value: %O" value
 
-        let result =
+        let actions =
             this.Cases.Values
             |> Seq.tryFind (fun case -> case.Case = value)
             |> Option.map _.Actions
-            |> Option.defaultValue this.Default.Actions
-            |> context.ExecuteGraph in
+            |> Option.defaultValue this.Default.Actions in
+
+        this.Cases.Values
+        |> Seq.map _.Actions
+        |> Seq.append [ this.Default.Actions ]
+        |> Seq.filter (fun selectedActions -> selectedActions <> actions)
+        |> Seq.iter context.ForceSkipAll
+
+        let result = context.ExecuteGraph actions in
 
         printfn "Switch End"
 
@@ -92,10 +110,10 @@ type Switch() =
           inputs = None
           outputs = Some(makeObject [ "expression", value ]) }
 
-    override this.GetChildren() : (string * BaseAction) list =
+    override this.GetChildren() =
         this.Cases.Values
         |> Seq.fold (fun acc case -> Seq.append acc case.Actions) this.Default.Actions
-        |> fromKvps
+        |> Seq.map (fun kv -> kv.Key, (kv.Value: IGraphExecutable))
         |> Seq.toList
 
 type Until() =

@@ -7,6 +7,7 @@ open System.Text.Json.Serialization
 type BaseAction() =
     interface IGraphExecutable with
         member this.Execute(context: SimulatorContext) = this.Execute(context)
+        member this.GetChildren() = this.GetChildren()
         member this.RunAfter = this.RunAfter
 
     [<JsonPropertyName("type")>]
@@ -15,17 +16,18 @@ type BaseAction() =
     member val RunAfter: Map<string, Status list> option = None with get, set
 
     abstract member Execute: SimulatorContext -> ActionResult
-    abstract member GetChildren: unit -> (string * BaseAction) list
+    abstract member GetChildren: unit -> (string * IGraphExecutable) list
     default this.GetChildren() = []
 
 let getAllChildren start =
-    let rec aux (from: (string * BaseAction) list) acc=
+    let rec aux (from: (string * IGraphExecutable) list) acc =
         from
         |> List.collect (fun (_, a) -> a.GetChildren())
         |> function
             | [] -> from @ acc
-            | next -> aux next (from @ acc)
-    in aux start []
+            | next -> aux next (from @ acc) in
+
+    aux start []
 
 type UnknownAction() =
     inherit BaseAction()

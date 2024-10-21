@@ -5,6 +5,7 @@ open System.Collections.Generic
 open System.Text.Json
 open System.Text.Json.Nodes
 open IllogicApps.Core
+open IllogicApps.Core.LogicAppBaseAction
 open IllogicApps.Simulator.LanguageCondition
 
 module private SimulatorHelper =
@@ -35,6 +36,14 @@ module private SimulatorHelper =
                 match actionResults.TryGetValue(depName) with
                 | true, actionResult -> Seq.contains actionResult.status requiredStatuses
                 | _ -> false)
+
+    let areDependenciesCompleted (actionResults: IDictionary<string, ActionResult>) (action: IGraphExecutable) =
+        action.RunAfter
+        |> Option.defaultValue emptyDependencyList
+        |> Seq.forall (fun kv ->
+            match kv.Key with
+            | "" -> true
+            | depName -> actionResults.ContainsKey(depName))
 
     let mergeStatus overall next =
         match (overall, next) with
@@ -77,6 +86,11 @@ module private SimulatorHelper =
         else
             JsonValue.Create(str)
 
+    let skippedResult =
+        { status = Skipped
+          inputs = None
+          outputs = None }
+
 open SimulatorHelper
 
 type LoopContextImpl(values: JsonNode list, disposeHook: LoopContext -> unit) as this =
@@ -111,6 +125,8 @@ type Simulator private (triggerOutput: JsonNode) =
     member val ActionResults = Dictionary<string, ActionResult>() with get, set
     member val LoopContextStack = Stack<LoopContextImpl>() with get, set
 
+    member private this.RecordActionResult name result = this.ActionResults.[name] <- result
+
     override this.ExecuteGraph(actions: Map<string, 'a> when 'a :> IGraphExecutable) =
         let dependencyGraph = createDependencyGraph actions
         let remainingActions = new Dictionary<string, 'a>(actions)
@@ -131,11 +147,20 @@ type Simulator private (triggerOutput: JsonNode) =
                         if areDependenciesSatisfied this.ActionResults action then
                             remainingActions.Remove actionName |> ignore
                             let result = action.Execute this
-                            this.ActionResults.[actionName] <- result
-                            let nextActions = rest @ (getNextActions actionName)
+                            this.RecordActionResult actionName result
 
+                            let nextActions = rest @ (getNextActions actionName)
                             executeNext (mergeStatus overallResult result.status) nextActions
+                        else if areDependenciesCompleted this.ActionResults action then
+                            // This action's dependencies are in the wrong state, skip it
+                            remainingActions.Remove actionName |> ignore
+                            this.RecordActionResult actionName skippedResult
+
+                            let nextActions = rest @ (getNextActions actionName)
+                            executeNext overallResult nextActions
                         else
+                            // This action's dependencies are not yet complete, try again once something else finishes
+                            // (it's ok to not put it back in the queue, as it will be re-added when its next dependency is completed)
                             executeNext overallResult rest
 
         executeNext Succeeded (getNextActions "")
@@ -177,3 +202,10 @@ type Simulator private (triggerOutput: JsonNode) =
             this.LoopContextStack.Pop() |> ignore
         else
             raise <| new InvalidOperationException("Loop context push/pop mismatch")
+
+    override this.ForceSkipAll actions =
+        actions
+        |> Seq.map (fun kvp -> kvp.Key, (kvp.Value: IGraphExecutable))
+        |> Seq.toList
+        |> getAllChildren
+        |> List.iter (fun (name, _) -> this.RecordActionResult name skippedResult)
