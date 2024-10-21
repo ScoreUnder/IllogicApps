@@ -37,11 +37,11 @@ type HttpResponseInputs =
       headers: IDictionary<string, string> option
       statusCode: JsonNode }
 
-type SwitchDefault() =
+type ActionGraphContainer() =
     member val Actions: ActionGraph = Map.empty with get, set
 
 type SwitchCase() =
-    inherit SwitchDefault()
+    inherit ActionGraphContainer()
 
     member val Case: JsonNode = JsonValue.Create(null) with get, set
 

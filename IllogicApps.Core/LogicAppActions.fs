@@ -47,14 +47,14 @@ type If() =
     inherit Scope()
 
     member val Expression = defaultExpression () with get, set
-    member val ElseActions: ActionGraph = Map.empty with get, set
+    member val Else: ActionGraphContainer = new ActionGraphContainer() with get, set
 
     override this.Execute(context: SimulatorContext) =
         printfn "If Begin"
         let conditionResult = context.EvaluateCondition this.Expression in // TODO
         printfn "If Condition: %b" conditionResult
 
-        let actions = if conditionResult then this.Actions else this.ElseActions in
+        let actions = if conditionResult then this.Actions else this.Else.Actions in
 
         let result = context.ExecuteGraph actions in
         printfn "If End"
@@ -64,14 +64,14 @@ type If() =
           outputs = Some(makeObject [ "expression", JsonValue.Create(conditionResult) ]) }
 
     override this.GetChildren() : (string * BaseAction) list =
-        Seq.append this.Actions this.ElseActions |> fromKvps |> Seq.toList
+        Seq.append this.Actions this.Else.Actions |> fromKvps |> Seq.toList
 
 
 type Switch() =
     inherit Action()
 
     member val Expression: JsonNode = JsonValue.Create(null) with get, set
-    member val Default = new SwitchDefault() with get, set
+    member val Default = new ActionGraphContainer() with get, set
     member val Cases: Map<string, SwitchCase> = Map.empty with get, set
 
     override this.Execute(context: SimulatorContext) =
