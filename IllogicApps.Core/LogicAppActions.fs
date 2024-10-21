@@ -244,19 +244,11 @@ type AppendToStringVariable() =
     member val Inputs = new SetVariableSingle() with get, set
 
     override this.Execute(context: SimulatorContext) =
-        printfn "AppendToStringVariable: %s = %O" this.Inputs.Name this.Inputs.Value
+        printfn "%s: %s = %O" this.ActionType this.Inputs.Name this.Inputs.Value
 
-        if not (context.Variables.ContainsKey(this.Inputs.Name)) then
-            failwithf "Variable '%s' does not exist" this.Inputs.Name
-
-        let originalValue = context.Variables.[this.Inputs.Name]
-
-        if originalValue.GetValueKind() <> JsonValueKind.String then
-            failwithf "Variable is of type %A, cannot append to string" (originalValue.GetValueKind())
-
+        let originalValue = getVarTypechecked context this.Inputs.Name this.ExpectedType
         let addend = this.Inputs.Value |> context.EvaluateLanguage
-
-        let newValue = JsonValue.Create(originalValue.ToString() + addend.ToString())
+        let newValue = this.Add originalValue addend
         context.Variables.[this.Inputs.Name] <- newValue
 
         { status = Succeeded
@@ -274,6 +266,53 @@ type AppendToStringVariable() =
                       ("value", newValue.DeepClone()) ]
             ) }
 
+    abstract member ExpectedType: JsonValueKind with get
+    override this.ExpectedType = JsonValueKind.String
+
+    abstract member Add: JsonNode -> JsonNode -> JsonNode
+
+    override this.Add a b =
+        JsonValue.Create(a.ToString() + b.ToString())
+
+type AppendToArrayVariable() =
+    inherit AppendToStringVariable()
+
+    override _.ExpectedType = JsonValueKind.Array
+
+    override _.Add a b =
+        let array = a.DeepClone().AsArray()
+        let value = b.DeepClone()
+        array.Add(value)
+        array
+
+type IncrementVariable() =
+    inherit SetVariable()
+
+    override this.Execute(context: SimulatorContext) =
+        printfn "%s: %s" this.ActionType this.Inputs.Name
+
+        let originalValue = getVarTypechecked context this.Inputs.Name JsonValueKind.Number
+        let increment = this.Inputs.Value |> context.EvaluateLanguage
+        let value = this.Add (originalValue.GetValue<int>()) (increment.GetValue<int>())
+        context.Variables.[this.Inputs.Name] <- JsonValue.Create(value)
+
+        { status = Succeeded
+          inputs =
+            Some(
+                makeObject
+                    [ "name", JsonValue.Create(this.Inputs.Name)
+                      "value", originalValue.DeepClone() ]
+            )
+          outputs = Some(makeObject [ "name", JsonValue.Create(this.Inputs.Name); "value", JsonValue.Create(value) ]) }
+
+    abstract member Add: int -> int -> int
+    override this.Add a b = a + b
+
+type DecrementVariable() =
+    inherit IncrementVariable()
+
+    override this.Add a b = a - b
+
 // Data Operations actions
 
 type Compose() =
@@ -289,6 +328,8 @@ type Compose() =
         { status = Succeeded
           inputs = Some(result)
           outputs = Some(result) }
+
+// Request actions
 
 type Response() =
     inherit Action()

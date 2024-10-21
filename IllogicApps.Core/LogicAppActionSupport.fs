@@ -117,6 +117,17 @@ let coerce (typ: VariableType) (value: JsonNode) : JsonNode =
         raise
         <| new InvalidOperationException($"Failed to coerce value {value} to type {typ}")
 
+let getVarTypechecked (context: SimulatorContext) var typ =
+    if not (context.Variables.ContainsKey(var)) then
+        failwithf "Variable '%s' does not exist" var
+
+    let originalValue = context.Variables.[var]
+
+    if originalValue.GetValueKind() <> typ then
+        failwithf "Variable is of type %A, expected %A" (originalValue.GetValueKind()) typ
+
+    originalValue
+
 let toKvp (k: 'a, v: 'b) = new KeyValuePair<'a, 'b>(k, v)
 let fromKvp (kvp: KeyValuePair<'a, 'b>) = kvp.Key, kvp.Value
 let toKvps seq = Seq.map toKvp seq
