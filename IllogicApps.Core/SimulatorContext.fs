@@ -1,5 +1,6 @@
 namespace IllogicApps.Core
 
+open System
 open System.Collections.Generic
 open System.Text.Json.Nodes
 open ExternalServiceTypes
@@ -17,6 +18,15 @@ type ActionResult =
       inputs: JsonNode option
       outputs: JsonNode option }
 
+[<AbstractClass>]
+type LoopContext() =
+    interface IDisposable with
+        member this.Dispose() : unit = this.Dispose()
+
+    abstract member Dispose: unit -> unit
+    abstract member Advance: unit -> bool
+    abstract member Current: JsonNode
+
 type IGraphExecutable =
     abstract Execute: SimulatorContext -> ActionResult
     abstract member RunAfter: Map<string, Status list> option with get
@@ -29,3 +39,4 @@ and [<AbstractClass>] SimulatorContext(triggerOutput: JsonNode) =
     abstract member EvaluateCondition: Expression -> bool
     abstract member EvaluateLanguage: JsonNode -> JsonNode
     abstract member ExternalServiceRequest: ExternalServiceRequestType -> unit
+    abstract member PushLoopContext: JsonNode seq -> LoopContext

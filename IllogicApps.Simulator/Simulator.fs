@@ -1,5 +1,6 @@
 namespace IllogicApps.Simulator
 
+open System
 open System.Collections.Generic
 open System.Text.Json
 open System.Text.Json.Nodes
@@ -78,6 +79,22 @@ module private SimulatorHelper =
 
 open SimulatorHelper
 
+type LoopContextImpl(values: JsonNode list, disposeHook: LoopContext -> unit) as this =
+    inherit LoopContext()
+
+    [<DefaultValue>]
+    val mutable values: JsonNode list
+
+    do this.values <- values
+
+    override this.Dispose() = disposeHook this
+
+    override this.Advance() =
+        this.values <- this.values.Tail
+        this.values.IsEmpty |> not
+
+    override this.Current = this.values.Head
+
 type Simulator private (triggerOutput: JsonNode) =
     inherit SimulatorContext(triggerOutput)
 
@@ -92,6 +109,7 @@ type Simulator private (triggerOutput: JsonNode) =
 
     member val TerminationStatus: Status option = None with get, set
     member val ActionResults = Dictionary<string, ActionResult>() with get, set
+    member val LoopContextStack = Stack<LoopContextImpl>() with get, set
 
     override this.ExecuteGraph(actions: Map<string, 'a> when 'a :> IGraphExecutable) =
         let dependencyGraph = createDependencyGraph actions
@@ -144,3 +162,18 @@ type Simulator private (triggerOutput: JsonNode) =
     override this.ExternalServiceRequest request =
         printfn "External service request: %A" request
         ()
+
+    override this.PushLoopContext(arg1: JsonNode seq) : LoopContext =
+        let loopContext =
+            new LoopContextImpl(List.ofSeq arg1, this.PopAndCompareLoopContext)
+
+        this.LoopContextStack.Push(loopContext)
+        loopContext
+
+    member this.PopAndCompareLoopContext context =
+        let top = this.LoopContextStack.Peek(): LoopContext
+
+        if top = context then
+            this.LoopContextStack.Pop() |> ignore
+        else
+            raise <| new InvalidOperationException("Loop context push/pop mismatch")

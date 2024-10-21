@@ -348,6 +348,36 @@ type ParseJson() =
           inputs = Some(makeObject [ "content", input; "schema", this.Inputs.schema ])
           outputs = Some(makeObject [ "body", result ]) }
 
+type Query() =
+    inherit Action()
+
+    member val Inputs: QueryInputs =
+        { from = JsonValue.Create(null)
+          where = JsonValue.Create(null) } with get, set
+
+    override this.Execute(context: SimulatorContext) =
+        printfn "Query: %O in %O" this.Inputs.where this.Inputs.from
+
+        let from = context.EvaluateLanguage this.Inputs.from
+        let where = context.EvaluateLanguage this.Inputs.where
+
+        let arrayVals = from.AsArray()
+        use loopContext = context.PushLoopContext arrayVals
+
+        let rec filterValsRev acc =
+            let current = loopContext.Current
+            let condition = where |> context.EvaluateLanguage
+            let next = if condition.GetValue<bool>() then current :: acc else acc
+            if loopContext.Advance() then filterValsRev next else next
+
+        let result = filterValsRev [] |> List.rev in
+
+        printfn "Query Result: %O" result
+
+        { status = Succeeded
+          inputs = Some(makeObject [ "from", from.DeepClone() ])
+          outputs = Some(makeObject [ "body", new JsonArray(result |> List.toArray) ]) }
+
 // Request actions
 
 type Response() =
