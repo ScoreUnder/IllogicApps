@@ -47,7 +47,7 @@ module private SimulatorHelper =
 
     let arrayOfObjects (node: JsonNode) =
         match node with
-        | :? JsonArray as a -> a |> Seq.map (fun o -> o.AsObject())
+        | :? JsonArray as a -> a |> Seq.map _.AsObject()
         | _ -> failwithf "Expected array of objects, got %O" node
 
     let rec jsonMapStrs (f: string -> JsonNode) (node: JsonNode) =
@@ -131,12 +131,13 @@ type Simulator private (triggerOutput: JsonNode) =
             | "and" -> kv.Value |> arrayOfObjects |> Seq.forall eval
             | "or" -> kv.Value |> arrayOfObjects |> Seq.exists eval
             | "not" -> kv.Value.AsObject() |> eval |> not
-            | LanguageCondition fn -> kv.Value.AsArray() |> List.ofSeq |> fn |> (fun f -> f.GetValue<bool>())
+            | LanguageCondition fn -> kv.Value.AsArray() |> List.ofSeq |> fn |> _.GetValue<bool>()
             | _ -> failwithf "Unexpected expression %A" expr
 
         eval expr
 
-    override this.EvaluateLanguage expr = expr |> jsonMapStrs (evaluateLanguageStr this)
+    override this.EvaluateLanguage expr =
+        expr |> jsonMapStrs (evaluateLanguageStr this)
 
     override this.StopExecuting status = this.TerminationStatus <- Some status
 

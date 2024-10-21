@@ -82,7 +82,7 @@ type Switch() =
         let result =
             this.Cases.Values
             |> Seq.tryFind (fun case -> case.Case = value)
-            |> Option.map (fun case -> case.Actions)
+            |> Option.map _.Actions
             |> Option.defaultValue this.Default.Actions
             |> context.ExecuteGraph in
 
@@ -346,7 +346,7 @@ type ParseJson() =
 
         { status = Succeeded
           inputs = Some(makeObject [ "content", input; "schema", this.Inputs.schema ])
-          outputs = Some(makeObject [ "body", result]) }
+          outputs = Some(makeObject [ "body", result ]) }
 
 // Request actions
 
@@ -393,7 +393,7 @@ type Response() =
                 Headers = (processedHeaders |> Option.map Map.ofSeq |> Option.defaultValue Map.empty),
                 Body =
                     (processedBody
-                     |> Option.map (fun f -> f.DeepClone())
+                     |> Option.map _.DeepClone()
                      |> Option.defaultValue (JsonValue.Create(null)))
             )
         )
@@ -427,7 +427,7 @@ type Http() =
                 Method = this.Inputs.method,
                 Uri = this.Inputs.uri,
                 Headers = (this.Inputs.headers |> Option.defaultValue Map.empty),
-                Body = (this.Inputs.body |> Option.map (fun v -> v.ToString())),
+                Body = (this.Inputs.body |> Option.map _.ToString()),
                 QueryParameters = (this.Inputs.queries |> Option.defaultValue Map.empty),
                 Cookie = this.Inputs.cookie,
                 Authentication = this.Inputs.authentication
