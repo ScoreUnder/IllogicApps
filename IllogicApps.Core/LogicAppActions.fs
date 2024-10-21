@@ -1,13 +1,13 @@
 namespace IllogicApps.Core.LogicAppActions
 
 open System.Collections.Generic
+open System.Text.Json
 open System.Text.Json.Nodes
+open System.Xml
 
 open IllogicApps.Core
 open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Core.LogicAppActionSupport
-open IllogicApps.Core.LogicAppBaseAction
-open System.Text.Json
 
 // Triggers
 
@@ -126,7 +126,7 @@ type Until() =
     override this.Execute(context: SimulatorContext) =
         printfn "Until Begin"
 
-        let parsedTimeout = System.TimeSpan.Parse(this.Limit.timeout)
+        let parsedTimeout = XmlConvert.ToTimeSpan(this.Limit.timeout)
         let timeout = System.DateTime.Now.Add(parsedTimeout)
 
         let rec attempt num =
