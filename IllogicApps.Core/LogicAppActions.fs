@@ -231,10 +231,12 @@ type SetVariable() =
 
         context.Variables.[this.Inputs.Name] <- value
 
+        let inputs =
+            makeObject [ "name", JsonValue.Create(this.Inputs.Name); "value", value.DeepClone() ]
+
         { status = Succeeded
-          inputs = Some(makeObject [ "name", JsonValue.Create(this.Inputs.Name); "value", value ])
-          outputs =
-            Some(makeObject [ "body", makeObject [ "name", JsonValue.Create(this.Inputs.Name); "value", value ] ]) }
+          inputs = Some(inputs)
+          outputs = Some(makeObject [ "body", inputs.DeepClone() ]) }
 
 type AppendToStringVariable() =
     inherit Action()
@@ -258,9 +260,19 @@ type AppendToStringVariable() =
         context.Variables.[this.Inputs.Name] <- newValue
 
         { status = Succeeded
-          inputs = Some(makeObject [ ("name", JsonValue.Create(this.Inputs.Name)); ("value", this.Inputs.Value) ])
+          inputs =
+            Some(
+                makeObject
+                    [ ("name", JsonValue.Create(this.Inputs.Name))
+                      ("value", this.Inputs.Value.DeepClone()) ]
+            )
           // TODO check this for accuracy
-          outputs = Some(makeObject [ ("name", JsonValue.Create(this.Inputs.Name)); ("value", newValue) ]) }
+          outputs =
+            Some(
+                makeObject
+                    [ ("name", JsonValue.Create(this.Inputs.Name))
+                      ("value", newValue.DeepClone()) ]
+            ) }
 
 // Data Operations actions
 
