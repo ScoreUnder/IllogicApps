@@ -232,13 +232,9 @@ type SetVariable() =
         context.Variables.[this.Inputs.Name] <- value
 
         { status = Succeeded
-          inputs =
-            Some(
-                makeObject [ "name", JsonValue.Create(this.Inputs.Name); "value", value ]
-            )
-          outputs = Some(
-            makeObject [ "body", makeObject [ "name", JsonValue.Create(this.Inputs.Name); "value", value ] ]
-          ) }
+          inputs = Some(makeObject [ "name", JsonValue.Create(this.Inputs.Name); "value", value ])
+          outputs =
+            Some(makeObject [ "body", makeObject [ "name", JsonValue.Create(this.Inputs.Name); "value", value ] ]) }
 
 type AppendToStringVariable() =
     inherit Action()
@@ -339,7 +335,8 @@ type Http() =
 
         let result = ref <| new ExternalServiceTypes.HttpRequestReply() in
 
-        context.ExternalServiceRequest <| ExternalServiceTypes.HttpRequest (
+        context.ExternalServiceRequest
+        <| ExternalServiceTypes.HttpRequest(
             new ExternalServiceTypes.HttpRequest(
                 Method = this.Inputs.method,
                 Uri = this.Inputs.uri,
@@ -349,7 +346,8 @@ type Http() =
                 Cookie = this.Inputs.cookie,
                 Authentication = this.Inputs.authentication
             ),
-            result)
+            result
+        )
 
         { status = Succeeded
           inputs = Some(JsonValue.Create(this.Inputs).Deserialize<JsonObject>())
