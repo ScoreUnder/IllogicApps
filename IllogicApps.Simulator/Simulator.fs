@@ -155,6 +155,7 @@ type Simulator private (triggerOutput: JsonNode) =
                             // This action's dependencies are in the wrong state, skip it
                             remainingActions.Remove actionName |> ignore
                             this.RecordActionResult actionName skippedResult
+                            action.GetChildren() |> this.ForceSkipAll
 
                             let nextActions = rest @ (getNextActions actionName)
                             executeNext overallResult nextActions
@@ -205,7 +206,7 @@ type Simulator private (triggerOutput: JsonNode) =
 
     override this.ForceSkipAll actions =
         actions
-        |> Seq.map (fun kvp -> kvp.Key, (kvp.Value: IGraphExecutable))
+        |> Seq.map (fun (k, v) -> k, (v: IGraphExecutable))
         |> Seq.toList
         |> getAllChildren
         |> List.iter (fun (name, _) -> this.RecordActionResult name skippedResult)

@@ -63,7 +63,7 @@ type If() =
             else
                 this.Else.Actions, this.Actions in
 
-        context.ForceSkipAll otherActions
+        otherActions |> fromKvps |> context.ForceSkipAll
 
         let result = context.ExecuteGraph actions in
         printfn "If End"
@@ -100,7 +100,8 @@ type Switch() =
         |> Seq.map _.Actions
         |> Seq.append [ this.Default.Actions ]
         |> Seq.filter (fun selectedActions -> selectedActions <> actions)
-        |> Seq.iter context.ForceSkipAll
+        |> Seq.collect fromKvps
+        |> context.ForceSkipAll
 
         let result = context.ExecuteGraph actions in
 
