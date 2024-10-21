@@ -329,6 +329,25 @@ type Compose() =
           inputs = Some(result)
           outputs = Some(result) }
 
+type ParseJson() =
+    inherit Action()
+
+    member val Inputs: ParseJsonInputs =
+        { content = JsonValue.Create(null)
+          schema = JsonValue.Create(null) } with get, set
+
+    override this.Execute(context: SimulatorContext) =
+        printfn "ParseJson: %O" this.Inputs
+        let input = context.EvaluateLanguage this.Inputs.content
+        let result = input.ToString() |> JsonNode.Parse
+        // TODO: schema
+        // TODO: can we do freaky variable stuff in the schema?
+        printfn "ParseJson Result: %O" result
+
+        { status = Succeeded
+          inputs = Some(makeObject [ "content", input; "schema", this.Inputs.schema ])
+          outputs = Some(makeObject [ "body", result]) }
+
 // Request actions
 
 type Response() =

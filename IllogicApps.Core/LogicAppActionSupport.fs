@@ -28,6 +28,8 @@ type InitializeVariableSingle() =
 
 type 'a VariablesInputs = { variables: 'a list }
 
+type ParseJsonInputs = { content: JsonNode; schema: JsonNode }
+
 type HttpResponseInputs =
     { body: JsonNode option
       headers: IDictionary<string, string> option
