@@ -45,6 +45,34 @@ module private SimulatorHelper =
             | "" -> true
             | depName -> actionResults.ContainsKey(depName))
 
+    let trimLeaves
+        (actions: Map<string, #IGraphExecutable>)
+        (actionResults: IDictionary<string, ActionResult>)
+        (leafActions: string list)
+        =
+        let rec loop leafActions =
+            let changed, newLeaves =
+                leafActions
+                |> List.fold
+                    (fun (chg, acc) name ->
+                        let result = actionResults.[name]
+
+                        match result.status with
+                        | Skipped ->
+                            let higherActions =
+                                actions.[name].RunAfter
+                                |> Option.defaultValue Map.empty
+                                |> Map.keys
+                                |> List.ofSeq
+
+                            true, (higherActions @ acc)
+                        | _ -> chg, name :: acc)
+                    (false, [])
+
+            if changed then loop newLeaves else newLeaves
+
+        loop leafActions
+
     let mergeStatus overall next =
         match (overall, next) with
         | (first, Skipped) -> first
@@ -134,15 +162,15 @@ type Simulator private (triggerOutput: JsonNode) =
         let getNextActions name =
             Map.tryFind name dependencyGraph |> Option.defaultValue []
 
-        let rec executeNext overallResult actionQueue =
+        let rec executeNext actionQueue =
             if this.TerminationStatus.IsSome then
-                overallResult
+                ()
             else
                 match actionQueue with
-                | [] -> overallResult
+                | [] -> ()
                 | actionName :: rest ->
                     match remainingActions.TryGetValue actionName with
-                    | false, _ -> executeNext overallResult rest
+                    | false, _ -> executeNext rest
                     | true, action ->
                         if areDependenciesSatisfied this.ActionResults action then
                             remainingActions.Remove actionName |> ignore
@@ -150,7 +178,7 @@ type Simulator private (triggerOutput: JsonNode) =
                             this.RecordActionResult actionName result
 
                             let nextActions = rest @ (getNextActions actionName)
-                            executeNext (mergeStatus overallResult result.status) nextActions
+                            executeNext nextActions
                         else if areDependenciesCompleted this.ActionResults action then
                             // This action's dependencies are in the wrong state, skip it
                             remainingActions.Remove actionName |> ignore
@@ -158,13 +186,21 @@ type Simulator private (triggerOutput: JsonNode) =
                             action.GetChildren() |> this.ForceSkipAll
 
                             let nextActions = rest @ (getNextActions actionName)
-                            executeNext overallResult nextActions
+                            executeNext nextActions
                         else
                             // This action's dependencies are not yet complete, try again once something else finishes
                             // (it's ok to not put it back in the queue, as it will be re-added when its next dependency is completed)
-                            executeNext overallResult rest
+                            executeNext rest
 
-        executeNext Succeeded (getNextActions "")
+        executeNext (getNextActions "")
+
+        dependencyGraph.Keys
+        |> Set.ofSeq
+        |> Set.difference (actions.Keys |> Set.ofSeq)
+        |> Set.toList
+        |> trimLeaves actions this.ActionResults
+        |> Seq.map (fun name -> this.ActionResults.[name].status)
+        |> Seq.fold mergeStatus Succeeded
 
 
     override this.EvaluateCondition expr =
