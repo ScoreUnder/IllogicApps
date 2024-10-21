@@ -2,10 +2,15 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "IllogicApps.Test Debug",
-            "type": "dotnet",
+            "name": "Debug IllogicApps.Test",
+            "type": "coreclr",
             "request": "launch",
-            "projectPath": "${workspaceFolder}/IllogicApps.Test/IllogicApps.Test.fsproj"
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/IllogicApps.Test/bin/Debug/net8.0/IllogicApps.Test.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "console": "internalConsole"
         },
         {
             "name": "Attach to .NET Functions",

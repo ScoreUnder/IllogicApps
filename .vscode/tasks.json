@@ -29,13 +29,12 @@
 			"type": "shell",
 			"command": "dotnet",
 			"args": [
-				"run",
-				"--project",
+				"build",
 				"IllogicApps.Test/IllogicApps.Test.fsproj"
 			],
 			"problemMatcher": "$msCompile",
 			"isBackground": false,
-			"label": "Run IllogicApps.Test",
+			"label": "build",
 			"group": {
 				"kind": "build",
 				"isDefault": true
