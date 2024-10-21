@@ -60,6 +60,23 @@ type HttpInputs =
       cookie: string option
       authentication: JsonObject option }
 
+type WorkflowInputHostWorkflow = { id: string }
+
+type WorkflowInputHost = { workflow: WorkflowInputHostWorkflow }
+
+type WorkflowInputRetryPolicy() =
+    member val Type = "" with get, set
+    member val Count = 0 with get, set
+    member val Interval = "" with get, set
+    member val MinimumInterval = "" with get, set
+    member val MaximumInterval = "" with get, set
+
+type WorkflowInputs() =
+    member val Host = { workflow = { id = "" } } with get, set
+    member val Headers = Map.empty<string, string> with get, set
+    member val Body: JsonNode = JsonValue.Create(null) with get, set
+    member val RetryPolicy = new WorkflowInputRetryPolicy() with get, set
+
 let defaultExpression () : Expression = new JsonObject()
 
 let makeObject (pairs: (string * JsonNode) seq) : JsonNode =

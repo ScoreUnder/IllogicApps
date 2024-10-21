@@ -378,3 +378,19 @@ type Http() =
         { status = Succeeded
           inputs = Some(JsonValue.Create(this.Inputs).Deserialize<JsonObject>())
           outputs = Some(JsonValue.Create(result).Deserialize<JsonObject>()) }
+
+// Workflow actions
+
+type Workflow() =
+    inherit Action()
+
+    member val Inputs: WorkflowInputs = new WorkflowInputs() with get, set
+
+    override this.Execute(context: SimulatorContext) =
+        printfn "Workflow: %s" (JsonSerializer.Serialize(this))
+
+        printfn "Unimplemented" // TODO
+
+        { status = Succeeded
+          inputs = Some(JsonValue.Create(this.Inputs).Deserialize<JsonObject>())
+          outputs = None }
