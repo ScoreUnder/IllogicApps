@@ -1,5 +1,6 @@
 module IllogicApps.Simulator.LanguageCondition
 
+open System
 open System.Text.Json
 open System.Text.Json.Nodes
 
@@ -19,11 +20,46 @@ let inline private ensureString (a: JsonNode) =
     | JsonValueKind.String -> a.GetValue<string>()
     | kind -> failwithf "Expected %s to be a string, got %A" (nameof a) kind
 
-let private compareValues f (a: JsonNode) (b: JsonNode) =
+type private ComparisonResult =
+    | Equal
+    | Greater
+    | Less
+    | Incomparable
+
+let private compareStrings a b =
+    match String.Compare(a, b, StringComparison.InvariantCulture) with
+    | 0 -> Equal
+    | n when n > 0 -> Greater
+    | _ -> Less
+
+let private compareNumbers a b =
+    if Double.IsNaN(a) || Double.IsNaN(b) then Incomparable
+    elif a = b then Equal
+    elif a > b then Greater
+    else Less
+
+let private compareValues (a: JsonNode) (b: JsonNode) : ComparisonResult =
     let ka = a.GetValueKind()
     let kb = b.GetValueKind()
-    if ka = kb then f (a.GetValue()) (b.GetValue())
-    else failwithf "Expected both values to be of the same type, got %A and %A" ka kb
+
+    if ka = kb then
+        match ka with
+        | JsonValueKind.String -> compareStrings (a.GetValue<string>()) (b.GetValue<string>())
+        | JsonValueKind.Number -> compareNumbers (a.GetValue<float>()) (b.GetValue<float>())
+        | JsonValueKind.Array -> Incomparable // TODO is this how it works?
+        | JsonValueKind.Object -> Incomparable
+        | JsonValueKind.Null
+        | JsonValueKind.False
+        | JsonValueKind.True -> Equal
+        | _ -> failwith "Unknown enum value"
+    else
+        match ka, kb with
+        | JsonValueKind.String, JsonValueKind.Number -> compareStrings (a.ToString()) (b.ToString()) // TODO does this really coerce?
+        | JsonValueKind.Number, JsonValueKind.String -> compareStrings (a.ToString()) (b.ToString())
+        | _ -> Incomparable
+
+let private checkComparison results a b =
+    List.contains (compareValues a b) results
 
 type LanguageFunction = JsonNode list -> JsonNode
 
@@ -35,11 +71,14 @@ let condContains =
             value.GetValue<string>().Contains(b.ToString())
         | _ -> false)
 
-let condEquals: LanguageFunction = twoArg (=)
-let condGreater: LanguageFunction = twoArg (compareValues (>))
-let condGreaterOrEquals: LanguageFunction = twoArg (compareValues (>=))
-let condLess: LanguageFunction = twoArg (compareValues (<))
-let condLessOrEquals: LanguageFunction = twoArg (compareValues (<=))
+let condEquals: LanguageFunction = twoArg (checkComparison [ Equal ])
+let condGreater: LanguageFunction = twoArg (checkComparison [ Greater ])
+
+let condGreaterOrEquals: LanguageFunction =
+    twoArg (checkComparison [ Greater; Equal ])
+
+let condLess: LanguageFunction = twoArg (checkComparison [ Less ])
+let condLessOrEquals: LanguageFunction = twoArg (checkComparison [ Less; Equal ])
 
 let condStartsWith: LanguageFunction =
     twoArg (fun a b ->
@@ -53,16 +92,16 @@ let condEndsWith: LanguageFunction =
         let b = ensureString b
         a.EndsWith(b, System.StringComparison.InvariantCulture))
 
-let conditions = Map.ofList [
-    "contains", condContains
-    "equals", condEquals
-    "greater", condGreater
-    "greaterOrEquals", condGreaterOrEquals
-    "less", condLess
-    "lessOrEquals", condLessOrEquals
-    "startsWith", condStartsWith
-    "endsWith", condEndsWith
-]
+let conditions =
+    Map.ofList
+        [ "contains", condContains
+          "equals", condEquals
+          "greater", condGreater
+          "greaterOrEquals", condGreaterOrEquals
+          "less", condLess
+          "lessOrEquals", condLessOrEquals
+          "startsWith", condStartsWith
+          "endsWith", condEndsWith ]
 
 let (|LanguageCondition|_|) name =
     match conditions.TryGetValue(name) with
