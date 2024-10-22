@@ -147,6 +147,7 @@ type Until() =
                     printfn "Until Condition: %b" condition
                     if condition then attempt (num + 1) else result
             | Skipped -> failwith "Overall result is Skipped"
+            | Cancelled
             | Failed
             | TimedOut -> result
 

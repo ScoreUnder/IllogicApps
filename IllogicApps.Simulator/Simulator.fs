@@ -172,44 +172,52 @@ type Simulator private (triggerOutput: JsonNode) =
             Map.tryFind name dependencyGraph |> Option.defaultValue []
 
         let rec executeNext actionQueue =
-            if this.TerminationStatus.IsSome then
-                ()
-            else
-                match actionQueue with
-                | [] -> ()
-                | actionName :: rest ->
-                    match remainingActions.TryGetValue actionName with
-                    | false, _ -> executeNext rest
-                    | true, action ->
-                        match calculateDependencyStatus this.ActionResults action with
-                        | Satisfied ->
-                            remainingActions.Remove actionName |> ignore
-                            let result = action.Execute this
-                            this.RecordActionResult actionName result
+            match actionQueue with
+            | [] -> ()
+            | actionName :: rest ->
+                match remainingActions.TryGetValue actionName with
+                | false, _ -> executeNext rest
+                | true, action ->
+                    let status =
+                        if this.TerminationStatus.IsSome then
+                            // If we're terminating, just skip everything
+                            // (i.e. consider dependencies fulfilled but not in the right state)
+                            Completed
+                        else
+                            calculateDependencyStatus this.ActionResults action
 
-                            rest @ (getNextActions actionName)
-                        | Completed ->
-                            // This action's dependencies are in the wrong state, skip it
-                            remainingActions.Remove actionName |> ignore
-                            this.RecordActionResult actionName skippedResult
-                            action.GetChildren() |> this.ForceSkipAll
+                    match status with
+                    | Satisfied ->
+                        remainingActions.Remove actionName |> ignore
+                        let result = action.Execute this
+                        this.RecordActionResult actionName result
 
-                            rest @ (getNextActions actionName)
-                        | Incomplete ->
-                            // This action's dependencies are not yet complete, try again once something else finishes
-                            // (it's ok to not put it back in the queue, as it will be re-added when its next dependency is completed)
-                            rest
-                        |> executeNext
+                        rest @ (getNextActions actionName)
+                    | Completed ->
+                        // This action's dependencies are in the wrong state, skip it
+                        remainingActions.Remove actionName |> ignore
+                        this.RecordActionResult actionName skippedResult
+                        action.GetChildren() |> this.ForceSkipAll
+
+                        rest @ (getNextActions actionName)
+                    | Incomplete ->
+                        // This action's dependencies are not yet complete, try again once something else finishes
+                        // (it's ok to not put it back in the queue, as it will be re-added when its next dependency is completed)
+                        rest
+                    |> executeNext
 
         executeNext (getNextActions "")
 
-        dependencyGraph.Keys
-        |> Set.ofSeq
-        |> Set.difference (actions.Keys |> Set.ofSeq)
-        |> Set.toList
-        |> trimLeaves actions this.ActionResults
-        |> Seq.map (fun name -> this.ActionResults.[name].status)
-        |> Seq.fold mergeStatus Succeeded
+        if this.TerminationStatus.IsSome then
+            Cancelled
+        else
+            dependencyGraph.Keys
+            |> Set.ofSeq
+            |> Set.difference (actions.Keys |> Set.ofSeq)
+            |> Set.toList
+            |> trimLeaves actions this.ActionResults
+            |> Seq.map (fun name -> this.ActionResults.[name].status)
+            |> Seq.fold mergeStatus Succeeded
 
     override this.EvaluateCondition expr =
         let rec eval (expr: Expression) =

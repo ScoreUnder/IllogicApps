@@ -10,6 +10,7 @@ type Status =
     | Failed
     | Skipped
     | TimedOut
+    | Cancelled
 
 type Expression = JsonObject
 
