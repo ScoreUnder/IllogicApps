@@ -47,6 +47,87 @@ let objectToString (node: JsonNode) : string =
             node.ToString()
     | _ -> node.ToString()
 
+type NumberSubtype =
+    | Integer of int
+    | Float of float
+    | Decimal of decimal
+
+type Number2Subtype =
+    | Integer2 of int * int
+    | Float2 of float * float
+    | Decimal2 of decimal * decimal
+
+type Arithmetic2Type =
+    | Add
+    | Subtract
+    | Multiply
+    | Divide
+    | Modulo
+    | Min
+    | Max
+
+let inline performArithmeticOp< ^a
+    when ^a: (static member (+): ^a * ^a -> ^a)
+    and ^a: (static member (-): ^a * ^a -> ^a)
+    and ^a: (static member (*): ^a * ^a -> ^a)
+    and ^a: (static member (/): ^a * ^a -> ^a)
+    and ^a: (static member (%): ^a * ^a -> ^a)
+    and ^a: (static member Min: ^a * ^a -> ^a)
+    and ^a: (static member Max: ^a * ^a -> ^a)>
+    op
+    (a: 'a)
+    (b: 'a)
+    =
+    match op with
+    | Add -> a + b
+    | Subtract -> a - b
+    | Multiply -> a * b
+    | Divide -> a / b
+    | Modulo -> a % b
+    | Min -> (^a: (static member Min: ^a * ^a -> ^a) (a, b))
+    | Max -> (^a: (static member Max: ^a * ^a -> ^a) (a, b))
+
+let jsonNumberToSubtype (node: JsonNode) : NumberSubtype =
+    match node.GetValueKind() with
+    | JsonValueKind.Number ->
+        let value = box <| node.GetValue()
+
+        match value with
+        | :? int as i -> Integer i
+        | :? float as f -> Float f
+        | :? decimal as d -> Decimal d
+        | _ -> failwithf "Expected number, got %A" (value.GetType().Name)
+    | kind -> failwithf "Expected number, got %A" kind
+
+let promoteNums a b =
+    match a, b with
+    | Integer a, Integer b -> Integer2(a, b)
+    | Integer a, Float b -> Float2(float a, b)
+    | Integer a, Decimal b -> Decimal2(decimal a, b)
+    | Float a, Integer b -> Float2(a, float b)
+    | Float a, Float b -> Float2(a, b)
+    | Float a, Decimal b -> Decimal2(decimal a, b)
+    | Decimal a, Integer b -> Decimal2(a, decimal b)
+    | Decimal a, Float b -> Decimal2(a, decimal b)
+    | Decimal a, Decimal b -> Decimal2(a, b)
+
+let arithmetic2 op num1 num2 =
+    promoteNums (jsonNumberToSubtype num1) (jsonNumberToSubtype num2)
+    |> function
+        | Integer2(a, b) -> performArithmeticOp op a b |> JsonValue.Create
+        | Float2(a, b) -> performArithmeticOp op a b |> JsonValue.Create
+        | Decimal2(a, b) -> performArithmeticOp op a b |> JsonValue.Create
+
+let arithmetic2Function (op: Arithmetic2Type) (args: Args) : JsonNode =
+    match args with
+    | [ a; b ] ->
+        match a.GetValueKind(), b.GetValueKind() with
+        | JsonValueKind.Number, JsonValueKind.Number -> arithmetic2 op a b
+        | kindA, kindB -> failwithf "Expected numbers, got %A and %A" kindA kindB
+    | _ -> failwith "Expected 2 arguments"
+
+let myRand = lazy (System.Random())
+
 // String functions
 
 let f_concat _ (args: Args) : JsonNode =
@@ -140,27 +221,40 @@ let f_string _ (args: Args) : JsonNode =
 
 // Math functions
 
-let f_sub _ (args: Args) : JsonNode =
+let f_add _ (args: Args) : JsonNode = arithmetic2Function Add args
+let f_div _ (args: Args) : JsonNode = arithmetic2Function Divide args
+let f_max _ (args: Args) : JsonNode = arithmetic2Function Max args
+let f_min _ (args: Args) : JsonNode = arithmetic2Function Min args
+let f_mod _ (args: Args) : JsonNode = arithmetic2Function Modulo args
+let f_mul _ (args: Args) : JsonNode = arithmetic2Function Multiply args
+
+let f_rand _ (args: Args) : JsonNode =
     match args with
     | [ a; b ] ->
         match a.GetValueKind(), b.GetValueKind() with
         | JsonValueKind.Number, JsonValueKind.Number ->
-            let a = box <| a.GetValue()
-            let b = box <| b.GetValue()
+            let a = a.GetValue<int>()
+            let b = b.GetValue<int>()
 
-            match a, b with
-            | :? int as a, (:? int as b) -> JsonValue.Create(a - b)
-            | :? float as a, (:? float as b) -> JsonValue.Create(a - b)
-            | :? int as a, (:? float as b) -> JsonValue.Create(float a - b)
-            | :? float as a, (:? int as b) -> JsonValue.Create(a - float b)
-            | :? decimal as a, (:? decimal as b) -> JsonValue.Create(a - b)
-            | :? decimal as a, (:? int as b) -> JsonValue.Create(a - decimal b)
-            | :? int as a, (:? decimal as b) -> JsonValue.Create(decimal a - b)
-            | :? float as a, (:? decimal as b) -> JsonValue.Create(decimal a - b)
-            | :? decimal as a, (:? float as b) -> JsonValue.Create(a - decimal b)
-            | _ -> failwithf "Expected numbers, got %A and %A" (a.GetType()) (b.GetType())
+            let result = a + myRand.Force().Next(b - a)
+            JsonValue.Create(result)
         | kindA, kindB -> failwithf "Expected numbers, got %A and %A" kindA kindB
     | _ -> failwith "Expected 2 arguments"
+
+let f_range _ (args: Args) : JsonNode =
+    match args with
+    | [ a; b ] ->
+        match a.GetValueKind(), b.GetValueKind() with
+        | JsonValueKind.Number, JsonValueKind.Number ->
+            let a = a.GetValue<int>()
+            let b = b.GetValue<int>()
+
+            Array.init b (fun v -> JsonValue.Create(v + a): JsonNode)
+            |> fun a -> new JsonArray(a)
+        | kindA, kindB -> failwithf "Expected numbers, got %A and %A" kindA kindB
+    | _ -> failwith "Expected 2 arguments"
+
+let f_sub _ (args: Args) : JsonNode = arithmetic2Function Subtract args
 
 // Workflow functions
 
@@ -207,6 +301,14 @@ let functions: Map<string, LanguageFunction> =
       "decimal", f_decimal
       "json", f_json
       "string", f_string
+      "add", f_add
+      "div", f_div
+      "max", f_max
+      "min", f_min
+      "mod", f_mod
+      "mul", f_mul
+      "rand", f_rand
+      "range", f_range
       "sub", f_sub
       "outputs", f_outputs
       "trigger", f_trigger
