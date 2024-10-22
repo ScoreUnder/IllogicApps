@@ -8,6 +8,7 @@ open System.Xml
 open IllogicApps.Core
 open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Core.LogicAppActionSupport
+open ExternalServiceTypes
 
 // Triggers
 
@@ -442,8 +443,8 @@ type Response() =
             |> context.EvaluateLanguage
 
         context.ExternalServiceRequest
-        <| ExternalServiceTypes.HttpResponse(
-            new ExternalServiceTypes.HttpRequestReply(
+        <| HttpResponse(
+            new HttpRequestReply(
                 StatusCode = processedStatusCode.GetValue<int>(),
                 Headers = (processedHeaders |> Option.map Map.ofSeq |> Option.defaultValue Map.empty),
                 Body =
@@ -474,11 +475,11 @@ type Http() =
     override this.Execute(context: SimulatorContext) =
         printfn "HTTP: %A" this.Inputs
 
-        let result = ref <| new ExternalServiceTypes.HttpRequestReply() in
+        let result = ref <| new HttpRequestReply() in
 
         context.ExternalServiceRequest
-        <| ExternalServiceTypes.HttpRequest(
-            new ExternalServiceTypes.HttpRequest(
+        <| HttpRequest(
+            new HttpRequest(
                 Method = this.Inputs.method,
                 Uri = this.Inputs.uri,
                 Headers = (this.Inputs.headers |> Option.defaultValue Map.empty),
@@ -499,13 +500,33 @@ type Http() =
 type Workflow() =
     inherit Action()
 
-    member val Inputs: WorkflowInputs = new WorkflowInputs() with get, set
+    member val Inputs = new WorkflowRequest() with get, set
 
     override this.Execute(context: SimulatorContext) =
         printfn "Workflow: %s" (JsonSerializer.Serialize(this))
 
-        printfn "Unimplemented" // TODO
+        let headers =
+            this.Inputs.Headers
+            |> Map.map (fun _ v -> context.EvaluateLanguage v |> _.GetValue<string>())
+
+        let body = this.Inputs.Body |> context.EvaluateLanguage
+
+        let result = ref <| new HttpRequestReply() in
+
+        let inline jsonClone (o: 'a) : 'a =
+            JsonSerializer.Deserialize<'a>(JsonSerializer.Serialize(o))
+
+        let request =
+            new WorkflowRequest(
+                Host = (this.Inputs.Host |> jsonClone),
+                Headers = headers,
+                Body = body.DeepClone(),
+                RetryPolicy = (this.Inputs.RetryPolicy |> jsonClone)
+            )
+
+        context.ExternalServiceRequest
+        <| ExternalServiceTypes.Workflow((jsonClone request), result)
 
         { status = Succeeded
-          inputs = Some(JsonValue.Create(this.Inputs).Deserialize<JsonObject>())
-          outputs = None }
+          inputs = Some(JsonValue.Create(request))
+          outputs = Some(JsonValue.Create(result.Value)) }

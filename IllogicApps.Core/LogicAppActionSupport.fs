@@ -87,39 +87,6 @@ type HttpInputs =
       cookie: string option
       authentication: JsonObject option }
 
-type WorkflowInputHostWorkflow = { id: string }
-
-type WorkflowInputHost = { workflow: WorkflowInputHostWorkflow }
-
-type WorkflowInputRetryPolicy() =
-    [<JsonPropertyName("type")>]
-    member val Type = "" with get, set // Todo: this is an enum
-
-    [<JsonPropertyName("count")>]
-    member val Count = 0 with get, set
-
-    [<JsonPropertyName("interval")>]
-    member val Interval = "" with get, set
-
-    [<JsonPropertyName("minimumInterval")>]
-    member val MinimumInterval = "" with get, set
-
-    [<JsonPropertyName("maximumInterval")>]
-    member val MaximumInterval = "" with get, set
-
-type WorkflowInputs() =
-    [<JsonPropertyName("host")>]
-    member val Host = { workflow = { id = "" } } with get, set
-
-    [<JsonPropertyName("headers")>]
-    member val Headers = Map.empty<string, string> with get, set
-
-    [<JsonPropertyName("body")>]
-    member val Body: JsonNode = JsonValue.Create(null) with get, set
-
-    [<JsonPropertyName("retryPolicy")>]
-    member val RetryPolicy = new WorkflowInputRetryPolicy() with get, set
-
 let defaultExpression () : Expression = new JsonObject()
 
 let defaultForType typ : JsonNode =
