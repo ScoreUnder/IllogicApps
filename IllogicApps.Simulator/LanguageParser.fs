@@ -13,6 +13,12 @@ type private TokenOrAst =
     | Token of Token
     | Ast of Ast
 
+let private (|LiteralIdentifier|_|) = function
+    | "null" -> Some(JsonValue.Create(null))
+    | "true" -> Some(JsonValue.Create(true))
+    | "false" -> Some(JsonValue.Create(false))
+    | _ -> None
+
 let private collapseCall (origStack: TokenOrAst list) =
     let rec addArgs (args: Ast list) (stack: TokenOrAst list) =
         match stack with
@@ -62,10 +68,10 @@ let parse (items: (int * Token) list) =
         | (pos, token) :: rest ->
             try
                 match token with
-                | Identifier "null" ->
+                | Identifier (LiteralIdentifier v) ->
                     Token token :: stack
                     |> tryParse collapseMemberAccess
-                    |> Option.defaultValue (Ast(Literal(JsonValue.Create(null))) :: stack)
+                    |> Option.defaultValue (Ast(Literal(v)) :: stack)
                 | String str -> Ast(Literal(JsonValue.Create(str))) :: stack
                 | Number num -> Ast(Literal(JsonValue.Create(num))) :: stack
                 | CloseParen -> Token token :: stack |> must collapseCall
