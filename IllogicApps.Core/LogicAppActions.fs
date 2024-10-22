@@ -191,16 +191,19 @@ type InitializeVariable() =
     override this.Execute(context: SimulatorContext) =
         printfn "InitializeVariable"
 
-        this.Inputs.variables
-        |> List.map (fun variable ->
-            let value =
-                variable.Value
-                |> Option.defaultValue (defaultForType variable.VariableType)
-                |> context.EvaluateLanguage
-                |> coerce variable.VariableType in
+        let processedVars =
+            this.Inputs.variables
+            |> List.map (fun variable ->
+                let value =
+                    variable.Value
+                    |> Option.defaultValue (defaultForType variable.VariableType)
+                    |> context.EvaluateLanguage
+                    |> coerce variable.VariableType in
 
-            (variable.Name, value))
-        |> List.iter (fun (name, value) ->
+                (variable.Name, variable.VariableType, value))
+
+        processedVars
+        |> List.iter (fun (name, type_, value) ->
             printfn "InitializeVariable: %s = %O" name value
 
             if context.Variables.ContainsKey(name) then
@@ -208,10 +211,21 @@ type InitializeVariable() =
 
             context.Variables.[name] <- value)
 
+        let processedVarsArray =
+            processedVars
+            |> List.map (fun (name, type_, value) ->
+                makeObject
+                    [ "name", JsonValue.Create(name)
+                      "type", JsonValue.Create(type_.ToString())
+                      "value", value.DeepClone() ])
+            |> List.toArray
+            |> fun a -> new JsonArray(a)
+
         { status = Succeeded
           inputs =
             Some(
-                makeObject [ "variables", new JsonArray(this.Inputs.variables |> List.map _.ToJson() |> List.toArray) ]
+                makeObject
+                    [ "variables", processedVarsArray ]
             )
           outputs = None }
 

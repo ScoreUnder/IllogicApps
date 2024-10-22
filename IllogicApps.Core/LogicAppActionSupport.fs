@@ -42,13 +42,6 @@ type InitializeVariableSingle() =
     [<JsonPropertyName("type")>]
     member val VariableType: VariableType = Object with get, set
 
-    // TODO: Get a canonical serializer
-    member this.ToJson() : JsonNode =
-        [ "name", (JsonValue.Create(this.Name): JsonNode)
-          "type", JsonValue.Create(this.VariableType.ToString()) ]
-        |> optionalAddKey "value" this.Value
-        |> makeObject
-
 type 'a VariablesInputs = { variables: 'a list }
 
 type ParseJsonInputs = { content: JsonNode; schema: JsonNode }
