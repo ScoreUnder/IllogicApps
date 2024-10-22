@@ -385,7 +385,13 @@ type Query() =
         let rec filterValsRev acc =
             let current = loopContext.Current
             let condition = this.Inputs.where |> context.EvaluateLanguage
-            let next = if condition.GetValue<bool>() then current.DeepClone() :: acc else acc
+
+            let next =
+                if condition.GetValue<bool>() then
+                    current.DeepClone() :: acc
+                else
+                    acc
+
             if loopContext.Advance() then filterValsRev next else next
 
         let result = filterValsRev [] |> List.rev in
