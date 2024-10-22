@@ -386,15 +386,14 @@ type Query() =
         printfn "Query: %O in %O" this.Inputs.where this.Inputs.from
 
         let from = context.EvaluateLanguage this.Inputs.from
-        let where = context.EvaluateLanguage this.Inputs.where
 
         let arrayVals = from.AsArray()
-        use loopContext = context.PushLoopContext arrayVals
+        use loopContext = context.PushArrayOperationContext arrayVals
 
         let rec filterValsRev acc =
             let current = loopContext.Current
-            let condition = where |> context.EvaluateLanguage
-            let next = if condition.GetValue<bool>() then current :: acc else acc
+            let condition = this.Inputs.where |> context.EvaluateLanguage
+            let next = if condition.GetValue<bool>() then current.DeepClone() :: acc else acc
             if loopContext.Advance() then filterValsRev next else next
 
         let result = filterValsRev [] |> List.rev in
