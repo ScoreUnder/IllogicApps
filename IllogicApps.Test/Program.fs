@@ -1,4 +1,4 @@
-﻿module IllogicApps.Core.Program
+module IllogicApps.Core.Program
 
 open System.Text.Json.Nodes
 open ReadLogicApp
