@@ -7,7 +7,7 @@ type Ast =
     | Literal of JsonNode
     | Call of string * Ast list
     | Member of Ast * Ast
-    | Forgiving of Ast
+    | ForgivingMember of Ast * Ast
 
 type private TokenOrAst =
     | Token of Token
@@ -27,18 +27,17 @@ let private collapseCall (origStack: TokenOrAst list) =
 
 let private collapseMemberAccess (stack: TokenOrAst list) =
     match stack with
-    | Token(Identifier mem) :: Token Dot :: Ast parent :: rest -> Ast(Member(parent, Literal(JsonValue.Create(mem)))) :: rest
+    | Token(Identifier mem) :: Token Dot :: Ast parent :: rest ->
+        Ast(Member(parent, Literal(JsonValue.Create(mem)))) :: rest
+    | Token(Identifier mem) :: Token Dot :: Token QuestionMark :: Ast parent :: rest ->
+        Ast(ForgivingMember(parent, Literal(JsonValue.Create(mem)))) :: rest
     | _ -> stack
 
 let private collapseIndexAccess (stack: TokenOrAst list) =
     match stack with
     | Token CloseBracket :: Ast index :: Token OpenBracket :: Ast parent :: rest -> Ast(Member(parent, index)) :: rest
-    | _ -> stack
-
-let private collapseNullForgiving (stack: TokenOrAst list) =
-    match stack with
-    | Token QuestionMark :: Ast(Forgiving _) :: _ -> stack
-    | Token QuestionMark :: Ast expr :: rest -> Ast(Forgiving(expr)) :: rest
+    | Token CloseBracket :: Ast index :: Token OpenBracket :: Token QuestionMark :: Ast parent :: rest ->
+        Ast(ForgivingMember(parent, index)) :: rest
     | _ -> stack
 
 let parse (items: (int * Token) list) =
@@ -71,7 +70,6 @@ let parse (items: (int * Token) list) =
                 | Number num -> Ast(Literal(JsonValue.Create(num))) :: stack
                 | CloseParen -> Token token :: stack |> must collapseCall
                 | CloseBracket -> Token token :: stack |> must collapseIndexAccess
-                | QuestionMark -> Token token :: stack |> must collapseNullForgiving
                 | _ -> Token token :: stack
             with ex ->
                 raise
