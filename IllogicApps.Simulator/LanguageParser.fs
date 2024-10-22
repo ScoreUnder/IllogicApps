@@ -6,8 +6,7 @@ open System.Text.Json.Nodes
 type Ast =
     | Literal of JsonNode
     | Call of string * Ast list
-    | Member of Ast * string
-    | Index of Ast * Ast
+    | Member of Ast * Ast
     | Forgiving of Ast
 
 type private TokenOrAst =
@@ -28,12 +27,12 @@ let private collapseCall (origStack: TokenOrAst list) =
 
 let private collapseMemberAccess (stack: TokenOrAst list) =
     match stack with
-    | Token(Identifier mem) :: Token Dot :: Ast parent :: rest -> Ast(Member(parent, mem)) :: rest
+    | Token(Identifier mem) :: Token Dot :: Ast parent :: rest -> Ast(Member(parent, Literal(JsonValue.Create(mem)))) :: rest
     | _ -> stack
 
 let private collapseIndexAccess (stack: TokenOrAst list) =
     match stack with
-    | Token CloseBracket :: Ast index :: Token OpenBracket :: Ast parent :: rest -> Ast(Index(parent, index)) :: rest
+    | Token CloseBracket :: Ast index :: Token OpenBracket :: Ast parent :: rest -> Ast(Member(parent, index)) :: rest
     | _ -> stack
 
 let private collapseNullForgiving (stack: TokenOrAst list) =
