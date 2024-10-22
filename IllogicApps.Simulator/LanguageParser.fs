@@ -17,7 +17,7 @@ let private collapseCall (origStack: TokenOrAst list) =
     let rec addArgs (args: Ast list) (stack: TokenOrAst list) =
         match stack with
         | Token Comma :: Ast a :: rest -> addArgs (a :: args) rest
-        | Token OpenParen :: Token(Identifier name) :: rest -> Ast(Call(name, List.rev args)) :: rest
+        | Token OpenParen :: Token(Identifier name) :: rest -> Ast(Call(name, args)) :: rest
         | _ -> origStack
 
     match origStack with

@@ -151,6 +151,16 @@ type Simulator private (triggerOutput: JsonNode) =
     member val TerminationStatus: Status option = None with get, set
     member val ActionResults = Dictionary<string, ActionResult>() with get, set
     member val LoopContextStack = Stack<LoopContextImpl>() with get, set
+    member val ArrayOperationContextStack = Stack<LoopContextImpl>() with get, set
+
+    override this.LoopContext = this.LoopContextStack.Peek()
+    override this.ArrayOperationContext = this.ArrayOperationContextStack.Peek()
+
+    override this.GetActionResult name =
+        this.ActionResults.TryGetValue name
+        |> function
+            | true, result -> Some result
+            | _ -> None
 
     member private this.RecordActionResult name result = this.ActionResults.[name] <- result
 
@@ -224,17 +234,23 @@ type Simulator private (triggerOutput: JsonNode) =
         ()
 
     override this.PushLoopContext(arg1: JsonNode seq) : LoopContext =
-        let loopContext =
-            new LoopContextImpl(List.ofSeq arg1, this.PopAndCompareLoopContext)
+        this.PushLoopContext(this.LoopContextStack, arg1)
 
-        this.LoopContextStack.Push(loopContext)
+    override this.PushArrayOperationContext(arg1: JsonNode seq) : LoopContext =
+        this.PushLoopContext(this.ArrayOperationContextStack, arg1)
+
+    member this.PushLoopContext(stack: Stack<LoopContextImpl>, values: JsonNode seq) =
+        let loopContext =
+            new LoopContextImpl(List.ofSeq values, this.PopAndCompareLoopContext stack)
+
+        stack.Push(loopContext)
         loopContext
 
-    member this.PopAndCompareLoopContext context =
-        let top = this.LoopContextStack.Peek(): LoopContext
+    member this.PopAndCompareLoopContext (stack: Stack<LoopContextImpl>) context =
+        let top = stack.Peek(): LoopContext
 
         if top = context then
-            this.LoopContextStack.Pop() |> ignore
+            stack.Pop() |> ignore
         else
             raise <| new InvalidOperationException("Loop context push/pop mismatch")
 

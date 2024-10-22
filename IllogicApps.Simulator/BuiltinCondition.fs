@@ -3,6 +3,7 @@ module IllogicApps.Simulator.BuiltinCondition
 open System
 open System.Text.Json
 open System.Text.Json.Nodes
+open Helpers
 
 let private toNode (a: 'a) : JsonNode =
     match box a with
@@ -14,11 +15,6 @@ let private twoArg (f: JsonNode -> JsonNode -> 'a) (args: JsonNode list) : JsonN
     match args with
     | [ a; b ] -> f a b |> toNode
     | _ -> failwithf "Expected 2 arguments, got %d" args.Length
-
-let inline private ensureString (a: JsonNode) =
-    match a.GetValueKind() with
-    | JsonValueKind.String -> a.GetValue<string>()
-    | kind -> failwithf "Expected %s to be a string, got %A" (nameof a) kind
 
 type private ComparisonResult =
     | Equal
@@ -92,7 +88,9 @@ let condEndsWith: LanguageFunction =
         let b = ensureString b
         a.EndsWith(b, System.StringComparison.InvariantCulture))
 
-let conditions =
+type LanguageCondition = JsonNode list -> JsonNode
+
+let conditions: Map<string, LanguageCondition> =
     Map.ofList
         [ "contains", condContains
           "equals", condEquals

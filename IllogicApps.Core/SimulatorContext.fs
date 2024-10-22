@@ -35,10 +35,14 @@ type IGraphExecutable =
 and [<AbstractClass>] SimulatorContext(triggerOutput: JsonNode) =
     member val Variables = new Dictionary<string, JsonNode>() with get
     member val TriggerOutput = triggerOutput
+    abstract member LoopContext: LoopContext
+    abstract member ArrayOperationContext: LoopContext
+    abstract member GetActionResult: string -> ActionResult option
     abstract member ExecuteGraph: Map<string, #IGraphExecutable> -> Status
     abstract member StopExecuting: Status -> unit
     abstract member EvaluateCondition: Expression -> bool
     abstract member EvaluateLanguage: JsonNode -> JsonNode
     abstract member ExternalServiceRequest: ExternalServiceRequestType -> unit
     abstract member PushLoopContext: JsonNode seq -> LoopContext
+    abstract member PushArrayOperationContext: JsonNode seq -> LoopContext
     abstract member ForceSkipAll: (string * #IGraphExecutable) seq -> unit
