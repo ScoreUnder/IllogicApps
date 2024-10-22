@@ -455,7 +455,7 @@ type Response() =
 
         { status = Succeeded
           inputs = Some(inputsObject)
-          outputs = None }
+          outputs = Some(inputsObject) }
 
 // HTTP actions
 
