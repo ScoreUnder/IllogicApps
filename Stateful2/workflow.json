@@ -12,7 +12,8 @@
                     },
                     "headers": {
                         "header": "[]",
-                        "another": "{}"
+                        "another": "{}",
+                        "more": "@{trigger()}"
                     },
                     "body": {
                         "move": "ur body"
@@ -26,15 +27,7 @@
                     }
                 },
                 "runAfter": {},
-                "operationOptions": "DisableAsyncPattern",
-                "runtimeConfiguration": {
-                    "secureData": {
-                        "properties": [
-                            "inputs",
-                            "outputs"
-                        ]
-                    }
-                }
+                "operationOptions": "DisableAsyncPattern"
             },
             "Initialize_variable": {
                 "type": "InitializeVariable",

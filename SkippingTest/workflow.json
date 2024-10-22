@@ -17,7 +17,7 @@
                 "actions": {
                     "Compose": {
                         "type": "Compose",
-                        "inputs": "c"
+                        "inputs": "test test'ing @{outputs('Execute_JavaScript_Code')}"
                     },
                     "Compose_2": {
                         "type": "Compose",
@@ -30,7 +30,7 @@
                     },
                     "Compose_2-copy": {
                         "type": "Compose",
-                        "inputs": "d",
+                        "inputs": "@@testing testing one two three",
                         "runAfter": {
                             "Compose_2": [
                                 "SKIPPED"
@@ -42,7 +42,7 @@
                     "actions": {
                         "Compose_1": {
                             "type": "Compose",
-                            "inputs": "b"
+                            "inputs": "@@{testing!!}"
                         },
                         "Compose_3": {
                             "type": "Compose",
@@ -63,6 +63,43 @@
                             }
                         }
                     }
+                },
+                "runAfter": {
+                    "Execute_JavaScript_Code": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Execute_JavaScript_Code": {
+                "type": "JavaScriptCode",
+                "inputs": {
+                    "code": "return \"@{concat('data:,',binary('123asdf?a=b%20c%2F'))}\";"
+                },
+                "runAfter": {
+                    "Initialize_variable": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Initialize_variable": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "blah",
+                            "type": "array",
+                            "value": [
+                                "n", "@null",
+                                "blah", "test",
+                                "1", "one", "@binary('123asdf?a=b%20c%2F')",
+                                "@base64('test')", "@base64ToString(base64('test'))",
+                                "@base64ToBinary(base64('test'))", "@{base64ToBinary('test')}",
+                                "@concat(2,json('{\"other\":\"wow\",\"$content-type\":\"text/plain\",\"$content\":\"dGVzdA==\"}'))", "@trigger()",
+                                "@decimal(sub(decimal('999.00000000000000000000314'),decimal('999')))",
+                                "@sub(123,100)"
+                            ]
+                        }
+                    ]
                 },
                 "runAfter": {}
             }
