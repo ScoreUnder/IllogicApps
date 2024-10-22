@@ -103,7 +103,7 @@ let coerce (typ: VariableType) (value: JsonNode) : JsonNode =
         match typ with
         | String -> JsonValue.Create(value.ToString())
         | Integer -> JsonValue.Create(value.GetValue<int>())
-        | Float -> JsonValue.Create(value.GetValue<double>())
+        | Float -> JsonValue.Create(value.GetValue<float>())
         | Boolean -> JsonValue.Create(value.GetValue<bool>())
         | Object ->
             begin
