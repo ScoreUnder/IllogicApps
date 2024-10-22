@@ -491,7 +491,7 @@ type Http() =
 
         { status = Succeeded
           inputs = Some(JsonValue.Create(this.Inputs).Deserialize<JsonObject>())
-          outputs = Some(JsonValue.Create(result).Deserialize<JsonObject>()) }
+          outputs = Some(JsonValue.Create(result.Value).Deserialize<JsonObject>()) }
 
 // Workflow actions
 
