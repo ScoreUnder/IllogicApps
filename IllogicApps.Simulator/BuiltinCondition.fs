@@ -1,4 +1,4 @@
-module IllogicApps.Simulator.LanguageCondition
+module IllogicApps.Simulator.BuiltinCondition
 
 open System
 open System.Text.Json
