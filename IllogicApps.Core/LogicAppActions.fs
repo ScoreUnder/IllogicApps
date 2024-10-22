@@ -300,13 +300,16 @@ type AppendToArrayVariable() =
 
     override this.Add a b =
         let array = a.DeepClone().AsArray()
-        b.GetValueKind() |> function
-        | JsonValueKind.Number
-        | JsonValueKind.String
-        | JsonValueKind.True
-        | JsonValueKind.False
-        | JsonValueKind.Object -> array.Add(b.DeepClone())
-        | _ -> failwithf "%s: Unsupported value type %A" (this.ActionType) (b.GetValueKind())
+
+        b.GetValueKind()
+        |> function
+            | JsonValueKind.Number
+            | JsonValueKind.String
+            | JsonValueKind.True
+            | JsonValueKind.False
+            | JsonValueKind.Object -> array.Add(b.DeepClone())
+            | _ -> failwithf "%s: Unsupported value type %A" (this.ActionType) (b.GetValueKind())
+
         array
 
 type IncrementVariable() =
