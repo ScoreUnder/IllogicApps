@@ -49,10 +49,15 @@ module Sublexers =
     let isValidIdentifierChar (c: char) = Char.IsLetterOrDigit(c) || c = '_'
 
     let lexIdentifier start acc (remaining: string) =
-        let len = remaining |> Seq.findIndex (not << isValidIdentifierChar)
-        let nextStart = start + len
-        let ident = remaining.[.. len - 1]
-        nextStart, (start, Identifier ident) :: acc, remaining[len..]
+        let lenOpt = remaining |> Seq.tryFindIndex (not << isValidIdentifierChar)
+        match lenOpt with
+        | Some len ->
+            let nextStart = start + len
+            let ident = remaining.[.. len - 1]
+            nextStart, (start, Identifier ident) :: acc, remaining[len..]
+        | None ->
+            let nextStart = start + remaining.Length
+            nextStart, (start, Identifier remaining) :: acc, ""
 
     type private NumberState =
         | Sign
