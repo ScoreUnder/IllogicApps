@@ -7,6 +7,19 @@ open System.Text.Json.Nodes
 open System.Text.Json.Serialization
 open IllogicApps.Core.LogicAppSpec
 
+let toKvp (k: 'a, v: 'b) = new KeyValuePair<'a, 'b>(k, v)
+let fromKvp (kvp: KeyValuePair<'a, 'b>) = kvp.Key, kvp.Value
+let toKvps seq = Seq.map toKvp seq
+let fromKvps seq = Seq.map fromKvp seq
+
+let makeObject (pairs: (string * JsonNode) seq) : JsonNode =
+    new JsonObject(pairs |> Seq.map (fun (k, v) -> new KeyValuePair<string, JsonNode>(k, v)))
+
+let optionalAddKey (key: string) (value: JsonNode option) (pairs: (string * JsonNode) list) =
+    match value with
+    | Some v -> (key, v.DeepClone()) :: pairs
+    | None -> pairs
+
 type SetVariableSingle() =
     member val Name: string = "" with get, set
     member val Value: JsonNode = JsonValue.Create(null) with get, set
@@ -20,11 +33,21 @@ type VariableType =
     | Array
 
 type InitializeVariableSingle() =
+    [<JsonPropertyName("name")>]
     member val Name: string = "" with get, set
+
+    [<JsonPropertyName("value")>]
     member val Value: JsonNode option = None with get, set
 
     [<JsonPropertyName("type")>]
     member val VariableType: VariableType = Object with get, set
+
+    // TODO: Get a canonical serializer
+    member this.ToJson() : JsonNode =
+        [ "name", (JsonValue.Create(this.Name): JsonNode)
+          "type", JsonValue.Create(this.VariableType.ToString()) ]
+        |> optionalAddKey "value" this.Value
+        |> makeObject
 
 type 'a VariablesInputs = { variables: 'a list }
 
@@ -69,22 +92,35 @@ type WorkflowInputHostWorkflow = { id: string }
 type WorkflowInputHost = { workflow: WorkflowInputHostWorkflow }
 
 type WorkflowInputRetryPolicy() =
-    member val Type = "" with get, set
+    [<JsonPropertyName("type")>]
+    member val Type = "" with get, set // Todo: this is an enum
+
+    [<JsonPropertyName("count")>]
     member val Count = 0 with get, set
+
+    [<JsonPropertyName("interval")>]
     member val Interval = "" with get, set
+
+    [<JsonPropertyName("minimumInterval")>]
     member val MinimumInterval = "" with get, set
+
+    [<JsonPropertyName("maximumInterval")>]
     member val MaximumInterval = "" with get, set
 
 type WorkflowInputs() =
+    [<JsonPropertyName("host")>]
     member val Host = { workflow = { id = "" } } with get, set
+
+    [<JsonPropertyName("headers")>]
     member val Headers = Map.empty<string, string> with get, set
+
+    [<JsonPropertyName("body")>]
     member val Body: JsonNode = JsonValue.Create(null) with get, set
+
+    [<JsonPropertyName("retryPolicy")>]
     member val RetryPolicy = new WorkflowInputRetryPolicy() with get, set
 
 let defaultExpression () : Expression = new JsonObject()
-
-let makeObject (pairs: (string * JsonNode) seq) : JsonNode =
-    new JsonObject(pairs |> Seq.map (fun (k, v) -> new KeyValuePair<string, JsonNode>(k, v)))
 
 let defaultForType typ : JsonNode =
     match typ with
@@ -131,8 +167,3 @@ let getVarTypechecked (context: SimulatorContext) var typ =
         failwithf "Variable is of type %A, expected %A" (originalValue.GetValueKind()) typ
 
     originalValue
-
-let toKvp (k: 'a, v: 'b) = new KeyValuePair<'a, 'b>(k, v)
-let fromKvp (kvp: KeyValuePair<'a, 'b>) = kvp.Key, kvp.Value
-let toKvps seq = Seq.map toKvp seq
-let fromKvps seq = Seq.map fromKvp seq

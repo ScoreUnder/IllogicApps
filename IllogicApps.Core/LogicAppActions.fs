@@ -209,8 +209,7 @@ type InitializeVariable() =
         { status = Succeeded
           inputs =
             Some(
-                // TODO probably not accurate
-                makeObject [ "variables", JsonValue.Create(this.Inputs.variables) ]
+                makeObject [ "variables", new JsonArray(this.Inputs.variables |> List.map _.ToJson() |> List.toArray) ]
             )
           outputs = None }
 
@@ -277,13 +276,7 @@ type AppendToStringVariable() =
                     [ ("name", JsonValue.Create(this.Inputs.Name))
                       ("value", this.Inputs.Value.DeepClone()) ]
             )
-          // TODO check this for accuracy
-          outputs =
-            Some(
-                makeObject
-                    [ ("name", JsonValue.Create(this.Inputs.Name))
-                      ("value", newValue.DeepClone()) ]
-            ) }
+          outputs = None }
 
     abstract member ExpectedType: JsonValueKind with get
     override this.ExpectedType = JsonValueKind.String
@@ -327,8 +320,7 @@ type IncrementVariable() =
           inputs =
             Some(
                 makeObject
-                    [ "name", JsonValue.Create(this.Inputs.Name)
-                      "value", originalValue.DeepClone() ]
+                    [ "body", makeObject [ "name", JsonValue.Create(this.Inputs.Name); "value", increment.DeepClone() ] ]
             )
           outputs = Some(makeObject [ "name", JsonValue.Create(this.Inputs.Name); "value", JsonValue.Create(value) ]) }
 
@@ -401,7 +393,7 @@ type Query() =
         printfn "Query Result: %O" result
 
         { status = Succeeded
-          inputs = Some(makeObject [ "from", from.DeepClone() ])
+          inputs = Some(from.DeepClone())
           outputs = Some(makeObject [ "body", new JsonArray(result |> List.toArray) ]) }
 
 // Request actions
