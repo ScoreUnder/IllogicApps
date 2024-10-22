@@ -23,7 +23,7 @@ type private ComparisonResult =
     | Incomparable
 
 let private compareStrings a b =
-    match String.Compare(a, b, StringComparison.InvariantCulture) with
+    match String.Compare(a, b) with
     | 0 -> Equal
     | n when n > 0 -> Greater
     | _ -> Less
@@ -80,13 +80,13 @@ let condStartsWith: LanguageFunction =
     twoArg (fun a b ->
         let a = ensureString a
         let b = ensureString b
-        a.StartsWith(b, System.StringComparison.InvariantCulture))
+        a.StartsWith(b))
 
 let condEndsWith: LanguageFunction =
     twoArg (fun a b ->
         let a = ensureString a
         let b = ensureString b
-        a.EndsWith(b, System.StringComparison.InvariantCulture))
+        a.EndsWith(b))
 
 type LanguageCondition = JsonNode list -> JsonNode
 
