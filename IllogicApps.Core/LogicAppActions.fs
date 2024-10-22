@@ -418,6 +418,21 @@ type Query() =
           inputs = Some(from.DeepClone())
           outputs = Some(makeObject [ "body", new JsonArray(result |> List.toArray) ]) }
 
+// Inline Code actions
+
+type JavaScriptCode() =
+    inherit Action()
+
+    // TODO: correct inputs
+    member val Inputs: JsonNode = JsonValue.Create(null) with get, set
+
+    override this.Execute(context: SimulatorContext) =
+        printfn "NOT IMPLEMENTED JavaScriptCode: %O" this.Inputs
+
+        { status = Failed
+          inputs = None
+          outputs = None }
+
 // Request actions
 
 type Response() =
