@@ -90,7 +90,12 @@ let lex rawStr =
 
     let rec lex' (start: int) (acc: (int * Token) list) (remaining: string) =
         if remaining = "" then
-            List.rev acc
+            if isStringified then
+                failwithf "Unterminated string interpolation (position %d) in %s" start rawStr
+            else
+                start, acc, remaining
+        elif remaining.[0] = '}' && isStringified then
+            (start + 1), acc, remaining.[1..]
         else
             let nextStart, nextAcc, nextRemaining =
                 try
@@ -123,8 +128,27 @@ let lex rawStr =
 
             lex' nextStart nextAcc nextRemaining
 
+    let rec lexStringified (start: int) (acc: (int * Token) list) (remaining: string) =
+        let nextInterpolation = remaining.IndexOf("@{")
+
+        if nextInterpolation = -1 then
+            (start, String remaining) :: acc
+        else
+            let str = remaining.[.. nextInterpolation - 1]
+            let acc = (start, Comma) :: (start, String str) :: acc
+            let start = start + nextInterpolation + 2
+            let remaining = remaining.[nextInterpolation + 2 ..]
+
+            let start, acc, remaining = lex' start acc remaining
+            lexStringified start ((start, Comma) :: acc) remaining
+
     if isStringified then
-        // lex' 0 [] rawStr
-        [ 1, Identifier "not implemented" ]
+        let lexResult = lexStringified 0 [] rawStr
+
+        // Lol, lmao even
+        (0, Identifier "concat")
+        :: (0, OpenParen)
+        :: (List.rev <| (0, CloseParen) :: lexResult)
     else
-        lex' 1 [] rawStr.[1..]
+        let _, lexed, _ = lex' 1 [] rawStr.[1..]
+        List.rev lexed
