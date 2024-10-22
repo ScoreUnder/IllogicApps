@@ -8,7 +8,7 @@ type Ast =
     | Call of string * Ast list
     | Member of Ast * string
     | Index of Ast * Ast
-    | NullForgiving of Ast
+    | Forgiving of Ast
 
 type private TokenOrAst =
     | Token of Token
@@ -38,8 +38,8 @@ let private collapseIndexAccess (stack: TokenOrAst list) =
 
 let private collapseNullForgiving (stack: TokenOrAst list) =
     match stack with
-    | Token QuestionMark :: Ast(NullForgiving _) :: _ -> stack
-    | Token QuestionMark :: Ast expr :: rest -> Ast(NullForgiving(expr)) :: rest
+    | Token QuestionMark :: Ast(Forgiving _) :: _ -> stack
+    | Token QuestionMark :: Ast expr :: rest -> Ast(Forgiving(expr)) :: rest
     | _ -> stack
 
 let parse (items: (int * Token) list) =
