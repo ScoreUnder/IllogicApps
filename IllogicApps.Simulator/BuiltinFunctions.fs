@@ -126,6 +126,27 @@ let arithmetic2Function (op: Arithmetic2Type) (args: Args) : JsonNode =
         | kindA, kindB -> failwithf "Expected numbers, got %A and %A" kindA kindB
     | _ -> failwith "Expected 2 arguments"
 
+let arrayReduceArithmetic2 op (args: Args) : JsonNode =
+    let aux (args: Args) =
+        match args with
+        | [] -> failwith "Max of empty list"
+        | [ a ] -> a
+        | first :: rest ->
+            rest
+            |> List.fold
+                (fun acc v ->
+                    match promoteNums acc (jsonNumberToSubtype v) with
+                    | Integer2(a, b) -> Integer(performArithmeticOp op a b)
+                    | Float2(a, b) -> Float(performArithmeticOp op a b)
+                    | Decimal2(a, b) -> Decimal(performArithmeticOp op a b))
+                (jsonNumberToSubtype first)
+            |> fun v -> JsonValue.Create(v)
+
+    match args with
+    | [ a ] when a.GetValueKind() = JsonValueKind.Array -> aux (Seq.toList (a.AsArray()))
+    | _ :: _ :: _ -> aux args
+    | _ -> failwith "Expected 2 or more arguments, or an array"
+
 let myRand = lazy (System.Random())
 
 // String functions
@@ -223,8 +244,8 @@ let f_string _ (args: Args) : JsonNode =
 
 let f_add _ (args: Args) : JsonNode = arithmetic2Function Add args
 let f_div _ (args: Args) : JsonNode = arithmetic2Function Divide args
-let f_max _ (args: Args) : JsonNode = arithmetic2Function Max args
-let f_min _ (args: Args) : JsonNode = arithmetic2Function Min args
+let f_max _ (args: Args) : JsonNode = arrayReduceArithmetic2 Max args
+let f_min _ (args: Args) : JsonNode = arrayReduceArithmetic2 Min args
 let f_mod _ (args: Args) : JsonNode = arithmetic2Function Modulo args
 let f_mul _ (args: Args) : JsonNode = arithmetic2Function Multiply args
 
@@ -255,6 +276,26 @@ let f_range _ (args: Args) : JsonNode =
     | _ -> failwith "Expected 2 arguments"
 
 let f_sub _ (args: Args) : JsonNode = arithmetic2Function Subtract args
+
+// Date and time functions
+
+let f_addDays _ (args: Args) : JsonNode =
+    let addDays' (a: JsonNode) (b: JsonNode) fmt =
+        match a.GetValueKind(), b.GetValueKind() with
+        | JsonValueKind.String, JsonValueKind.Number ->
+            let ts = a.GetValue<string>()
+            let days = b.GetValue<int>()
+
+            let dt = System.DateTimeOffset.Parse(ts)
+            let result = dt.AddDays(float days)
+
+            JsonValue.Create(result.ToString(fmt))
+        | kindA, kindB -> failwithf "Expected string and number, got %A and %A" kindA kindB
+
+    match args with
+    | [ ts; days ] -> addDays' ts days "o"
+    | [ ts; days; fmt ] -> addDays' ts days (fmt |> ensureString)
+    | _ -> failwith "Expected 2 or 3 arguments"
 
 // Workflow functions
 
