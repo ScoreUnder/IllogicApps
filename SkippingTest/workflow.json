@@ -96,7 +96,14 @@
                                 "@base64ToBinary(base64('test'))", "@{base64ToBinary('test')}",
                                 "@concat(2,json('{\"other\":\"wow\",\"$content-type\":\"text/plain\",\"$content\":\"dGVzdA==\"}'))", "@trigger()",
                                 "@decimal(sub(decimal('999.00000000000000000000314'),decimal('999')))",
-                                "@sub(123,100)"
+                                "@sub(123,100)",
+                                "@xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow</innermost></node2></root>')",
+                                "@{xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow</innermost></node2></root>')}",
+                                "@json(xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow<break/>wowow</innermost></node2></root>'))",
+                                "@xml(json(xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow<break/>wowow</innermost></node2></root>')))",
+                                "@xml(xml('<root/>'))",
+                                "@xml(json('{\"cow\":\"moo\"}'))",
+                                "@json(binary('[1,2,3]'))"
                             ]
                         }
                     ]

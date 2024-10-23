@@ -1,13 +1,33 @@
 module IllogicApps.Simulator.BuiltinFunctions
 
+open System.Collections.Generic
+open System.IO
+open System.Runtime.Serialization.Json
 open System.Text.Json
 open System.Text.Json.Nodes
+open System.Xml
+open System.Xml.Linq
 open IllogicApps.Core
 open Helpers
-open System.Collections.Generic
 
 type LanguageFunction = SimulatorContext -> JsonNode list -> JsonNode
 type Args = JsonNode list
+
+module ContentType =
+    let Binary = "application/octet-stream"
+    let Xml = "application/xml"
+
+    let private CharsetEq = "charset="
+
+    let getCharset (contentType: string) =
+        let parts = contentType.Split(';')
+
+        parts
+        |> Array.tryPick (fun v ->
+            let v = v.Trim()
+            if v.StartsWith(CharsetEq) then Some v else None)
+        |> Option.map _.Substring(CharsetEq.Length)
+        |> Option.map System.Text.Encoding.GetEncoding
 
 let expectArgs n (args: Args) =
     if args.Length <> n then
@@ -27,25 +47,43 @@ let toBase64 (str: string) =
 let fromBase64 (str: string) =
     str |> System.Convert.FromBase64String |> System.Text.Encoding.UTF8.GetString
 
-let toBinary (str: string) : JsonNode =
-    let base64 = str |> toBase64 in
-
+let base64ToBlob (contentType: string) (base64: string) : JsonNode =
     new JsonObject(
-        [ new KeyValuePair<string, JsonNode>("$content-type", JsonValue.Create("application/octet-stream"))
+        [ new KeyValuePair<string, JsonNode>("$content-type", JsonValue.Create(contentType))
           new KeyValuePair<string, JsonNode>("$content", JsonValue.Create(base64)) ]
     )
 
-let objectToString (node: JsonNode) : string =
+let strToBase64Blob (contentType: string) (str: string) : JsonNode =
+    str |> toBase64 |> base64ToBlob contentType
+
+let toBinary (str: string) : JsonNode =
+    str |> strToBase64Blob "application/octet-stream"
+
+let (|Base64StringBlob|_|) (node: JsonNode) : (string * byte array) option =
     match node.GetValueKind() with
     | JsonValueKind.Object ->
         let node = node.AsObject()
 
         if node.ContainsKey("$content-type") && node.ContainsKey("$content") then
-            let content = node["$content"].ToString()
-            content |> fromBase64
+            let content = node["$content"].ToString() |> System.Convert.FromBase64String
+            Some(node["$content-type"].ToString(), content)
         else
-            node.ToString()
+            None
+    | _ -> None
+
+let decodeByContentType contentType (content: byte array) =
+    ContentType.getCharset contentType
+    |> Option.defaultValue System.Text.Encoding.UTF8
+    |> _.GetString(content)
+
+let objectToString (node: JsonNode) : string =
+    match node with
+    | Base64StringBlob(contentType, content) -> decodeByContentType contentType content
     | _ -> node.ToString()
+
+let isXmlContentType (contentType: string) =
+    $"{contentType};"
+        .StartsWith($"{ContentType.Xml};", System.StringComparison.OrdinalIgnoreCase)
 
 type NumberSubtype =
     | Integer of int
@@ -218,7 +256,10 @@ let f_base64ToBinary _ (args: Args) : JsonNode =
     expectArgs 1 args
     let str = ensureString <| List.head args
 
-    str |> fromBase64 |> toBinary
+    // Re-generate the base64 string to ensure it's valid
+    System.Convert.FromBase64String str
+    |> System.Convert.ToBase64String
+    |> base64ToBlob ContentType.Binary
 
 let f_base64ToString _ (args: Args) : JsonNode =
     expectArgs 1 args
@@ -250,13 +291,41 @@ let f_decimal _ (args: Args) : JsonNode =
 
 let f_json _ (args: Args) : JsonNode =
     expectArgs 1 args
-    let str = ensureString <| List.head args
+
+    let str =
+        match args |> List.head with
+        | Base64StringBlob(contentType, content) when isXmlContentType contentType ->
+            let xmlStr = decodeByContentType contentType content
+            let stringWriter = new MemoryStream()
+            let doc = XDocument.Parse(xmlStr).WriteTo(JsonReaderWriterFactory.CreateJsonWriter(stringWriter))
+            stringWriter.ToArray() |> System.Text.Encoding.UTF8.GetString
+        | _ -> ensureString <| List.head args
 
     JsonNode.Parse(str)
 
 let f_string _ (args: Args) : JsonNode =
     expectArgs 1 args
     JsonValue.Create(args |> List.head |> objectToString)
+
+let f_xml _ (args: Args) : JsonNode =
+    expectArgs 1 args
+    match List.head args with
+    | v when v.GetValueKind() = JsonValueKind.String ->
+        let xmlString = v.GetValue<string>()
+
+        let doc = XmlDocument()
+        doc.LoadXml(xmlString)
+
+        let stringWriter = new StringWriter()
+        doc.Save(stringWriter)
+
+        stringWriter.ToString() |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
+    | v when v.GetValueKind() = JsonValueKind.Object ->
+        let jsonBytes = System.Text.Encoding.UTF8.GetBytes(v.ToJsonString())
+        let reader = JsonReaderWriterFactory.CreateJsonReader(jsonBytes, new XmlDictionaryReaderQuotas())
+        let xml = XDocument.Load(reader)
+        xml.ToString() |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
+    | v -> failwithf "Expected string or object, got %A" (v.GetValueKind())
 
 // Math functions
 
@@ -376,6 +445,7 @@ let functions: Map<string, LanguageFunction> =
       "decimal", f_decimal
       "json", f_json
       "string", f_string
+      "xml", f_xml
       "add", f_add
       "div", f_div
       "max", f_max
