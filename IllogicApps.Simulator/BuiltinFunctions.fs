@@ -149,6 +149,24 @@ let arrayReduceArithmetic2 op (args: Args) : JsonNode =
 
 let myRand = lazy (System.Random())
 
+let dateTimeFunc2f (f: System.DateTimeOffset -> int -> System.DateTimeOffset) (args: Args) : JsonNode =
+    let dateTimeFunc2f' (a: JsonNode) (b: JsonNode) (fmt: string) =
+        match a.GetValueKind(), b.GetValueKind() with
+        | JsonValueKind.String, JsonValueKind.String ->
+            let ts1 = a.GetValue<string>()
+            let val2 = b.GetValue<int>()
+
+            let dt1 = System.DateTimeOffset.Parse(ts1)
+            let result = f dt1 val2
+
+            JsonValue.Create(result.ToString(fmt))
+        | kindA, kindB -> failwithf "Expected string and integer, got %A and %A" kindA kindB
+
+    match args with
+    | [ ts1; ts2 ] -> dateTimeFunc2f' ts1 ts2 "o"
+    | [ ts1; ts2; fmt ] -> dateTimeFunc2f' ts1 ts2 (fmt |> ensureString)
+    | _ -> failwith "Expected 2 or 3 arguments"
+
 // String functions
 
 let f_concat _ (args: Args) : JsonNode =
@@ -279,23 +297,39 @@ let f_sub _ (args: Args) : JsonNode = arithmetic2Function Subtract args
 
 // Date and time functions
 
-let f_addDays _ (args: Args) : JsonNode =
-    let addDays' (a: JsonNode) (b: JsonNode) fmt =
-        match a.GetValueKind(), b.GetValueKind() with
-        | JsonValueKind.String, JsonValueKind.Number ->
-            let ts = a.GetValue<string>()
-            let days = b.GetValue<int>()
+let f_addDays _ (args: Args) : JsonNode = dateTimeFunc2f _.AddDays args
+let f_addHours _ (args: Args) : JsonNode = dateTimeFunc2f _.AddHours args
+let f_addMinutes _ (args: Args) : JsonNode = dateTimeFunc2f _.AddMinutes args
+let f_addSeconds _ (args: Args) : JsonNode = dateTimeFunc2f _.AddSeconds args
 
-            let dt = System.DateTimeOffset.Parse(ts)
-            let result = dt.AddDays(float days)
+let f_addToTime _ (args: Args) : JsonNode =
+    let addToTime' (time: JsonNode) (interval: JsonNode) (unit: JsonNode) (format: string) =
+        match time.GetValueKind(), interval.GetValueKind(), unit.GetValueKind() with
+        | JsonValueKind.String, JsonValueKind.Number, JsonValueKind.String ->
+            let datetime = time.GetValue<string>()
+            let interval = interval.GetValue<int>()
+            let unit = unit.GetValue<string>()
 
-            JsonValue.Create(result.ToString(fmt))
-        | kindA, kindB -> failwithf "Expected string and number, got %A and %A" kindA kindB
+            let datetime = System.DateTimeOffset.Parse(datetime)
+
+            let result =
+                match unit.ToLowerInvariant() with
+                | "second" -> datetime.AddSeconds(interval)
+                | "minute" -> datetime.AddMinutes(interval)
+                | "hour" -> datetime.AddHours(interval)
+                | "day" -> datetime.AddDays(interval)
+                | "week" -> datetime.AddDays(float interval * 7.0)
+                | "month" -> datetime.AddMonths(interval)
+                | "year" -> datetime.AddYears(interval)
+                | _ -> failwithf "Unknown unit %s" unit
+
+            JsonValue.Create(result.ToString(format))
+        | kindA, kindB, kindC -> failwithf "Expected string, number, and string, got %A, %A, and %A" kindA kindB kindC
 
     match args with
-    | [ ts; days ] -> addDays' ts days "o"
-    | [ ts; days; fmt ] -> addDays' ts days (fmt |> ensureString)
-    | _ -> failwith "Expected 2 or 3 arguments"
+    | [ ts1; ts2; unit ] -> addToTime' ts1 ts2 unit "o"
+    | [ ts1; ts2; unit; fmt ] -> addToTime' ts1 ts2 unit (fmt |> ensureString)
+    | _ -> failwith "Expected 3 or 4 arguments"
 
 // Workflow functions
 
@@ -351,6 +385,11 @@ let functions: Map<string, LanguageFunction> =
       "rand", f_rand
       "range", f_range
       "sub", f_sub
+      "addDays", f_addDays
+      "addHours", f_addHours
+      "addMinutes", f_addMinutes
+      "addSeconds", f_addSeconds
+      "addToTime", f_addToTime
       "outputs", f_outputs
       "trigger", f_trigger
       "variables", f_variables ]
