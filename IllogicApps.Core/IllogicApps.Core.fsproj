@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="ExternalServiceTypes.fs" />
+    <Compile Include="ExternalServiceTypeConversions.fs" />
     <Compile Include="SimulatorContext.fs" />
     <Compile Include="LogicAppBaseAction.fs" />
     <Compile Include="LogicAppSpec.fs" />
