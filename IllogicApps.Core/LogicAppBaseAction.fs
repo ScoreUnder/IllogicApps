@@ -3,6 +3,8 @@ module IllogicApps.Core.LogicAppBaseAction
 open System.Text.Json.Nodes
 open System.Text.Json.Serialization
 
+open CompletedStepTypes
+
 [<AbstractClass>]
 type BaseAction() =
     interface IGraphExecutable with

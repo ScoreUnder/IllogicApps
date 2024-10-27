@@ -8,6 +8,7 @@ open System.Xml
 open IllogicApps.Core
 open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Core.LogicAppActionSupport
+open CompletedStepTypes
 open ExternalServiceTypes
 
 // Triggers

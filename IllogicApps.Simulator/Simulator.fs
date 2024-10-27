@@ -4,9 +4,11 @@ open System
 open System.Collections.Generic
 open System.Text.Json
 open System.Text.Json.Nodes
+
 open IllogicApps.Core
 open IllogicApps.Core.LogicAppBaseAction
 open IllogicApps.Simulator.BuiltinCondition
+open CompletedStepTypes
 
 module private SimulatorHelper =
     let private emptyDependencyList = Map.ofList [ ("", []) ]

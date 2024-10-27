@@ -4,6 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="CompletedStepTypes.fs" />
     <Compile Include="ExternalServiceTypes.fs" />
     <Compile Include="ExternalServiceTypeConversions.fs" />
     <Compile Include="SimulatorContext.fs" />

@@ -4,6 +4,7 @@ open System
 open System.Net
 open System.Text.Json
 open System.Text.Json.Nodes
+open CompletedStepTypes
 open ExternalServiceTypes
 
 let formUri (str: string) (query: Map<string, string>) =
@@ -77,3 +78,12 @@ let netHttpRequestMessageOfWorkflowRequest (req: WorkflowRequest) =
     // Not implemented, probably shouldn't be handled here: Host, RetryPolicy
 
     netReq
+
+let completedTriggerOfWorkflowRequest (req: WorkflowRequest) =
+    CompletedTrigger(
+        name = req.Host.Workflow.Id,
+        status = Succeeded,
+        startTime = stringOfDateTime DateTime.UtcNow,
+        EndTime = stringOfDateTime DateTime.UtcNow,
+        Outputs = (if req.Body.GetValueKind() = JsonValueKind.Null then None else Some(req.Body.DeepClone()))
+    )

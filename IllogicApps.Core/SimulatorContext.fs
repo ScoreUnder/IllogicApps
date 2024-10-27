@@ -3,14 +3,9 @@ namespace IllogicApps.Core
 open System
 open System.Collections.Generic
 open System.Text.Json.Nodes
-open ExternalServiceTypes
 
-type Status =
-    | Succeeded
-    | Failed
-    | Skipped
-    | TimedOut
-    | Cancelled
+open CompletedStepTypes
+open ExternalServiceTypes
 
 type Expression = JsonObject
 
