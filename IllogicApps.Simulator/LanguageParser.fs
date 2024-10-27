@@ -73,6 +73,7 @@ let parse (items: (int * Token) list) =
                     |> tryParse collapseMemberAccess
                     |> Option.defaultValue (Ast(Literal(v)) :: stack)
                 | String str -> Ast(Literal(JsonValue.Create(str))) :: stack
+                | Integer num -> Ast(Literal(JsonValue.Create(num))) :: stack
                 | Number num -> Ast(Literal(JsonValue.Create(num))) :: stack
                 | CloseParen -> Token token :: stack |> must collapseCall
                 | CloseBracket -> Token token :: stack |> must collapseIndexAccess

@@ -5,6 +5,7 @@ open System
 type Token =
     | Identifier of string
     | String of string
+    | Integer of int64
     | Number of float
     | OpenParen
     | CloseParen
@@ -69,7 +70,7 @@ module Sublexers =
     let lexNumber start acc (remaining: string) =
         let rec takeNum (start: int) (state: NumberState) (remaining: string) =
             if remaining = "" then
-                start
+                state, start
             else
                 match state, remaining.[0] with
                 | Sign, ('-' | '+') -> takeNum (start + 1) Integral remaining.[1..]
@@ -80,13 +81,18 @@ module Sublexers =
                 | Fractional, ('e' | 'E') -> takeNum (start + 1) ExponentSign remaining.[1..]
                 | ExponentSign, ('-' | '+') -> takeNum (start + 1) Exponent remaining.[1..]
                 | Exponent, c when Char.IsDigit(c) -> takeNum (start + 1) Exponent remaining.[1..]
-                | _ -> start
+                | _ -> state, start
 
-        let nextStart = takeNum start Sign remaining
+        let state, nextStart = takeNum start Sign remaining
         let len = nextStart - start
         let numStr = remaining.[.. len - 1]
-        let num = Double.Parse(numStr)
-        nextStart, (start, Number num) :: acc, remaining.[len..]
+        match state with
+        | Integral ->
+            let num = Int64.Parse(numStr)
+            nextStart, (start, Integer num) :: acc, remaining.[len..]
+        | _ ->
+            let num = Double.Parse(numStr)
+            nextStart, (start, Number num) :: acc, remaining.[len..]
 
 open Sublexers
 

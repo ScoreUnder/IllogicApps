@@ -86,12 +86,12 @@ let isXmlContentType (contentType: string) =
         .StartsWith($"{ContentType.Xml};", System.StringComparison.OrdinalIgnoreCase)
 
 type NumberSubtype =
-    | Integer of int
+    | Integer of int64
     | Float of float
     | Decimal of decimal
 
 type Number2Subtype =
-    | Integer2 of int * int
+    | Integer2 of int64 * int64
     | Float2 of float * float
     | Decimal2 of decimal * decimal
 
@@ -131,7 +131,7 @@ let jsonNumberToSubtype (node: JsonNode) : NumberSubtype =
         let value = box <| node.GetValue()
 
         match value with
-        | :? int as i -> Integer i
+        | :? int64 as i -> Integer i
         | :? float as f -> Float f
         | :? decimal as d -> Decimal d
         | _ -> failwithf "Expected number, got %A" (value.GetType().Name)
