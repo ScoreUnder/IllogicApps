@@ -28,12 +28,12 @@ type IGraphExecutable =
     abstract member RunAfter: Map<string, Status list> option with get
     abstract member GetChildren: unit -> (string * IGraphExecutable) list
 
-and [<AbstractClass>] SimulatorContext(triggerOutput: JsonNode) =
+and [<AbstractClass>] SimulatorContext() =
     member val Variables = new Dictionary<string, JsonNode>() with get
-    member val TriggerOutput = triggerOutput
     abstract member LoopContext: LoopContext
     abstract member ArrayOperationContext: LoopContext
-    abstract member GetActionResult: string -> ActionResult option
+    abstract member GetTriggerResult: CompletedTrigger
+    abstract member GetActionResult: string -> CompletedAction option
     abstract member ExecuteGraph: Map<string, #IGraphExecutable> -> Status
     abstract member StopExecuting: Status -> unit
     abstract member EvaluateCondition: Expression -> bool

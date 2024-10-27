@@ -39,11 +39,11 @@ module private SimulatorHelper =
         | _, Completed -> Completed
         | Satisfied, Satisfied -> Satisfied
 
-    let calculateDependencyStatus (actionResults: IDictionary<string, ActionResult>) (action: IGraphExecutable) =
+    let calculateDependencyStatus (actionResults: IDictionary<string, CompletedAction>) (action: IGraphExecutable) =
         let calcSingleDependency dep requiredStatuses =
             match actionResults.TryGetValue(dep) with
             | true, actionResult ->
-                if Seq.contains actionResult.status requiredStatuses then
+                if Seq.contains actionResult.Status requiredStatuses then
                     Satisfied
                 else
                     Completed
@@ -60,7 +60,7 @@ module private SimulatorHelper =
 
     let trimLeaves
         (actions: Map<string, #IGraphExecutable>)
-        (actionResults: IDictionary<string, ActionResult>)
+        (actionResults: IDictionary<string, CompletedAction>)
         (leafActions: string list)
         =
         let rec loop leafActions =
@@ -70,7 +70,7 @@ module private SimulatorHelper =
                     (fun (chg, acc) name ->
                         let result = actionResults.[name]
 
-                        match result.status with
+                        match result.Status with
                         | Skipped ->
                             let higherActions =
                                 actions.[name].RunAfter
@@ -138,11 +138,27 @@ type LoopContextImpl(values: JsonNode list, disposeHook: LoopContext -> unit) as
 
     override this.Current = this.values.Head
 
-type Simulator private (triggerOutput: JsonNode) =
-    inherit SimulatorContext(triggerOutput)
+type Simulator private (triggerResult: CompletedTrigger) as this =
+    inherit SimulatorContext()
 
-    static member Trigger (logicApp: LogicAppSpec.Root) triggerOutput =
-        let sim = new Simulator(triggerOutput)
+    let recordResultOf name f =
+        let startTime = DateTime.UtcNow
+        let result = f ()
+
+        let result =
+            CompletedAction(
+                name = name,
+                status = result.status,
+                startTime = stringOfDateTime startTime,
+                Inputs = result.inputs,
+                Outputs = result.outputs,
+                workflowRunId = this.GetTriggerResult.ClientTrackingId
+            )
+
+        this.RecordActionResult name result
+
+    static member Trigger (logicApp: LogicAppSpec.Root) triggerResult =
+        let sim = new Simulator(triggerResult)
         let result = sim.ExecuteGraph logicApp.definition.actions
 
         if sim.TerminationStatus.IsNone then
@@ -150,13 +166,25 @@ type Simulator private (triggerOutput: JsonNode) =
 
         sim
 
+    static member TriggerSimple (logicApp: LogicAppSpec.Root) triggerOutputs =
+        let triggerResult =
+            CompletedTrigger(
+                name = (logicApp.definition.triggers.Keys |> Seq.head),
+                status = Succeeded,
+                startTime = stringOfDateTime DateTime.UtcNow,
+                Outputs = triggerOutputs
+            )
+
+        Simulator.Trigger logicApp triggerResult
+
     member val TerminationStatus: Status option = None with get, set
-    member val ActionResults = Dictionary<string, ActionResult>() with get, set
+    member val ActionResults = Dictionary<string, CompletedAction>() with get, set
     member val LoopContextStack = Stack<LoopContextImpl>() with get, set
     member val ArrayOperationContextStack = Stack<LoopContextImpl>() with get, set
 
     override this.LoopContext = this.LoopContextStack.Peek()
     override this.ArrayOperationContext = this.ArrayOperationContextStack.Peek()
+    override this.GetTriggerResult = triggerResult
 
     override this.GetActionResult name =
         this.ActionResults.TryGetValue name
@@ -191,14 +219,13 @@ type Simulator private (triggerOutput: JsonNode) =
                     match status with
                     | Satisfied ->
                         remainingActions.Remove actionName |> ignore
-                        let result = action.Execute this
-                        this.RecordActionResult actionName result
+                        recordResultOf actionName (fun () -> action.Execute this)
 
                         rest @ (getNextActions actionName)
                     | Completed ->
                         // This action's dependencies are in the wrong state, skip it
                         remainingActions.Remove actionName |> ignore
-                        this.RecordActionResult actionName skippedResult
+                        recordResultOf actionName (fun () -> skippedResult)
                         action.GetChildren() |> this.ForceSkipAll
 
                         rest @ (getNextActions actionName)
@@ -218,7 +245,7 @@ type Simulator private (triggerOutput: JsonNode) =
             |> Set.difference (actions.Keys |> Set.ofSeq)
             |> Set.toList
             |> trimLeaves actions this.ActionResults
-            |> Seq.map (fun name -> this.ActionResults.[name].status)
+            |> Seq.map (fun name -> this.ActionResults.[name].Status)
             |> Seq.fold mergeStatus Succeeded
 
     override this.EvaluateCondition expr =
@@ -269,4 +296,4 @@ type Simulator private (triggerOutput: JsonNode) =
         |> Seq.map (fun (k, v) -> k, (v: IGraphExecutable))
         |> Seq.toList
         |> getAllChildren
-        |> List.iter (fun (name, _) -> this.RecordActionResult name skippedResult)
+        |> List.iter (fun (name, _) -> recordResultOf name (fun () -> skippedResult))

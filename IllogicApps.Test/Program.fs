@@ -19,7 +19,7 @@ let logicApp = readLogicApp <| examplePath.Replace("Stateful1", "SkippingTest")
 // |> LogicAppBaseAction.getAllChildren
 // |> printfn "%A"
 
-let sim = Simulator.Trigger logicApp (JsonValue.Create("FAKE INPUT"))
+let sim = Simulator.TriggerSimple logicApp (Some (JsonValue.Create("FAKE INPUT")))
 
 let opts = makeJsonSerializerOptions()
 opts.WriteIndented <- true

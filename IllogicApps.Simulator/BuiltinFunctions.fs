@@ -407,7 +407,7 @@ let f_outputs (sim: SimulatorContext) (args: Args) : JsonNode =
     let actionName = ensureString <| List.head args
 
     match sim.GetActionResult actionName with
-    | Some result -> result.outputs |> Option.map _.DeepClone() |> optionToNull
+    | Some result -> result.Outputs |> Option.map _.DeepClone() |> optionToNull
     | None -> failwithf "Action %s not found" actionName
 
 let f_trigger (sim: SimulatorContext) (args: Args) : JsonNode =

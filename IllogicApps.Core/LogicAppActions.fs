@@ -21,9 +21,13 @@ type Request() =
     override this.Execute(context: SimulatorContext) =
         printfn "Trigger: %s" this.Kind
 
-        { status = Succeeded
-          inputs = None
-          outputs = Some context.TriggerOutput }
+        // TODO: Does this ever get called?
+
+        let triggerResult = context.GetTriggerResult
+
+        { status = triggerResult.Status
+          inputs = triggerResult.Inputs
+          outputs = triggerResult.Outputs }
 
 // Actions
 
