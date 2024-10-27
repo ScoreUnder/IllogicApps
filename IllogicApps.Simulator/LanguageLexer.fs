@@ -78,7 +78,7 @@ module Sublexers =
                 | Integral, c when Char.IsDigit(c) -> takeNum (start + 1) Integral remaining.[1..]
                 | Integral, '.' -> takeNum (start + 1) Fractional remaining.[1..]
                 | Fractional, c when Char.IsDigit(c) -> takeNum (start + 1) Fractional remaining.[1..]
-                | Fractional, ('e' | 'E') -> takeNum (start + 1) ExponentSign remaining.[1..]
+                | (Fractional | Integral), ('e' | 'E') -> takeNum (start + 1) ExponentSign remaining.[1..]
                 | ExponentSign, ('-' | '+') -> takeNum (start + 1) Exponent remaining.[1..]
                 | Exponent, c when Char.IsDigit(c) -> takeNum (start + 1) Exponent remaining.[1..]
                 | _ -> state, start
