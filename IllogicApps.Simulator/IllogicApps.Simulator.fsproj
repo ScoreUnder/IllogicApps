@@ -5,9 +5,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Helpers.fs" />
-    <Compile Include="BuiltinCondition.fs" />
     <Compile Include="LanguageLexer.fs" />
     <Compile Include="LanguageParser.fs" />
+    <Compile Include="BuiltinCondition.fs" />
     <Compile Include="BuiltinFunctions.fs" />
     <Compile Include="LanguageEvaluator.fs" />
     <Compile Include="Simulator.fs" />
