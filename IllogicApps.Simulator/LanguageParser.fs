@@ -13,7 +13,8 @@ type private TokenOrAst =
     | Token of Token
     | Ast of Ast
 
-let private (|LiteralIdentifier|_|) = function
+let private (|LiteralIdentifier|_|) =
+    function
     | "null" -> Some(JsonValue.Create(null))
     | "true" -> Some(JsonValue.Create(true))
     | "false" -> Some(JsonValue.Create(false))
@@ -68,7 +69,7 @@ let parse (items: (int * Token) list) =
         | (pos, token) :: rest ->
             try
                 match token with
-                | Identifier (LiteralIdentifier v) ->
+                | Identifier(LiteralIdentifier v) ->
                     Token token :: stack
                     |> tryParse collapseMemberAccess
                     |> Option.defaultValue (Ast(Literal(v)) :: stack)
