@@ -51,6 +51,7 @@ module Sublexers =
 
     let lexIdentifier start acc (remaining: string) =
         let lenOpt = remaining |> Seq.tryFindIndex (not << isValidIdentifierChar)
+
         match lenOpt with
         | Some len ->
             let nextStart = start + len
@@ -86,6 +87,20 @@ module Sublexers =
         let state, nextStart = takeNum start Sign remaining
         let len = nextStart - start
         let numStr = remaining.[.. len - 1]
+
+        if numStr = "" then
+            failwith
+                "Invalid number (but this should never be reached because we have already checked the first character before calling lexNumber)"
+
+        match numStr.[numStr.Length - 1] with
+        | '.' -> failwith "Invalid number: trailing dot"
+        | 'e'
+        | 'E' -> failwith "Invalid number: trailing exponent marker"
+        | '-'
+        | '+' when state = ExponentSign -> failwith "Invalid number: trailing exponent sign"
+        | _ when state = Sign -> failwith "Invalid number: no digits after sign"
+        | _ -> ()
+
         match state with
         | Integral ->
             let num = Int64.Parse(numStr)
