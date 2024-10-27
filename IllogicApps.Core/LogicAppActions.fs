@@ -223,11 +223,7 @@ type InitializeVariable() =
             |> fun a -> new JsonArray(a)
 
         { status = Succeeded
-          inputs =
-            Some(
-                makeObject
-                    [ "variables", processedVarsArray ]
-            )
+          inputs = Some(makeObject [ "variables", processedVarsArray ])
           outputs = None }
 
 type SetVariable() =
