@@ -9,6 +9,7 @@ open System.Xml
 open System.Xml.Linq
 open IllogicApps.Core
 open Helpers
+open JsonUtil
 
 type LanguageFunction = SimulatorContext -> JsonNode list -> JsonNode
 type Args = JsonNode list
@@ -89,16 +90,6 @@ let isBinaryContentType (contentType: string) =
     $"{contentType};"
         .StartsWith($"{ContentType.Binary};", System.StringComparison.OrdinalIgnoreCase)
 
-type NumberSubtype =
-    | Integer of int64
-    | Float of float
-    | Decimal of decimal
-
-type Number2Subtype =
-    | Integer2 of int64 * int64
-    | Float2 of float * float
-    | Decimal2 of decimal * decimal
-
 type Arithmetic2Type =
     | Add
     | Subtract
@@ -128,30 +119,6 @@ let inline performArithmeticOp< ^a
     | Modulo -> a % b
     | Min -> (^a: (static member Min: ^a * ^a -> ^a) (a, b))
     | Max -> (^a: (static member Max: ^a * ^a -> ^a) (a, b))
-
-let jsonNumberToSubtype (node: JsonNode) : NumberSubtype =
-    match node.GetValueKind() with
-    | JsonValueKind.Number ->
-        let value = box <| node.GetValue()
-
-        match value with
-        | :? int64 as i -> Integer i
-        | :? float as f -> Float f
-        | :? decimal as d -> Decimal d
-        | _ -> failwithf "Expected number, got %A" (value.GetType().Name)
-    | kind -> failwithf "Expected number, got %A" kind
-
-let promoteNums a b =
-    match a, b with
-    | Integer a, Integer b -> Integer2(a, b)
-    | Integer a, Float b -> Float2(float a, b)
-    | Integer a, Decimal b -> Decimal2(decimal a, b)
-    | Float a, Integer b -> Float2(a, float b)
-    | Float a, Float b -> Float2(a, b)
-    | Float a, Decimal b -> Decimal2(decimal a, b)
-    | Decimal a, Integer b -> Decimal2(a, decimal b)
-    | Decimal a, Float b -> Decimal2(a, decimal b)
-    | Decimal a, Decimal b -> Decimal2(a, b)
 
 let arithmetic2 op num1 num2 =
     promoteNums (jsonNumberToSubtype num1) (jsonNumberToSubtype num2)
@@ -237,7 +204,7 @@ let f_item (sim: SimulatorContext) (args: Args) : JsonNode =
 
     sim.ArrayOperationContext.Current.DeepClone()
 
-// Logical comparison funtions
+// Logical comparison functions
 
 let f_not _ (args: Args) : JsonNode =
     expectArgs 1 args

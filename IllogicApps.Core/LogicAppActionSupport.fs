@@ -12,9 +12,6 @@ let fromKvp (kvp: KeyValuePair<'a, 'b>) = kvp.Key, kvp.Value
 let toKvps seq = Seq.map toKvp seq
 let fromKvps seq = Seq.map fromKvp seq
 
-let makeObject (pairs: (string * JsonNode) seq) : JsonNode =
-    new JsonObject(pairs |> Seq.map (fun (k, v) -> new KeyValuePair<string, JsonNode>(k, v)))
-
 let optionalAddKey (key: string) (value: JsonNode option) (pairs: (string * JsonNode) list) =
     match value with
     | Some v -> (key, v.DeepClone()) :: pairs

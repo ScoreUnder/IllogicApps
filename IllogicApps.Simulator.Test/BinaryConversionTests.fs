@@ -3,7 +3,7 @@ module IllogicApps.Simulator.Test.BinaryConversionTests
 open NUnit.Framework
 open Swensen.Unquote
 
-open JsonUtil
+open IllogicApps.Core.JsonUtil
 open TestSimUtil
 
 [<Test>]
@@ -11,7 +11,7 @@ let JsonOfBinaryTest () =
     test
         <@
             testExpressionEvaluation "@json(binary('[1,2,3]'))"
-            |> jsonsEqual (jsonOfObject [| 1; 2; 3 |])
+            |> jsonsEqual (jsonOf [| jsonOf 1L; jsonOf 2L; jsonOf 3L |])
         @>
 
 [<Test>]
@@ -20,9 +20,9 @@ let BinaryTest () =
         <@
             testExpressionEvaluation "@binary('123asdf?a=b%20c%2F')"
             |> jsonsEqual (
-                !@(Map.ofList
-                    [ "$content-type", !@ "application/octet-stream"
-                      "$content", !@ "MTIzYXNkZj9hPWIlMjBjJTJG" ])
+                jsonOf
+                    [ "$content-type", jsonOf "application/octet-stream"
+                      "$content", jsonOf "MTIzYXNkZj9hPWIlMjBjJTJG" ]
             )
         @>
 
@@ -44,7 +44,11 @@ let Base64ToBinaryTest () =
     test
         <@
             testExpressionEvaluation "@base64ToBinary(base64('test'))"
-            |> jsonsEqual (!@(Map.ofList [ "$content-type", !@ "application/octet-stream"; "$content", !@ "dGVzdA==" ]))
+            |> jsonsEqual (
+                jsonOf
+                    [ "$content-type", jsonOf "application/octet-stream"
+                      "$content", jsonOf "dGVzdA==" ]
+            )
         @>
 
 [<Test>]
@@ -52,8 +56,6 @@ let BinaryToStringTest () =
     test
         <@
             testExpressionEvaluation "@{base64ToBinary('test')}"
-            |> jsonToObject
-            |> (fun f -> f :?> string)
-            |> _.ToCharArray()
+            |> _.GetValue<string>().ToCharArray()
             |> (=) [| char 0xfffd; char 0xfffd; char 0x2d |]
         @>

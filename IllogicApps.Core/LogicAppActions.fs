@@ -10,6 +10,7 @@ open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Core.LogicAppActionSupport
 open CompletedStepTypes
 open ExternalServiceTypes
+open JsonUtil
 
 // Triggers
 
@@ -76,7 +77,7 @@ type If() =
 
         { status = result
           inputs = None
-          outputs = Some(makeObject [ "expression", JsonValue.Create(conditionResult) ]) }
+          outputs = Some(jsonOf [ "expression", jsonOf conditionResult ]) }
 
     override this.GetChildren() : (string * IGraphExecutable) list =
         Seq.append this.Actions this.Else.Actions
@@ -115,7 +116,7 @@ type Switch() =
 
         { status = result
           inputs = None
-          outputs = Some(makeObject [ "expression", value ]) }
+          outputs = Some(jsonOf [ "expression", value ]) }
 
     override this.GetChildren() =
         this.Cases.Values
@@ -219,15 +220,15 @@ type InitializeVariable() =
         let processedVarsArray =
             processedVars
             |> List.map (fun (name, type_, value) ->
-                makeObject
-                    [ "name", JsonValue.Create(name)
-                      "type", JsonValue.Create(type_.ToString())
+                jsonOf
+                    [ "name", jsonOf name
+                      "type", jsonOf (type_.ToString())
                       "value", value.DeepClone() ])
             |> List.toArray
-            |> fun a -> new JsonArray(a)
+            |> jsonOf
 
         { status = Succeeded
-          inputs = Some(makeObject [ "variables", processedVarsArray ])
+          inputs = Some(jsonOf [ "variables", processedVarsArray ])
           outputs = None }
 
 type SetVariable() =
@@ -240,7 +241,7 @@ type SetVariable() =
             | JsonValueKind.Object -> Object
             | JsonValueKind.Array -> Array
             | JsonValueKind.String -> String
-            | JsonValueKind.Number -> Float
+            | JsonValueKind.Number -> VariableType.Float
             | JsonValueKind.True
             | JsonValueKind.False -> Boolean
             | JsonValueKind.Null -> Object
@@ -267,11 +268,11 @@ type SetVariable() =
         context.Variables.[this.Inputs.Name] <- value
 
         let inputs =
-            makeObject [ "name", JsonValue.Create(this.Inputs.Name); "value", value.DeepClone() ]
+            jsonOf [ "name", jsonOf this.Inputs.Name; "value", value.DeepClone() ]
 
         { status = Succeeded
           inputs = Some(inputs)
-          outputs = Some(makeObject [ "body", inputs.DeepClone() ]) }
+          outputs = Some(jsonOf [ "body", inputs.DeepClone() ]) }
 
 type AppendToStringVariable() =
     inherit Action()
@@ -289,9 +290,9 @@ type AppendToStringVariable() =
         { status = Succeeded
           inputs =
             Some(
-                makeObject
-                    [ ("name", JsonValue.Create(this.Inputs.Name))
-                      ("value", this.Inputs.Value.DeepClone()) ]
+                jsonOf
+                    [ "name", jsonOf this.Inputs.Name
+                      "value", this.Inputs.Value.DeepClone() ]
             )
           outputs = None }
 
@@ -330,18 +331,18 @@ type IncrementVariable() =
 
         let originalValue = getVarTypechecked context this.Inputs.Name JsonValueKind.Number
         let increment = this.Inputs.Value |> context.EvaluateLanguage
-        let value = this.Add (originalValue.GetValue<int>()) (increment.GetValue<int>())
+        let value = this.Add (originalValue.GetValue<int64>()) (increment.GetValue<int64>())
         context.Variables.[this.Inputs.Name] <- JsonValue.Create(value)
 
         { status = Succeeded
           inputs =
             Some(
-                makeObject
-                    [ "body", makeObject [ "name", JsonValue.Create(this.Inputs.Name); "value", increment.DeepClone() ] ]
+                jsonOf
+                    [ "body", jsonOf [ "name", jsonOf this.Inputs.Name; "value", increment.DeepClone() ] ]
             )
-          outputs = Some(makeObject [ "name", JsonValue.Create(this.Inputs.Name); "value", JsonValue.Create(value) ]) }
+          outputs = Some(jsonOf [ "name", jsonOf this.Inputs.Name; "value", jsonOf value ]) }
 
-    abstract member Add: int -> int -> int
+    abstract member Add: int64 -> int64 -> int64
     override this.Add a b = a + b
 
 type DecrementVariable() =
@@ -381,8 +382,8 @@ type ParseJson() =
         printfn "ParseJson Result: %O" result
 
         { status = Succeeded
-          inputs = Some(makeObject [ "content", input; "schema", this.Inputs.schema ])
-          outputs = Some(makeObject [ "body", result ]) }
+          inputs = Some(jsonOf [ "content", input; "schema", this.Inputs.schema ])
+          outputs = Some(jsonOf [ "body", result ]) }
 
 type Query() =
     inherit Action()
@@ -417,7 +418,7 @@ type Query() =
 
         { status = Succeeded
           inputs = Some(from.DeepClone())
-          outputs = Some(makeObject [ "body", new JsonArray(result |> List.toArray) ]) }
+          outputs = Some(jsonOf [ "body", jsonOf result ]) }
 
 // Inline Code actions
 
@@ -468,7 +469,7 @@ type Response() =
             new JsonObject(
                 [ new KeyValuePair<string, JsonNode>("statusCode", processedStatusCode) ]
                 |> addKeyValuePair "body" processedBody
-                |> addKeyValuePair "headers" (processedHeaders |> Option.map (kvToJsonValues >> makeObject))
+                |> addKeyValuePair "headers" (processedHeaders |> Option.map (kvToJsonValues >> jsonOf))
             )
             |> context.EvaluateLanguage
 
@@ -480,7 +481,7 @@ type Response() =
                 Body =
                     (processedBody
                      |> Option.map _.DeepClone()
-                     |> Option.defaultValue (JsonValue.Create(null)))
+                     |> Option.defaultValue jsonNull)
             )
         )
 

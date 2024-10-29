@@ -6,7 +6,6 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="JsonUtil.fs" />
     <Compile Include="TestSimUtil.fs" />
     <Compile Include="XmlJsonConversionTests.fs" />
     <Compile Include="BinaryConversionTests.fs" />
