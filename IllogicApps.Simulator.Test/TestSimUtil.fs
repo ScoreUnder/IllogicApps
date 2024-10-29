@@ -62,14 +62,16 @@ let traceEvaluation expr =
             TraceResult.tuple2 (trace' simContext parent) (trace' simContext mem)
             |> TraceResult.step LanguageParser.Member (fun (parent, mem) ->
                 match LanguageEvaluator.accessMember (unpackLiteral parent) (unpackLiteral mem) with
-                | Ok value -> Changes(LanguageParser.Literal(value))
-                | Error err -> TraceError err)
+                | LanguageEvaluator.AccessOk value -> Changes(LanguageParser.Literal(value))
+                | LanguageEvaluator.ForgivableError err -> TraceError err
+                | LanguageEvaluator.SeriousError err -> TraceError err)
         | LanguageParser.ForgivingMember(parent, mem) ->
             TraceResult.tuple2 (trace' simContext parent) (trace' simContext mem)
             |> TraceResult.step LanguageParser.ForgivingMember (fun (parent, mem) ->
                 match LanguageEvaluator.accessMember (unpackLiteral parent) (unpackLiteral mem) with
-                | Ok value -> Changes(LanguageParser.Literal(value))
-                | Error _ -> Changes(LanguageParser.Literal(jsonNull)))
+                | LanguageEvaluator.AccessOk value -> Changes(LanguageParser.Literal(value))
+                | LanguageEvaluator.ForgivableError _ -> Changes(LanguageParser.Literal(jsonNull))
+                | LanguageEvaluator.SeriousError err -> TraceError err)
         | LanguageParser.BuiltinConcat(args) ->
             args
             |> List.map (trace' simContext)

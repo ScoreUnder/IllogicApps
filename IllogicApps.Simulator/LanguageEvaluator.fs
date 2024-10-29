@@ -3,6 +3,23 @@ module IllogicApps.Simulator.LanguageEvaluator
 open System.Text.Json.Nodes
 open System.Text.Json
 
+type MemberAccessResult =
+    | AccessOk of JsonNode
+    | ForgivableError of string
+    | SeriousError of string
+
+    static member get(result: MemberAccessResult) =
+        match result with
+        | AccessOk value -> value
+        | ForgivableError err -> failwith err
+        | SeriousError err -> failwith err
+
+    static member defaultWith (f: string -> JsonNode) (result: MemberAccessResult) =
+        match result with
+        | AccessOk value -> value
+        | ForgivableError err -> f err
+        | SeriousError err -> failwith err
+
 let accessMember (parent: JsonNode) (mem: JsonNode) =
     match parent.GetValueKind(), mem.GetValueKind() with
     | JsonValueKind.Object, JsonValueKind.String ->
@@ -10,20 +27,20 @@ let accessMember (parent: JsonNode) (mem: JsonNode) =
 
         parent.AsObject().TryGetPropertyValue(propName)
         |> function
-            | true, value -> Ok value
-            | _ -> Error(sprintf "Property %s not found" propName)
-    | JsonValueKind.Object, kind -> failwithf "Cannot access property of object using %A" kind
+            | true, value -> AccessOk value
+            | _ -> ForgivableError(sprintf "Property %s not found" propName)
+    | JsonValueKind.Object, kind -> SeriousError(sprintf "Cannot access property of object using %A" kind)
     | JsonValueKind.Array, JsonValueKind.Number ->
         let index = mem.GetValue<int>()
         let arr = parent.AsArray()
 
         if index >= 0 && index < arr.Count then
-            Ok(arr.[index])
+            AccessOk(arr.[index])
         else
-            Error(sprintf "Index %d out of bounds in array of length %d" index arr.Count)
-    | JsonValueKind.Array, kind -> failwithf "Cannot index array with %A" kind
-    | JsonValueKind.Null, _ -> Error "Cannot access property of null"
-    | kind, _ -> failwithf "Cannot access property of %A" kind
+            ForgivableError(sprintf "Index %d out of bounds in array of length %d" index arr.Count)
+    | JsonValueKind.Array, kind -> SeriousError(sprintf "Cannot index array with %A" kind)
+    | JsonValueKind.Null, _ -> ForgivableError "Cannot access property of null"
+    | kind, _ -> SeriousError(sprintf "Cannot access property of %A" kind)
 
 let rec evaluate simContext (ast: LanguageParser.Ast) =
     match ast with
@@ -34,10 +51,10 @@ let rec evaluate simContext (ast: LanguageParser.Ast) =
         | _ -> failwithf "Function %s not found" name
     | LanguageParser.Member(parent, mem) ->
         accessMember (evaluate simContext parent) (evaluate simContext mem)
-        |> Result.defaultWith (fun err -> failwith err)
+        |> MemberAccessResult.get
     | LanguageParser.ForgivingMember(parent, mem) ->
         accessMember (evaluate simContext parent) (evaluate simContext mem)
-        |> Result.defaultWith (fun _ -> JsonValue.Create(JsonValueKind.Null))
+        |> MemberAccessResult.defaultWith (fun _ -> JsonValue.Create(JsonValueKind.Null))
     | LanguageParser.BuiltinConcat(args) ->
         args
         |> List.toSeq
