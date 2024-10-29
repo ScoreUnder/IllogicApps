@@ -14,6 +14,7 @@
     }:
     let
       includeVscode = true;
+      includeRider = true;
     in
     flake-utils.lib.eachDefaultSystem (
       system:
@@ -26,7 +27,15 @@
               pkgs = _: [ ];
               unfreePackages = [ ];
             };
-        unfreePackages = vscodeNix.unfreePackages;
+        riderNix =
+          if includeRider then
+            import ./rider.nix
+          else
+            {
+              pkgs = _: [ ];
+              unfreePackages = [ ];
+            };
+        unfreePackages = vscodeNix.unfreePackages ++ riderNix.unfreePackages;
         pkgs =
           if unfreePackages == [ ] then
             nixpkgs.legacyPackages.${system}
@@ -35,7 +44,7 @@
               inherit system;
               config.allowUnfreePredicate = (path: builtins.elem (nixpkgs.lib.getName path) unfreePackages);
             };
-        extraPackages = vscodeNix.pkgs pkgs;
+        extraPackages = (vscodeNix.pkgs pkgs) ++ (riderNix.pkgs pkgs);
         myDotnetSdk = pkgs.dotnetCorePackages.sdk_8_0;
         myDotnetRuntime = pkgs.dotnetCorePackages.runtime_8_0;
         functionAppsDotnetSdk = pkgs.dotnetCorePackages.sdk_6_0;
@@ -66,10 +75,9 @@
             with pkgs;
             [
               nuget-to-nix
-              dotnetPackages.Nuget
             ]
-            ++ extraPackages;
-          buildInputs = shellRequires;
+            ++ extraPackages
+            ++ shellRequires;
         };
       }
     );
