@@ -85,6 +85,10 @@ let isXmlContentType (contentType: string) =
     $"{contentType};"
         .StartsWith($"{ContentType.Xml};", System.StringComparison.OrdinalIgnoreCase)
 
+let isBinaryContentType (contentType: string) =
+    $"{contentType};"
+        .StartsWith($"{ContentType.Binary};", System.StringComparison.OrdinalIgnoreCase)
+
 type NumberSubtype =
     | Integer of int64
     | Float of float
@@ -294,12 +298,24 @@ let f_json _ (args: Args) : JsonNode =
 
     let str =
         match args |> List.head with
-        | Base64StringBlob(contentType, content) when isXmlContentType contentType ->
-            let xmlStr = decodeByContentType contentType content
-            let stringWriter = new MemoryStream()
-            let doc = XDocument.Parse(xmlStr).WriteTo(JsonReaderWriterFactory.CreateJsonWriter(stringWriter))
-            stringWriter.ToArray() |> System.Text.Encoding.UTF8.GetString
-        | _ -> ensureString <| List.head args
+        | Base64StringBlob(contentType, content) ->
+            if isXmlContentType contentType then
+                let xmlStr = decodeByContentType contentType content
+                let stringWriter = new MemoryStream()
+
+                try
+                    XDocument
+                        .Parse(xmlStr)
+                        .WriteTo(JsonReaderWriterFactory.CreateJsonWriter(stringWriter))
+                with ex ->
+                    failwithf "Could not parse XML: %s\nDocument: %s\nOriginal: %s" ex.Message xmlStr (ex.ToString())
+
+                stringWriter.ToArray() |> System.Text.Encoding.UTF8.GetString
+            else if isBinaryContentType contentType then
+                content |> decodeByContentType contentType
+            else
+                failwithf "Unknown content type %s" contentType
+        | arg -> ensureString arg
 
     JsonNode.Parse(str)
 
@@ -309,6 +325,7 @@ let f_string _ (args: Args) : JsonNode =
 
 let f_xml _ (args: Args) : JsonNode =
     expectArgs 1 args
+
     match List.head args with
     | v when v.GetValueKind() = JsonValueKind.String ->
         let xmlString = v.GetValue<string>()
@@ -322,9 +339,14 @@ let f_xml _ (args: Args) : JsonNode =
         stringWriter.ToString() |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
     | v when v.GetValueKind() = JsonValueKind.Object ->
         let jsonBytes = System.Text.Encoding.UTF8.GetBytes(v.ToJsonString())
-        let reader = JsonReaderWriterFactory.CreateJsonReader(jsonBytes, new XmlDictionaryReaderQuotas())
+
+        let reader =
+            JsonReaderWriterFactory.CreateJsonReader(jsonBytes, new XmlDictionaryReaderQuotas())
+
         let xml = XDocument.Load(reader)
-        xml.ToString() |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
+
+        xml.ToString(SaveOptions.DisableFormatting)
+        |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
     | v -> failwithf "Expected string or object, got %A" (v.GetValueKind())
 
 // Math functions
