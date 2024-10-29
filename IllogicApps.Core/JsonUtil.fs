@@ -94,4 +94,8 @@ let rec jsonsEqual (a: JsonNode) (b: JsonNode) =
         | Integer2(a, b) -> a = b
         | Float2(a, b) -> a = b
         | Decimal2(a, b) -> a = b
-    | _ -> a.GetValue() = b.GetValue()
+    | JsonValueKind.True, JsonValueKind.True
+    | JsonValueKind.False, JsonValueKind.False
+    | JsonValueKind.Null, JsonValueKind.Null -> true
+    | a, b when a = b -> a.Equals(b)
+    | _ -> false

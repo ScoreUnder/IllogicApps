@@ -7,7 +7,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="TestSimUtil.fs" />
-    <Compile Include="XmlJsonConversionTests.fs" />
+    <Compile Include="XmlConversionTests.fs" />
+    <Compile Include="BasicLanguageTests.fs" />
     <Compile Include="BinaryConversionTests.fs" />
   </ItemGroup>
   <ItemGroup>
