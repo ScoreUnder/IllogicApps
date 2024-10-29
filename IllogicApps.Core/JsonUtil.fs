@@ -97,5 +97,5 @@ let rec jsonsEqual (a: JsonNode) (b: JsonNode) =
     | JsonValueKind.True, JsonValueKind.True
     | JsonValueKind.False, JsonValueKind.False
     | JsonValueKind.Null, JsonValueKind.Null -> true
-    | a, b when a = b -> a.Equals(b)
+    | ta, tb when ta = tb -> a.GetValue().Equals(b.GetValue())
     | _ -> false
