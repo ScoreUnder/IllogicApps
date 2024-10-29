@@ -81,7 +81,7 @@ module Sublexers =
                 | Fractional, c when Char.IsDigit(c) -> takeNum (start + 1) Fractional remaining.[1..]
                 | (Fractional | Integral), ('e' | 'E') -> takeNum (start + 1) ExponentSign remaining.[1..]
                 | ExponentSign, ('-' | '+') -> takeNum (start + 1) Exponent remaining.[1..]
-                | Exponent, c when Char.IsDigit(c) -> takeNum (start + 1) Exponent remaining.[1..]
+                | (Exponent | ExponentSign), c when Char.IsDigit(c) -> takeNum (start + 1) Exponent remaining.[1..]
                 | _ -> state, start
 
         let state, nextStart = takeNum start Sign remaining
@@ -93,7 +93,6 @@ module Sublexers =
                 "Invalid number (but this should never be reached because we have already checked the first character before calling lexNumber)"
 
         match numStr.[numStr.Length - 1] with
-        | '.' -> failwith "Invalid number: trailing dot"
         | 'e'
         | 'E' -> failwith "Invalid number: trailing exponent marker"
         | '-'
