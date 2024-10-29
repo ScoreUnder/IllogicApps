@@ -18,7 +18,7 @@ type Token =
 let isLiteralStringWithAtSign (rawStr: string) = rawStr.StartsWith("@@")
 
 let requiresInterpolation (rawStr: string) =
-    rawStr.StartsWith("@") || rawStr.Contains("@{")
+    rawStr.Length > 1 && rawStr.StartsWith("@") || rawStr.Contains("@{")
 
 let interpolationIsStringified (rawStr: string) =
     rawStr.StartsWith("@{") || not (rawStr.StartsWith("@"))
