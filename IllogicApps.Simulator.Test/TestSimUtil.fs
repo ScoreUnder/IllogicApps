@@ -94,7 +94,13 @@ let traceEvaluation expr =
         | LanguageParser.BuiltinConcat(args) -> $"""concat({args |> List.map stringOfAst |> String.concat ", "})"""
 
     let rec trace'' simContext acc (ast: LanguageParser.Ast) =
-        match trace' simContext ast with
+        let result =
+            try
+                trace' simContext ast
+            with
+            | e -> TraceError $"{e.GetType().Name}: {e.Message}"
+
+        match result with
         | NoChanges ast -> stringOfAst ast :: acc
         | Changes nextAst -> trace'' simContext (stringOfAst ast :: acc) nextAst
         | TraceError err -> err :: acc
