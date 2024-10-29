@@ -8,6 +8,7 @@ type Ast =
     | Call of string * Ast list
     | Member of Ast * Ast
     | ForgivingMember of Ast * Ast
+    | BuiltinConcat of Ast list
 
 type private TokenOrAst =
     | Token of Token
@@ -47,7 +48,7 @@ let private collapseIndexAccess (stack: TokenOrAst list) =
         Ast(ForgivingMember(parent, index)) :: rest
     | _ -> stack
 
-let parse (items: (int * Token) list) =
+let parse (items: (int * Token) list list) =
     let rec parse' (items: (int * Token) list) (stack: TokenOrAst list) =
         let tryParse f stack =
             let newStack = f stack
@@ -87,4 +88,7 @@ let parse (items: (int * Token) list) =
                 )
             |> parse' rest
 
-    parse' items []
+    let result = items |> List.map (fun items -> parse' items [])
+    match result with
+    | [ a ] -> a
+    | l -> BuiltinConcat l

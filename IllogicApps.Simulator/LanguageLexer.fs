@@ -118,9 +118,9 @@ let lex rawStr =
             if isStringified then
                 failwithf "Unterminated string interpolation (position %d) in %s" start rawStr
             else
-                start, acc, remaining
+                start, List.rev acc, remaining
         elif remaining.[0] = '}' && isStringified then
-            (start + 1), acc, remaining.[1..]
+            (start + 1), List.rev acc, remaining.[1..]
         else
             let nextStart, nextAcc, nextRemaining =
                 try
@@ -153,27 +153,22 @@ let lex rawStr =
 
             lex' nextStart nextAcc nextRemaining
 
-    let rec lexStringified (start: int) (acc: (int * Token) list) (remaining: string) =
+    let rec lexStringified (start: int) (acc: (int * Token) list list) (remaining: string) =
         let nextInterpolation = remaining.IndexOf("@{")
 
         if nextInterpolation = -1 then
-            (start, String remaining) :: acc
+            List.rev ([(start, String remaining)] :: acc)
         else
             let str = remaining.[.. nextInterpolation - 1]
-            let acc = (start, Comma) :: (start, String str) :: acc
+            let acc = [(start, String str)] :: acc
             let start = start + nextInterpolation + 2
             let remaining = remaining.[nextInterpolation + 2 ..]
 
-            let start, acc, remaining = lex' start acc remaining
-            lexStringified start ((start, Comma) :: acc) remaining
+            let start, lexed, remaining = lex' start [] remaining
+            lexStringified start (lexed :: acc) remaining
 
     if isStringified then
-        let lexResult = lexStringified 0 [] rawStr
-
-        // Lol, lmao even
-        (0, Identifier "concat")
-        :: (0, OpenParen)
-        :: (List.rev <| (0, CloseParen) :: lexResult)
+        lexStringified 0 [] rawStr
     else
         let _, lexed, _ = lex' 1 [] rawStr.[1..]
-        List.rev lexed
+        [lexed]

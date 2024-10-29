@@ -38,6 +38,14 @@ let rec evaluate simContext (ast: LanguageParser.Ast) =
     | LanguageParser.ForgivingMember(parent, mem) ->
         accessMember (evaluate simContext parent) (evaluate simContext mem)
         |> Result.defaultWith (fun _ -> JsonValue.Create(JsonValueKind.Null))
+    | LanguageParser.BuiltinConcat(args) ->
+        args
+        |> List.toSeq
+        |> Seq.map (evaluate simContext)
+        |> Seq.map BuiltinFunctions.objectToString
+        |> String.concat ""
+        |> JsonValue.Create
+        :> JsonNode
 
 let evaluateIfNecessary simContext (rawStr: string) : JsonNode =
     if LanguageLexer.isLiteralStringWithAtSign rawStr then
