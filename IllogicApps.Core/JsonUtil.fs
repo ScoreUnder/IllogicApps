@@ -104,7 +104,7 @@ let rec jsonsEqual (a: JsonNode) (b: JsonNode) =
     | JsonValueKind.True, JsonValueKind.True
     | JsonValueKind.False, JsonValueKind.False
     | JsonValueKind.Null, JsonValueKind.Null -> true
-    | ta, tb when ta = tb -> a.GetValue().Equals(b.GetValue())
+    | JsonValueKind.String, JsonValueKind.String -> a.GetValue<string>().Equals(b.GetValue<string>())
     | _ -> false
 
 let sensibleSerialiserOptions =
