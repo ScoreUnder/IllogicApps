@@ -12,6 +12,20 @@ let makeSimulator () = Foq.Mock<SimulatorContext>().Create()
 let testExpressionEvaluation expr =
     LanguageEvaluator.evaluateIfNecessary (makeSimulator ()) expr
 
+let lexExpr expr =
+    test
+        <@
+            not (LanguageLexer.isLiteralStringWithAtSign expr)
+            && LanguageLexer.requiresInterpolation expr
+        @>
+
+    LanguageLexer.lex expr
+
+let parseExpr lexed = LanguageParser.parse lexed
+
+let evaluateParsed expr =
+    LanguageEvaluator.evaluate (makeSimulator ()) expr
+
 type private 'a TraceResult =
     | NoChanges of 'a
     | Changes of 'a
@@ -42,32 +56,34 @@ type private 'a TraceResult =
     static member tuple2 (a: 'a TraceResult) (b: 'b TraceResult) =
         TraceResult.map2 (fun a b -> (a, b)) a b
 
-let traceEvaluation expr =
+let traceEvaluationParsed expr =
     let unpackLiteral =
         function
         | LanguageParser.Literal(lit) -> lit
         | _ -> failwith "Expected a literal"
 
-    let rec trace' simContext (ast: LanguageParser.Ast) =
-        match ast with
-        | LanguageParser.Literal _ -> NoChanges ast
+    let simContext = makeSimulator ()
+
+    let rec trace' =
+        function
+        | LanguageParser.Literal _ as ast -> NoChanges ast
         | LanguageParser.Call(name, args) ->
             args
-            |> List.map (trace' simContext)
+            |> List.map trace'
             |> TraceResult.sequence
             |> TraceResult.step (fun args -> LanguageParser.Call(name, args)) (fun args ->
                 match BuiltinFunctions.functions.TryGetValue(name) with
                 | true, func -> Changes(args |> List.map unpackLiteral |> func simContext |> LanguageParser.Literal)
                 | _ -> TraceError $"Function {name} not found")
         | LanguageParser.Member(parent, mem) ->
-            TraceResult.tuple2 (trace' simContext parent) (trace' simContext mem)
+            TraceResult.tuple2 (trace' parent) (trace' mem)
             |> TraceResult.step LanguageParser.Member (fun (parent, mem) ->
                 match LanguageEvaluator.accessMember (unpackLiteral parent) (unpackLiteral mem) with
                 | LanguageEvaluator.AccessOk value -> Changes(LanguageParser.Literal(value))
                 | LanguageEvaluator.ForgivableError err -> TraceError err
                 | LanguageEvaluator.SeriousError err -> TraceError err)
         | LanguageParser.ForgivingMember(parent, mem) ->
-            TraceResult.tuple2 (trace' simContext parent) (trace' simContext mem)
+            TraceResult.tuple2 (trace' parent) (trace' mem)
             |> TraceResult.step LanguageParser.ForgivingMember (fun (parent, mem) ->
                 match LanguageEvaluator.accessMember (unpackLiteral parent) (unpackLiteral mem) with
                 | LanguageEvaluator.AccessOk value -> Changes(LanguageParser.Literal(value))
@@ -75,7 +91,7 @@ let traceEvaluation expr =
                 | LanguageEvaluator.SeriousError err -> TraceError err)
         | LanguageParser.BuiltinConcat(args) ->
             args
-            |> List.map (trace' simContext)
+            |> List.map trace'
             |> TraceResult.sequence
             |> TraceResult.step LanguageParser.BuiltinConcat (fun args ->
                 args
@@ -94,45 +110,62 @@ let traceEvaluation expr =
         | LanguageParser.ForgivingMember(parent, mem) -> $"{stringOfAst parent}?[{stringOfAst mem}]"
         | LanguageParser.BuiltinConcat(args) -> $"""concat({args |> List.map stringOfAst |> String.concat ", "})"""
 
-    let rec trace'' simContext acc (ast: LanguageParser.Ast) =
+    let rec trace'' acc (ast: LanguageParser.Ast) =
         let result =
             try
-                trace' simContext ast
-            with
-            | e -> TraceError $"{e.GetType().Name}: {e.Message}"
+                trace' ast
+            with e ->
+                TraceError $"{e.GetType().Name}: {e.Message}"
 
         match result with
         | NoChanges ast -> stringOfAst ast :: acc
-        | Changes nextAst -> trace'' simContext (stringOfAst ast :: acc) nextAst
+        | Changes nextAst -> trace'' (stringOfAst ast :: acc) nextAst
         | TraceError err -> err :: acc
 
-    let simContext = makeSimulator ()
+    trace'' [stringOfAst expr] expr |> List.rev
 
+let traceEvaluation expr =
     if LanguageLexer.isLiteralStringWithAtSign expr then
         [ JsonValue.Create(expr.[1..]).ToJsonString(sensibleSerialiserOptions) ]
     else if LanguageLexer.requiresInterpolation expr then
-        expr
-        |> LanguageLexer.lex
-        |> LanguageParser.parse
-        |> trace'' simContext []
-        |> List.rev
+        expr |> LanguageLexer.lex |> LanguageParser.parse |> traceEvaluationParsed
     else
         [ JsonValue.Create(expr).ToJsonString(sensibleSerialiserOptions) ]
 
 let traceEvaluationTo f expr = traceEvaluation expr |> List.iter f
 
+let traceEvaluationParsedTo f expr =
+    traceEvaluationParsed expr |> List.iter f
+
 let testOrTrace expr quote =
     try
         test quote
-    with
-    | e ->
+    with e ->
         traceEvaluationTo System.Console.WriteLine expr
-        reraise()
+        reraise ()
 
 let raisesOrTrace<'e when 'e :> exn> expr quote =
     try
         raises<'e> quote
     with
-    | :? AssertionException | :? AssertionFailedException ->
+    | :? AssertionException
+    | :? AssertionFailedException ->
         traceEvaluationTo System.Console.WriteLine expr
-        reraise()
+        reraise ()
+
+let testOrTraceParsed expr quote =
+    try
+        test quote
+    with e ->
+        traceEvaluationParsedTo System.Console.WriteLine expr
+        reraise ()
+
+
+let raisesOrTraceParsed<'e when 'e :> exn> expr quote =
+    try
+        raises<'e> quote
+    with
+    | :? AssertionException
+    | :? AssertionFailedException ->
+        traceEvaluationParsedTo System.Console.WriteLine expr
+        reraise ()
