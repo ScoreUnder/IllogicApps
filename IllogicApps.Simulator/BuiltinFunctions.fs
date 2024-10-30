@@ -237,6 +237,11 @@ let f_not _ (args: Args) : JsonNode =
 
 // Conversion functions
 
+let f_array _ (args: Args) : JsonNode =
+    expectArgs 1 args
+
+    safeClone <| List.head args
+
 let f_base64 _ (args: Args) : JsonNode =
     expectArgs 1 args
     let str = ensureString <| List.head args
@@ -263,8 +268,14 @@ let f_binary _ (args: Args) : JsonNode =
     | [ a ] ->
         if a = null || a.GetValueKind() = JsonValueKind.Null then
             failwith "Expected non-null argument"
+
         toBinary (objectToString a)
     | _ -> failwith "Expected 1 argument"
+
+let f_createArray _ (args: Args) : JsonNode =
+    expectArgsAtLeast 2 args
+
+    args |> Seq.map safeClone |> Seq.toArray |> JsonArray :> JsonNode
 
 let f_decimal _ (args: Args) : JsonNode =
     expectArgs 1 args
@@ -448,10 +459,12 @@ let functions: Map<string, LanguageFunction> =
       "startsWith", f_startsWith
       "item", f_item
       "not", f_not
+      "array", f_array
       "base64", f_base64
       "base64ToBinary", f_base64ToBinary
       "base64ToString", f_base64ToString
       "binary", f_binary
+      "createArray", f_createArray
       "decimal", f_decimal
       "json", f_json
       "string", f_string

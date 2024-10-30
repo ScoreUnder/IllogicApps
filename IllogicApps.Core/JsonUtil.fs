@@ -121,3 +121,8 @@ let sensibleSerialiserOptions =
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         WriteIndented = false
     )
+
+let safeClone (node: JsonNode) =
+    match node with
+    | null -> null
+    | v -> v.DeepClone()
