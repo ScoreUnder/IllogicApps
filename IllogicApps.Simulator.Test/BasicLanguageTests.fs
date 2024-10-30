@@ -114,5 +114,6 @@ let InterpolatedStringParsingTest (expr: string) (expected: string) =
 [<TestCase("@{++1}")>]
 [<TestCase("@--1")>]
 [<TestCase("@{--1}")>]
+[<TestCase("@string( { \"name\": \"Sophie Owen\" } )")>]
 let UnparseableTest (expr: string) =
-    raises<Exception> <@ testExpressionEvaluation expr @>
+    raises<Exception> <@ parseExpr (lexExpr expr) @>
