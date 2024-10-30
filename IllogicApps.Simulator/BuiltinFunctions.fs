@@ -302,11 +302,13 @@ let f_xml _ (args: Args) : JsonNode =
     expectArgs 1 args
 
     match List.head args with
-    | StringOrEncodedString str ->
-        str
-        |> XDocument.Parse
-        |> _.ToString(SaveOptions.DisableFormatting)
-        |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
+    | v when v.GetValueKind() = JsonValueKind.String ->
+        let str = v.GetValue<string>()
+        let doc = XmlDocument()
+        doc.LoadXml(str)
+        doc.OuterXml |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
+    | Base64StringBlob(_, content) ->
+        content |> System.Convert.ToBase64String |> base64ToBlob $"{ContentType.Xml};charset=utf-8"
     | v when v.GetValueKind() = JsonValueKind.Object ->
         let jsonBytes = System.Text.Encoding.UTF8.GetBytes(v.ToJsonString())
 
