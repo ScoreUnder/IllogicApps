@@ -9,15 +9,15 @@ open Swensen.Unquote
 open IllogicApps.Core.JsonUtil
 open TestSimUtil
 
-[<Test>]
-let StringifiedJsonOfXmlTest () =
-    let expected =
-        "{\"root\":{\"#text\":[\"a\",\"c\",\"f\"],\"#comment\":[],\"e\":{\"#cdata-section\":\"Testing\"}}}"
-
-    let expr =
-        "@{json(xml('<root>a<!--b-->c<!--d--><e><![CDATA[Testing]]><!-- one big comment --></e>f</root>'))}"
-
-    test <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
+[<TestCase("@{json(xml('<root>a<!--b-->c<!--d--><e><![CDATA[Testing]]><!-- one big comment --></e>f</root>'))}",
+           "{\"root\":{\"#text\":[\"a\",\"c\",\"f\"],\"#comment\":[],\"e\":{\"#cdata-section\":\"Testing\"}}}")>]
+[<TestCase("@{json(xml('<a><a/>t<a/></a>'))}", "{\"a\":{\"a\":[null,null],\"#text\":\"t\"}}")>]
+[<TestCase("@{json(xml('<?xml version=\"1.0\" encoding=\"utf-8\"?><root/>'))}",
+           "{\"?xml\":{\"@version\":\"1.0\",\"@encoding\":\"utf-8\"},\"root\":null}")>]
+[<TestCase("@{json(xml('<?xml version=\"1.0\" encoding=\"ascii\"?><root/>'))}",
+           "{\"?xml\":{\"@version\":\"1.0\",\"@encoding\":\"ascii\"},\"root\":null}")>]
+let StringifiedJsonOfXmlTest expr expected =
+    testOrTrace expr <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
 
 
 [<TestCase("@json(xml('<root>a<!--b-->c<!--d--><e><![CDATA[Testing]]><!-- one big comment --></e>f</root>'))",
@@ -34,7 +34,7 @@ let StringifiedJsonOfXmlTest () =
            "{ \"root\": { \"node1\": { \"@attr\": \"x\" }, \"node2\": { \"@attr2\": \"y\", \"innermost\": { \"@innerattr\": \"o\\\"h\", \"#text\": [ \"wow\", \"wowow\" ], \"break\": null } } } }")>]
 let JsonOfXmlTest expr (expected: string) =
     let expected = JsonSerializer.Deserialize<JsonNode>(expected)
-    test <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
 
 [<TestCase("@{xml('<root/>')}", "<root />")>]
 [<TestCase("@{xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow</innermost></node2></root>')}",
@@ -164,5 +164,17 @@ let JsonInvalidXmlRoundTripTest expr =
 [<TestCase("@{xml('<?xml version=\"1.0\" encoding=\"utf-8\"?>')}")>]
 [<TestCase("@{xml('<!-- comment -->')}")>]
 [<TestCase("@{xml('<root> a <!-- b <!-- c --> d --> e </root>')}")>]
+[<TestCase("@{xml('<?xml standalone=\"yes\" encoding=\"ascii\"?><root/>')}")>]
+[<TestCase("@{xml('<?xml version=\"1.0\" standalone=\"yes\" encoding=\"ascii\"?><root/>')}")>]
+[<TestCase("@{xml('<?xml version=\"1.0\" standalone=\"yes\" encoding=\"utf-8\"?><root/>')}")>]
+[<TestCase("@{xml('<?xml version=\"1.0\" standalone=\"no\" encoding=\"utf-8\"?><root/>')}")>]
+[<TestCase("@{xml('<?xml version=\"1.0\" encoding=\"martian\"?><root/>')}")>]
+[<TestCase("@{xml('<?xml version=\"1.0\" encoding=\"ucs-2\"?><root/>')}")>]
+[<TestCase("@{xml('<?xml version=\"1.0\" encoding=\"ucs-2-le\"?><root/>')}")>]
+[<TestCase("@{xml('<?xml encoding=\"ascii\"?><root/>')}")>]
+[<TestCase("@{xml('<?xml version=\"1.99999\"?><root/>')}")>]
+[<TestCase("@{xml('<?xml version=\"1.1\"?><root/>')}")>]
+[<TestCase("@{xml('some text')}")>]
 let InvalidXmlTest expr =
+    // Some of these cases are valid, strictly speaking, but they're not supported by the Logic Apps XML parser
     raises<XmlException> <@ testExpressionEvaluation expr @>
