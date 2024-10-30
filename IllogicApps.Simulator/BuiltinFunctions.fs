@@ -77,6 +77,14 @@ let decodeByContentType contentType (content: byte array) =
     |> Option.defaultValue System.Text.Encoding.UTF8
     |> _.GetString(content)
 
+let (|StringOrEncodedString|_|) (node: JsonNode) : string option =
+    match node.GetValueKind() with
+    | JsonValueKind.String -> Some(node.GetValue<string>())
+    | _ ->
+        match node with
+        | Base64StringBlob(contentType, content) -> Some(decodeByContentType contentType content)
+        | _ -> None
+
 let objectToString (node: JsonNode) : string =
     match node with
     | Base64StringBlob(contentType, content) -> decodeByContentType contentType content
@@ -294,16 +302,11 @@ let f_xml _ (args: Args) : JsonNode =
     expectArgs 1 args
 
     match List.head args with
-    | v when v.GetValueKind() = JsonValueKind.String ->
-        let xmlString = v.GetValue<string>()
-
-        let doc = XmlDocument()
-        doc.LoadXml(xmlString)
-
-        let stringWriter = new StringWriter()
-        doc.Save(stringWriter)
-
-        stringWriter.ToString() |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
+    | StringOrEncodedString str ->
+        str
+        |> XDocument.Parse
+        |> _.ToString(SaveOptions.DisableFormatting)
+        |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
     | v when v.GetValueKind() = JsonValueKind.Object ->
         let jsonBytes = System.Text.Encoding.UTF8.GetBytes(v.ToJsonString())
 
