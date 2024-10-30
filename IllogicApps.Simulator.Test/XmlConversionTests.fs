@@ -186,3 +186,12 @@ let JsonInvalidXmlRoundTripTest expr =
 let InvalidXmlTest expr =
     // Some of these cases are valid, strictly speaking, but they're not supported by the Logic Apps XML parser
     raisesOrTrace<XmlException> expr <@ testExpressionEvaluation expr @>
+
+[<TestCase("@xml(binary('<'))", """{"$content-type":"application/xml;charset=utf-8","$content":"PA=="}""")>]
+let AllowInvalidXmlOfBinaryTest expr (expected: string) =
+    let expected = JsonSerializer.Deserialize<JsonNode>(expected)
+    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+
+[<TestCase("@json(xml(binary('<')))")>]
+let InvalidXmlOfBinaryToJsonTest expr =
+    raisesOrTrace<XmlException> expr <@ testExpressionEvaluation expr @>
