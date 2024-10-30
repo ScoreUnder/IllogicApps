@@ -1,6 +1,7 @@
 module IllogicApps.Simulator.BuiltinFunctions
 
 open System.Collections.Generic
+open System.Globalization
 open System.IO
 open System.Runtime.Serialization.Json
 open System.Text.Json
@@ -282,13 +283,7 @@ let f_decimal _ (args: Args) : JsonNode =
     let str = objectToString <| List.head args
 
     // TODO: verify how it parses
-    match
-        System.Decimal.TryParse(
-            str,
-            System.Globalization.NumberStyles.Any,
-            System.Globalization.CultureInfo.InvariantCulture
-        )
-    with
+    match System.Decimal.TryParse(str, NumberStyles.Float, CultureInfo.InvariantCulture) with
     | true, result -> JsonValue.Create(result)
     | _ -> failwithf "Could not parse %s as decimal" str
 
@@ -297,30 +292,16 @@ let f_float _ (args: Args) : JsonNode =
     let str = objectToString <| List.head args
 
     // TODO: verify how it parses
-    match
-        System.Double.TryParse(
-            str,
-            System.Globalization.NumberStyles.Any,
-            System.Globalization.CultureInfo.InvariantCulture
-        )
-    with
+    match System.Double.TryParse(str, NumberStyles.Float, CultureInfo.InvariantCulture) with
     | true, result -> JsonValue.Create(result)
     | _ -> failwithf "Could not parse %s as float" str
 
-let f_int _ (args: Args) : JsonNode =
-    expectArgs 1 args
-    let str = objectToString <| List.head args
-
-    // TODO: verify how it parses
-    match
-        System.Int64.TryParse(
-            str,
-            System.Globalization.NumberStyles.Any,
-            System.Globalization.CultureInfo.InvariantCulture
-        )
-    with
-    | true, result -> JsonValue.Create(result)
-    | _ -> failwithf "Could not parse %s as int" str
+let f_int sim (args: Args) : JsonNode =
+    f_float sim args
+    |> _.GetValue<float>()
+    |> Operators.Checked.int64
+    |> JsonValue.Create
+    :> JsonNode
 
 let f_json _ (args: Args) : JsonNode =
     expectArgs 1 args
