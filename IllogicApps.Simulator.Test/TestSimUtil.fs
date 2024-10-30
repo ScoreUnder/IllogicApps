@@ -127,7 +127,7 @@ let traceEvaluationParsed expr =
         | Changes nextAst -> trace'' (Ok ast :: acc) nextAst
         | TraceError err -> Error err :: acc
 
-    trace'' [ Ok expr ] expr |> List.rev
+    trace'' [] expr |> List.rev
 
 let traceEvaluation expr =
     if LanguageLexer.isLiteralStringWithAtSign expr then
