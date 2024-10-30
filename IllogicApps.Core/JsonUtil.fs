@@ -33,6 +33,12 @@ let jsonNumberToSubtype (node: JsonNode) : NumberSubtype =
                 | _ -> failwithf "Expected number, got %A" (node.GetValue().GetType().Name)
     | kind -> failwithf "Expected number, got %A" kind
 
+let numberSubtypeToJson : NumberSubtype -> JsonNode =
+    function
+    | Integer i -> JsonValue.Create i
+    | Float f -> JsonValue.Create f
+    | Decimal d -> JsonValue.Create d
+
 let promoteNums a b =
     match a, b with
     | Integer a, Integer b -> Integer2(a, b)

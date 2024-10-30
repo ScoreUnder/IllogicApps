@@ -112,9 +112,9 @@ let inline performArithmeticOp< ^a
     (b: 'a)
     =
     match op with
-    | Add -> a + b
-    | Subtract -> a - b
-    | Multiply -> a * b
+    | Add -> Operators.Checked.(+) a b
+    | Subtract -> Operators.Checked.(-) a b
+    | Multiply -> Operators.Checked.(*) a b
     | Divide -> a / b
     | Modulo -> a % b
     | Min -> (^a: (static member Min: ^a * ^a -> ^a) (a, b))
@@ -149,7 +149,7 @@ let arrayReduceArithmetic2 op (args: Args) : JsonNode =
                     | Float2(a, b) -> Float(performArithmeticOp op a b)
                     | Decimal2(a, b) -> Decimal(performArithmeticOp op a b))
                 (jsonNumberToSubtype first)
-            |> fun v -> JsonValue.Create(v)
+            |> numberSubtypeToJson
 
     match args with
     | [ a ] when a.GetValueKind() = JsonValueKind.Array -> aux (Seq.toList (a.AsArray()))
