@@ -280,28 +280,29 @@ let f_createArray _ (args: Args) : JsonNode =
 
 let f_decimal _ (args: Args) : JsonNode =
     expectArgs 1 args
-    let str = objectToString <| List.head args
+    let str = List.head args |> _.ToString()
 
-    // TODO: verify how it parses
     match System.Decimal.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, CultureInfo.InvariantCulture) with
     | true, result -> JsonValue.Create(result)
     | _ -> failwithf "Could not parse %s as decimal" str
 
 let f_float _ (args: Args) : JsonNode =
     expectArgs 1 args
-    let str = objectToString <| List.head args
+    let str = List.head args |> _.ToString()
 
-    // TODO: verify how it parses
     match System.Double.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, CultureInfo.InvariantCulture) with
     | true, result -> JsonValue.Create(result)
     | _ -> failwithf "Could not parse %s as float" str
 
-let f_int sim (args: Args) : JsonNode =
-    f_float sim args
-    |> _.GetValue<float>()
-    |> Operators.Checked.int64
-    |> JsonValue.Create
-    :> JsonNode
+let f_int _ (args: Args) : JsonNode =
+    expectArgs 1 args
+    let str = List.head args |> _.ToString()
+
+    match
+        System.Int64.TryParse(str, NumberStyles.Float ||| NumberStyles.AllowThousands, CultureInfo.InvariantCulture)
+    with
+    | true, result -> JsonValue.Create(int64 (float result))
+    | _ -> failwithf "Could not parse %s as int" str
 
 let f_json _ (args: Args) : JsonNode =
     expectArgs 1 args
