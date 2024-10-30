@@ -283,7 +283,7 @@ let f_decimal _ (args: Args) : JsonNode =
     let str = objectToString <| List.head args
 
     // TODO: verify how it parses
-    match System.Decimal.TryParse(str, NumberStyles.Float, CultureInfo.InvariantCulture) with
+    match System.Decimal.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, CultureInfo.InvariantCulture) with
     | true, result -> JsonValue.Create(result)
     | _ -> failwithf "Could not parse %s as decimal" str
 
@@ -292,7 +292,7 @@ let f_float _ (args: Args) : JsonNode =
     let str = objectToString <| List.head args
 
     // TODO: verify how it parses
-    match System.Double.TryParse(str, NumberStyles.Float, CultureInfo.InvariantCulture) with
+    match System.Double.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, CultureInfo.InvariantCulture) with
     | true, result -> JsonValue.Create(result)
     | _ -> failwithf "Could not parse %s as float" str
 
