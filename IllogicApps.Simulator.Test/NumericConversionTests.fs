@@ -17,6 +17,7 @@ let ExecConvertToDecimalTest (expr: string) (expected: string) =
     testOrTrace expr <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
 
 [<TestCase("@{int(1.0)}", "1")>]
+[<TestCase("@{int('1.0')}", "1")>]
 [<TestCase("@{int(float(1.0))}", "1")>]
 [<TestCase("@{int(decimal('1.00000'))}", "1")>]
 [<TestCase("@{int(string(decimal(100000.00000)))}", "100000")>]
