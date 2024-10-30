@@ -8,6 +8,8 @@ open TestSimUtil
 [<TestCase("@{float(decimal('10000000000.00000000001234'))}", "10000000000")>]
 [<TestCase("@{float('  +1,000 ')}", "1000")>]
 [<TestCase("@{float('  200- ')}", "-200")>]
+[<TestCase("@{float('NaN')}", "NaN")>]
+[<TestCase("@{float('nan')}", "NaN")>]
 let ExecConvertToFloatTest (expr: string) (expected: string) =
     testOrTrace expr <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
 
@@ -31,6 +33,8 @@ let ExecInvalidConvertToIntTest (expr: string) =
     raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
 
 [<TestCase("@{float('(200)')}")>]
+[<TestCase("@{float('Infinity')}")>]
+[<TestCase("@{float('inf')}")>]
 let ExecInvalidConvertToFloatTest (expr: string) =
     raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
 
