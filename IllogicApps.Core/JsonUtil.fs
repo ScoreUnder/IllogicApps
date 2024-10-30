@@ -4,6 +4,7 @@ open System.Collections.Generic
 open System.Text.Encodings.Web
 open System.Text.Json
 open System.Text.Json.Nodes
+open System.Text.Json.Serialization
 
 type KVP = KeyValuePair<string, JsonNode>
 
@@ -85,8 +86,10 @@ type JsonOfHelper =
     static member inline jsonNull: JsonNode = JsonValue.Create null
 
 let rec jsonsEqual (a: JsonNode) (b: JsonNode) =
-    if a = null then b = null
-    elif b = null then false
+    if a = null then
+        b = null
+    elif b = null then
+        false
     else
         match a.GetValueKind(), b.GetValueKind() with
         | JsonValueKind.Object, JsonValueKind.Object ->
@@ -119,7 +122,8 @@ let sensibleSerialiserOptions =
         defaults = JsonSerializerDefaults.General,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        WriteIndented = false
+        WriteIndented = false,
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
     )
 
 let safeClone (node: JsonNode) =

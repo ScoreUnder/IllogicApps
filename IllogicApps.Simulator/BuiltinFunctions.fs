@@ -282,7 +282,6 @@ let f_decimal _ (args: Args) : JsonNode =
     let str = objectToString <| List.head args
 
     // TODO: verify how it parses
-    // TODO: do arithmetic on decimals?
     match
         System.Decimal.TryParse(
             str,
@@ -292,6 +291,36 @@ let f_decimal _ (args: Args) : JsonNode =
     with
     | true, result -> JsonValue.Create(result)
     | _ -> failwithf "Could not parse %s as decimal" str
+
+let f_float _ (args: Args) : JsonNode =
+    expectArgs 1 args
+    let str = objectToString <| List.head args
+
+    // TODO: verify how it parses
+    match
+        System.Double.TryParse(
+            str,
+            System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture
+        )
+    with
+    | true, result -> JsonValue.Create(result)
+    | _ -> failwithf "Could not parse %s as float" str
+
+let f_int _ (args: Args) : JsonNode =
+    expectArgs 1 args
+    let str = objectToString <| List.head args
+
+    // TODO: verify how it parses
+    match
+        System.Int64.TryParse(
+            str,
+            System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture
+        )
+    with
+    | true, result -> JsonValue.Create(result)
+    | _ -> failwithf "Could not parse %s as int" str
 
 let f_json _ (args: Args) : JsonNode =
     expectArgs 1 args
@@ -466,6 +495,8 @@ let functions: Map<string, LanguageFunction> =
       "binary", f_binary
       "createArray", f_createArray
       "decimal", f_decimal
+      "float", f_float
+      "int", f_int
       "json", f_json
       "string", f_string
       "xml", f_xml
