@@ -83,7 +83,7 @@ let StringifiedXmlTest expr expected =
 [<TestCase("@xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow</innermost></node2></root>')",
            "{ \"$content-type\": \"application/xml;charset=utf-8\", \"$content\": \"PHJvb3Q+PG5vZGUxIGF0dHI9IngiIC8+PG5vZGUyIGF0dHIyPSJ5Ij48aW5uZXJtb3N0IGlubmVyYXR0cj0ibyZxdW90O2giPndvdzwvaW5uZXJtb3N0Pjwvbm9kZTI+PC9yb290Pg==\" }")>]
 [<TestCase("@xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow<break/>wowow</innermost></node2></root>')",
-           "{ \"$content-type\": \"application/xml;charset=utf-8\", \"$content\": \"PHJvb3Q+PG5vZGUxIGF0dHI9IngiIC8+PG5vZGUyIGF0dHIyPSJ5Ij48aW5uZXJtb3N0IGlubmVyYXR0cj0ibyZxdW90O2giPndvd3dvd293PGJyZWFrIC8+PC9pbm5lcm1vc3Q+PC9ub2RlMj48L3Jvb3Q+\" }")>]
+           "{ \"$content-type\": \"application/xml;charset=utf-8\", \"$content\": \"PHJvb3Q+PG5vZGUxIGF0dHI9IngiIC8+PG5vZGUyIGF0dHIyPSJ5Ij48aW5uZXJtb3N0IGlubmVyYXR0cj0ibyZxdW90O2giPndvdzxicmVhayAvPndvd293PC9pbm5lcm1vc3Q+PC9ub2RlMj48L3Jvb3Q+\" }")>]
 [<TestCase("@xml('<?xml version=\"1.0\" encoding=\"ucs-2le\"?><root/>')",
            """{"$content-type": "application/xml;charset=utf-8","$content":"PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idWNzLTJsZSI/Pjxyb290IC8+"}""")>]
 [<TestCase("@xml('<?xml version=\"1.0\" encoding=\"utf-16\"?><root/>')",
@@ -151,7 +151,7 @@ let XmlOfJsonTest () =
             jsonsEqual
                 (jsonOf
                     [ "$content-type", jsonOf "application/xml;charset=utf-8"
-                      "$content", jsonOf "PGNvdz5tb288L2Nvdz+" ])
+                      "$content", jsonOf "PGNvdz5tb288L2Nvdz4=" ])
                 (testExpressionEvaluation expr)
         @>
 
