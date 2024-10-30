@@ -93,9 +93,14 @@ let objectToString (node: JsonNode) : string =
     match node with
     | null -> ""
     | Base64StringBlob(contentType, content) -> decodeByContentType contentType content
-    | n when n.GetValueKind() = JsonValueKind.True -> "True"
-    | n when n.GetValueKind() = JsonValueKind.False -> "False"
-    | _ -> node.ToString()
+    | n ->
+        match n.GetValueKind() with
+        | JsonValueKind.True -> "True"
+        | JsonValueKind.False -> "False"
+        | JsonValueKind.Null -> ""
+        | JsonValueKind.Array
+        | JsonValueKind.Object -> n.ToJsonString(sensibleSerialiserOptions)
+        | _ -> n.ToString()
 
 let isXmlContentType (contentType: string) =
     $"{contentType};"
@@ -254,10 +259,12 @@ let f_base64ToString _ (args: Args) : JsonNode =
     str |> fromBase64 |> (fun v -> JsonValue.Create(v))
 
 let f_binary _ (args: Args) : JsonNode =
-    expectArgs 1 args
-    let str = ensureString <| List.head args
-
-    toBinary str
+    match args with
+    | [ a ] ->
+        if a = null || a.GetValueKind() = JsonValueKind.Null then
+            failwith "Expected non-null argument"
+        toBinary (objectToString a)
+    | _ -> failwith "Expected 1 argument"
 
 let f_decimal _ (args: Args) : JsonNode =
     expectArgs 1 args

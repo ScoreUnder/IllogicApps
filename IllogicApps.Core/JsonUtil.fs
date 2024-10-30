@@ -118,5 +118,6 @@ let sensibleSerialiserOptions =
     JsonSerializerOptions(
         defaults = JsonSerializerDefaults.General,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        WriteIndented = false
     )
