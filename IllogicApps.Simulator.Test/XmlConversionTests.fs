@@ -62,8 +62,11 @@ let JsonOfXmlTest expr (expected: string) =
            "<root><![CDATA[<!--]]>testing<![CDATA[-->]]></root>")>]
 [<TestCase("@{xml('<root><![CDATA[testing]]><![CDATA[testing2]]></root>')}",
            "<root><![CDATA[testing]]><![CDATA[testing2]]></root>")>]
-[<TestCase("@{xml('<aaa:root xmlns:aaa=\"test\" />')}",
-           "<aaa:root xmlns:aaa=\"test\" />")>]
+[<TestCase("@{xml('<aaa:root xmlns:aaa=\"test\" />')}", "<aaa:root xmlns:aaa=\"test\" />")>]
+[<TestCase("@{xml('<?xml version=\"1.0\" encoding=\"ucs-2\"?><root/>')}",
+           "<?xml version=\"1.0\" encoding=\"ucs-2\"?><root />")>]
+[<TestCase("@{xml('<?xml version=\"1.0\" encoding=\"ucs-2le\"?><root/>')}",
+           "<?xml version=\"1.0\" encoding=\"ucs-2le\"?><root />")>]
 let StringifiedXmlTest expr expected =
     testOrTrace expr <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
 
@@ -81,6 +84,12 @@ let StringifiedXmlTest expr expected =
            "{ \"$content-type\": \"application/xml;charset=utf-8\", \"$content\": \"PHJvb3Q+PG5vZGUxIGF0dHI9IngiIC8+PG5vZGUyIGF0dHIyPSJ5Ij48aW5uZXJtb3N0IGlubmVyYXR0cj0ibyZxdW90O2giPndvdzwvaW5uZXJtb3N0Pjwvbm9kZTI+PC9yb290Pg==\" }")>]
 [<TestCase("@xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow<break/>wowow</innermost></node2></root>')",
            "{ \"$content-type\": \"application/xml;charset=utf-8\", \"$content\": \"PHJvb3Q+PG5vZGUxIGF0dHI9IngiIC8+PG5vZGUyIGF0dHIyPSJ5Ij48aW5uZXJtb3N0IGlubmVyYXR0cj0ibyZxdW90O2giPndvd3dvd293PGJyZWFrIC8+PC9pbm5lcm1vc3Q+PC9ub2RlMj48L3Jvb3Q+\" }")>]
+[<TestCase("@xml('<?xml version=\"1.0\" encoding=\"ucs-2le\"?><root/>')",
+           """{"$content-type": "application/xml;charset=utf-8","$content":"PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idWNzLTJsZSI/Pjxyb290IC8+"}""")>]
+[<TestCase("@xml('<?xml version=\"1.0\" encoding=\"utf-16\"?><root/>')",
+           """{"$content-type":"application/xml;charset=utf-8","$content":"PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTE2Ij8+PHJvb3QgLz4="}""")>]
+[<TestCase("@xml('<?xml version=\"1.0\" encoding=\"martian\"?><root/>')",
+           """{"$content-type":"application/xml;charset=utf-8","$content":"PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0ibWFydGlhbiI/Pjxyb290IC8+"}""")>]
 let ObjectOfXmlTest expr (expected: string) =
     let expected = JsonSerializer.Deserialize<JsonNode>(expected)
     testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
@@ -121,7 +130,9 @@ let StringifiedXmlJsonRoundTrippingTest expr expected =
 [<Test>]
 let XmlOfXmlTest () =
     let expr = "@xml(xml('<root/>'))"
-    testOrTrace expr
+
+    testOrTrace
+        expr
         <@
             jsonsEqual
                 (jsonOf
@@ -133,7 +144,9 @@ let XmlOfXmlTest () =
 [<Test>]
 let XmlOfJsonTest () =
     let expr = "@xml(json('{\"cow\":\"moo\"}'))"
-    testOrTrace expr
+
+    testOrTrace
+        expr
         <@
             jsonsEqual
                 (jsonOf
@@ -154,7 +167,9 @@ let JsonXmlRoundTrippingTest expr (expected: string) =
 [<Test>]
 let JsonToXmlEmptyObjectIsEmptyDocumentTest () =
     let expr = "@xml(json('{}'))"
-    testOrTrace expr
+
+    testOrTrace
+        expr
         <@
             jsonsEqual
                 (jsonOf
@@ -176,15 +191,19 @@ let JsonInvalidXmlRoundTripTest expr =
 [<TestCase("@{xml('<?xml version=\"1.0\" standalone=\"yes\" encoding=\"ascii\"?><root/>')}")>]
 [<TestCase("@{xml('<?xml version=\"1.0\" standalone=\"yes\" encoding=\"utf-8\"?><root/>')}")>]
 [<TestCase("@{xml('<?xml version=\"1.0\" standalone=\"no\" encoding=\"utf-8\"?><root/>')}")>]
-[<TestCase("@{xml('<?xml version=\"1.0\" encoding=\"martian\"?><root/>')}")>]
-[<TestCase("@{xml('<?xml version=\"1.0\" encoding=\"ucs-2\"?><root/>')}")>]
-[<TestCase("@{xml('<?xml version=\"1.0\" encoding=\"ucs-2-le\"?><root/>')}")>]
 [<TestCase("@{xml('<?xml encoding=\"ascii\"?><root/>')}")>]
 [<TestCase("@{xml('<?xml version=\"1.99999\"?><root/>')}")>]
 [<TestCase("@{xml('<?xml version=\"1.1\"?><root/>')}")>]
 [<TestCase("@{xml('some text')}")>]
+[<TestCase("@xml('<one/><two/><oatmeal>kirby is a pink guy</oatmeal>')")>]
 let InvalidXmlTest expr =
     // Some of these cases are valid, strictly speaking, but they're not supported by the Logic Apps XML parser
+    raisesOrTrace<XmlException> expr <@ testExpressionEvaluation expr @>
+
+[<TestCase("@{json(xml('<?xml version=\"1.0\" encoding=\"martian\"?><root/>'))}")>]
+[<TestCase("@{json(xml('<?xml version=\"1.0\" encoding=\"ucs-2-le\"?><root/>'))}")>]
+[<TestCase("@{json(xml('<?xml version=\"1.0\" encoding=\"utf-16\"?><root/>'))}")>]
+let InvalidXmlEncodingTest expr =
     raisesOrTrace<XmlException> expr <@ testExpressionEvaluation expr @>
 
 [<TestCase("@xml(binary('<'))", """{"$content-type":"application/xml;charset=utf-8","$content":"PA=="}""")>]
@@ -195,3 +214,9 @@ let AllowInvalidXmlOfBinaryTest expr (expected: string) =
 [<TestCase("@json(xml(binary('<')))")>]
 let InvalidXmlOfBinaryToJsonTest expr =
     raisesOrTrace<XmlException> expr <@ testExpressionEvaluation expr @>
+
+[<TestCase("@xml(json('{\"$content\":\"dGVzdA==\",\"$content-type\":\"text/plain;charset=ascii\"}'))",
+           """{"$content-type":"application/xml;charset=utf-8","$content":"dGVzdA=="}""")>]
+let XmlOfBinaryIgnoresContentTypeTest expr (expected: string) =
+    let expected = JsonSerializer.Deserialize<JsonNode>(expected)
+    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
