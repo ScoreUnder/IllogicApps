@@ -10,6 +10,7 @@
     <Compile Include="XmlConversionTests.fs" />
     <Compile Include="BasicLanguageTests.fs" />
     <Compile Include="NumericLimitsTests.fs" />
+    <Compile Include="NumericConversionTests.fs" />
     <Compile Include="BinaryConversionTests.fs" />
   </ItemGroup>
   <ItemGroup>

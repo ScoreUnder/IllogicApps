@@ -32,6 +32,7 @@ let ExecConvertOutOfRangeTest (expr: string) =
 
 [<TestCase("@int('3e-50')")>]
 [<TestCase("@int(1.5)")>]
+[<TestCase("@int('1.5')")>]
 [<TestCase("@int(2.5)")>]
 [<TestCase("@int(100000.000009)")>]
 let ExecNoFractionalIntegersTest (expr: string) =
@@ -47,14 +48,6 @@ let ExecNoFractionalIntegersTest (expr: string) =
 [<TestCase("@{float('1.7e+350')}", "Infinity")>]
 [<TestCase("@{decimal(100000.000009)}", "100000.000009")>]
 [<TestCase("@{decimal('10000000000.00000000001234')}", "10000000000.00000000001234")>]
-[<TestCase("@{float(decimal('10000000000.00000000001234'))}", "10000000000")>]
-[<TestCase("@{int(1.0)}", "1")>]
-[<TestCase("@{int(float(1.0))}", "1")>]
-[<TestCase("@{int(decimal('1.00000'))}", "1")>]
-[<TestCase("@{int(string(decimal(100000.00000)))}", "100000")>]
-[<TestCase("@{decimal('  +1,000 ')}", "1000")>]
-[<TestCase("@{float('  +1,000 ')}", "1000")>]
-[<TestCase("@{int('  +1,000 ')}", "1000")>]
 let ExecConvertInRangeTest (expr: string) (expected: string) =
     testOrTrace expr <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
 
