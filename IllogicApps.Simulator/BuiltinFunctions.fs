@@ -93,6 +93,8 @@ let objectToString (node: JsonNode) : string =
     match node with
     | null -> ""
     | Base64StringBlob(contentType, content) -> decodeByContentType contentType content
+    | n when n.GetValueKind() = JsonValueKind.True -> "True"
+    | n when n.GetValueKind() = JsonValueKind.False -> "False"
     | _ -> node.ToString()
 
 let isXmlContentType (contentType: string) =
