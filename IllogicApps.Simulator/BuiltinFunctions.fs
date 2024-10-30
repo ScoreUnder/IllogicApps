@@ -274,7 +274,7 @@ let f_binary _ (args: Args) : JsonNode =
     | _ -> failwith "Expected 1 argument"
 
 let f_createArray _ (args: Args) : JsonNode =
-    expectArgsAtLeast 2 args
+    expectArgsAtLeast 1 args
 
     args |> Seq.map safeClone |> Seq.toArray |> JsonArray :> JsonNode
 
