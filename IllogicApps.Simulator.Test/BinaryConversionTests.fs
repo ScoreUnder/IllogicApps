@@ -15,6 +15,15 @@ let JsonOfBinaryTest () =
         @>
 
 [<Test>]
+let BinaryOfJsonTest () =
+    let expected =
+        jsonOf
+            [ "$content-type", jsonOf "application/octet-stream"
+              "$content", jsonOf "eyJoZWxsbyI6IndvcmxkIn0=" ]
+
+    test <@ jsonsEqual expected (testExpressionEvaluation "@binary(json('{\"hello\": \"world\"}'))") @>
+
+[<Test>]
 let BinaryTest () =
     test
         <@
