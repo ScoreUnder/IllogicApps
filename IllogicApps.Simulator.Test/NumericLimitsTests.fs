@@ -53,9 +53,11 @@ let ExecConvertInRangeTest (expr: string) (expected: string) =
 [<TestCase("@{add(9223372036854775807, 1)}")>]
 [<TestCase("@{mul(4294967295, 4294967295)}")>]
 [<TestCase("@{mul(max(20, decimal('10'), 30.1), 1e50)}")>]  // Converts 30.1 up to decimal
+[<TestCase("@div(-1, 0)")>]
+[<TestCase("@div(0, 0)")>]
 let ExecMathOutOfRangeTest (expr: string) =
     let parsed = trap <@ parseExpr (lexExpr expr) @>
-    raisesOrTraceParsed<OverflowException> parsed <@ evaluateParsed parsed |> ignore @>
+    raisesOrTraceParsed<ArithmeticException> parsed <@ evaluateParsed parsed |> ignore @>
 
 [<TestCase("@{add(2147483647, 1)}", "2147483648")>]
 [<TestCase("@{add(4294967295, 1)}", "4294967296")>]
