@@ -18,8 +18,9 @@ type Number2Subtype =
     | Decimal2 of decimal * decimal
 
 let jsonNumberToSubtype (node: JsonNode) : NumberSubtype =
-    match node.GetValueKind() with
-    | JsonValueKind.Number ->
+    match node with
+    | null -> failwith "Expected number, got null"
+    | n when n.GetValueKind() = JsonValueKind.Number ->
         let node = node.AsValue()
 
         match node.TryGetValue<int64>() with
@@ -33,7 +34,7 @@ let jsonNumberToSubtype (node: JsonNode) : NumberSubtype =
                 | _ -> failwithf "Expected number, got %A" (node.GetValue().GetType().Name)
     | kind -> failwithf "Expected number, got %A" kind
 
-let numberSubtypeToJson : NumberSubtype -> JsonNode =
+let numberSubtypeToJson: NumberSubtype -> JsonNode =
     function
     | Integer i -> JsonValue.Create i
     | Float f -> JsonValue.Create f
@@ -52,20 +53,23 @@ let promoteNums a b =
     | Decimal a, Decimal b -> Decimal2(a, b)
 
 let rec jsonToObject (jsonNode: JsonNode) =
-    match jsonNode.GetValueKind() with
-    | JsonValueKind.Object ->
-        jsonNode.AsObject()
-        |> Seq.map (fun kvp -> kvp.Key, jsonToObject kvp.Value)
-        |> Map.ofSeq
-        :> obj
-    | JsonValueKind.Array -> jsonNode.AsArray() |> Seq.map jsonToObject |> Array.ofSeq :> obj
-    | JsonValueKind.True
-    | JsonValueKind.False
-    | JsonValueKind.Null
-    | JsonValueKind.Number
-    | JsonValueKind.String -> jsonNode.GetValue()
-    | JsonValueKind.Undefined -> failwithf "Undefined value in JSON at %s" (jsonNode.GetPath())
-    | _ -> failwithf "Unsupported value kind %A" (jsonNode.GetValueKind())
+    if jsonNode = null then
+        null
+    else
+        match jsonNode.GetValueKind() with
+        | JsonValueKind.Object ->
+            jsonNode.AsObject()
+            |> Seq.map (fun kvp -> kvp.Key, jsonToObject kvp.Value)
+            |> Map.ofSeq
+            :> obj
+        | JsonValueKind.Array -> jsonNode.AsArray() |> Seq.map jsonToObject |> Array.ofSeq :> obj
+        | JsonValueKind.True
+        | JsonValueKind.False
+        | JsonValueKind.Null
+        | JsonValueKind.Number
+        | JsonValueKind.String -> jsonNode.GetValue()
+        | JsonValueKind.Undefined -> failwithf "Undefined value in JSON at %s" (jsonNode.GetPath())
+        | _ -> failwithf "Unsupported value kind %A" (jsonNode.GetValueKind())
 
 [<AutoOpen>]
 type JsonOfHelper =
@@ -81,31 +85,34 @@ type JsonOfHelper =
     static member inline jsonNull: JsonNode = JsonValue.Create null
 
 let rec jsonsEqual (a: JsonNode) (b: JsonNode) =
-    match a.GetValueKind(), b.GetValueKind() with
-    | JsonValueKind.Object, JsonValueKind.Object ->
-        let aObj = a.AsObject()
-        let bObj = b.AsObject()
-        let aSorted = aObj |> Seq.sortBy _.Key |> Seq.toList
-        let bSorted = bObj |> Seq.sortBy _.Key |> Seq.toList
-        let aKeys = aSorted |> Seq.map _.Key |> Set.ofSeq
-        let bKeys = bSorted |> Seq.map _.Key |> Set.ofSeq
+    if a = null then b = null
+    elif b = null then false
+    else
+        match a.GetValueKind(), b.GetValueKind() with
+        | JsonValueKind.Object, JsonValueKind.Object ->
+            let aObj = a.AsObject()
+            let bObj = b.AsObject()
+            let aSorted = aObj |> Seq.sortBy _.Key |> Seq.toList
+            let bSorted = bObj |> Seq.sortBy _.Key |> Seq.toList
+            let aKeys = aSorted |> Seq.map _.Key |> Set.ofSeq
+            let bKeys = bSorted |> Seq.map _.Key |> Set.ofSeq
 
-        aKeys = bKeys
-        && Seq.forall2 (fun (a: KVP) (b: KVP) -> jsonsEqual a.Value b.Value) aSorted bSorted
-    | JsonValueKind.Array, JsonValueKind.Array ->
-        let aArr = a.AsArray()
-        let bArr = b.AsArray()
-        aArr.Count = bArr.Count && Seq.forall2 jsonsEqual aArr bArr
-    | JsonValueKind.Number, JsonValueKind.Number ->
-        match promoteNums (jsonNumberToSubtype a) (jsonNumberToSubtype b) with
-        | Integer2(a, b) -> a = b
-        | Float2(a, b) -> a = b
-        | Decimal2(a, b) -> a = b
-    | JsonValueKind.True, JsonValueKind.True
-    | JsonValueKind.False, JsonValueKind.False
-    | JsonValueKind.Null, JsonValueKind.Null -> true
-    | JsonValueKind.String, JsonValueKind.String -> a.GetValue<string>().Equals(b.GetValue<string>())
-    | _ -> false
+            aKeys = bKeys
+            && Seq.forall2 (fun (a: KVP) (b: KVP) -> jsonsEqual a.Value b.Value) aSorted bSorted
+        | JsonValueKind.Array, JsonValueKind.Array ->
+            let aArr = a.AsArray()
+            let bArr = b.AsArray()
+            aArr.Count = bArr.Count && Seq.forall2 jsonsEqual aArr bArr
+        | JsonValueKind.Number, JsonValueKind.Number ->
+            match promoteNums (jsonNumberToSubtype a) (jsonNumberToSubtype b) with
+            | Integer2(a, b) -> a = b
+            | Float2(a, b) -> a = b
+            | Decimal2(a, b) -> a = b
+        | JsonValueKind.True, JsonValueKind.True
+        | JsonValueKind.False, JsonValueKind.False
+        | JsonValueKind.Null, JsonValueKind.Null -> true
+        | JsonValueKind.String, JsonValueKind.String -> a.GetValue<string>().Equals(b.GetValue<string>())
+        | _ -> false
 
 let sensibleSerialiserOptions =
     JsonSerializerOptions(

@@ -235,23 +235,8 @@ type SetVariable() =
     inherit Action()
 
     let typecheck (originalValue: JsonNode) (newValue: JsonNode) =
-        let reverseType =
-            function
-            | JsonValueKind.Undefined -> failwith "Undefined value"
-            | JsonValueKind.Object -> Object
-            | JsonValueKind.Array -> Array
-            | JsonValueKind.String -> String
-            | JsonValueKind.Number -> VariableType.Float
-            | JsonValueKind.True
-            | JsonValueKind.False -> Boolean
-            | JsonValueKind.Null -> Object
-            | _ -> failwith "Unknown enum value" in
-
-        let originalType = reverseType <| originalValue.GetValueKind()
-        let newType = reverseType <| newValue.GetValueKind()
-
-        if originalType <> newType then
-            failwithf "Variable is of type %A, cannot set to %A" originalType newType
+        if getVarType originalValue <> getVarType newValue then
+            failwithf "Variable is of type %A, cannot set to %A" (getVarType originalValue) (getVarType newValue)
 
     member val Inputs = new SetVariableSingle() with get, set
 
@@ -282,7 +267,7 @@ type AppendToStringVariable() =
     override this.Execute(context: SimulatorContext) =
         printfn "%s: %s = %O" this.ActionType this.Inputs.Name this.Inputs.Value
 
-        let originalValue = getVarTypechecked context this.Inputs.Name this.ExpectedType
+        let originalValue = getVarTypechecked context this.Inputs.Name [ this.ExpectedType ]
         let addend = this.Inputs.Value |> context.EvaluateLanguage
         let newValue = this.Add originalValue addend
         context.Variables.[this.Inputs.Name] <- newValue
@@ -296,8 +281,8 @@ type AppendToStringVariable() =
             )
           outputs = None }
 
-    abstract member ExpectedType: JsonValueKind with get
-    override this.ExpectedType = JsonValueKind.String
+    abstract member ExpectedType: VariableType with get
+    override this.ExpectedType = VariableType.String
 
     abstract member Add: JsonNode -> JsonNode -> JsonNode
 
@@ -307,7 +292,7 @@ type AppendToStringVariable() =
 type AppendToArrayVariable() =
     inherit AppendToStringVariable()
 
-    override _.ExpectedType = JsonValueKind.Array
+    override _.ExpectedType = VariableType.Array
 
     override this.Add a b =
         let array = a.DeepClone().AsArray()
@@ -329,7 +314,7 @@ type IncrementVariable() =
     override this.Execute(context: SimulatorContext) =
         printfn "%s: %s" this.ActionType this.Inputs.Name
 
-        let originalValue = getVarTypechecked context this.Inputs.Name JsonValueKind.Number
+        let originalValue = getVarTypechecked context this.Inputs.Name [ VariableType.Integer; VariableType.Float ]
         let increment = this.Inputs.Value |> context.EvaluateLanguage
         let value = this.Add (originalValue.GetValue<int64>()) (increment.GetValue<int64>())
         context.Variables.[this.Inputs.Name] <- JsonValue.Create(value)

@@ -61,16 +61,19 @@ let toBinary (str: string) : JsonNode =
     str |> strToBase64Blob "application/octet-stream"
 
 let (|Base64StringBlob|_|) (node: JsonNode) : (string * byte array) option =
-    match node.GetValueKind() with
-    | JsonValueKind.Object ->
-        let node = node.AsObject()
+    if node = null then
+        None
+    else
+        match node.GetValueKind() with
+        | JsonValueKind.Object ->
+            let node = node.AsObject()
 
-        if node.ContainsKey("$content-type") && node.ContainsKey("$content") then
-            let content = node["$content"].ToString() |> System.Convert.FromBase64String
-            Some(node["$content-type"].ToString(), content)
-        else
-            None
-    | _ -> None
+            if node.ContainsKey("$content-type") && node.ContainsKey("$content") then
+                let content = node["$content"].ToString() |> System.Convert.FromBase64String
+                Some(node["$content-type"].ToString(), content)
+            else
+                None
+        | _ -> None
 
 let decodeByContentType contentType (content: byte array) =
     ContentType.getCharset contentType
@@ -78,15 +81,17 @@ let decodeByContentType contentType (content: byte array) =
     |> _.GetString(content)
 
 let (|StringOrEncodedString|_|) (node: JsonNode) : string option =
-    match node.GetValueKind() with
-    | JsonValueKind.String -> Some(node.GetValue<string>())
+    match node with
+    | null -> None
+    | Base64StringBlob(contentType, content) -> Some(decodeByContentType contentType content)
     | _ ->
-        match node with
-        | Base64StringBlob(contentType, content) -> Some(decodeByContentType contentType content)
+        match node.GetValueKind() with
+        | JsonValueKind.String -> Some(node.GetValue<string>())
         | _ -> None
 
 let objectToString (node: JsonNode) : string =
     match node with
+    | null -> ""
     | Base64StringBlob(contentType, content) -> decodeByContentType contentType content
     | _ -> node.ToString()
 
@@ -308,7 +313,9 @@ let f_xml _ (args: Args) : JsonNode =
         doc.LoadXml(str)
         doc.OuterXml |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
     | Base64StringBlob(_, content) ->
-        content |> System.Convert.ToBase64String |> base64ToBlob $"{ContentType.Xml};charset=utf-8"
+        content
+        |> System.Convert.ToBase64String
+        |> base64ToBlob $"{ContentType.Xml};charset=utf-8"
     | v when v.GetValueKind() = JsonValueKind.Object ->
         let jsonBytes = System.Text.Encoding.UTF8.GetBytes(v.ToJsonString())
 

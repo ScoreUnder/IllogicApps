@@ -102,18 +102,21 @@ module private SimulatorHelper =
         | _ -> failwithf "Expected array of objects, got %O" node
 
     let rec jsonMapStrs (f: string -> JsonNode) (node: JsonNode) =
-        match node.GetValueKind() with
-        | JsonValueKind.Undefined -> failwith "Undefined value"
-        | JsonValueKind.Object ->
-            new JsonObject(
-                node.AsObject()
-                |> Seq.map (fun kv ->
-                    new KeyValuePair<string, JsonNode>((f kv.Key).GetValue<string>(), jsonMapStrs f kv.Value))
-            )
-            : JsonNode
-        | JsonValueKind.Array -> new JsonArray(node.AsArray() |> Seq.map (jsonMapStrs f) |> Seq.toArray)
-        | JsonValueKind.String -> f <| node.GetValue<string>()
-        | _ -> node.DeepClone()
+        if node = null then
+            null
+        else
+            match node.GetValueKind() with
+            | JsonValueKind.Undefined -> failwith "Undefined value"
+            | JsonValueKind.Object ->
+                new JsonObject(
+                    node.AsObject()
+                    |> Seq.map (fun kv ->
+                        new KeyValuePair<string, JsonNode>((f kv.Key).GetValue<string>(), jsonMapStrs f kv.Value))
+                )
+                : JsonNode
+            | JsonValueKind.Array -> new JsonArray(node.AsArray() |> Seq.map (jsonMapStrs f) |> Seq.toArray)
+            | JsonValueKind.String -> f <| node.GetValue<string>()
+            | _ -> node.DeepClone()
 
     let skippedResult =
         { status = Skipped

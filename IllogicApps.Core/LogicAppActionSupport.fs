@@ -88,18 +88,35 @@ let defaultForType typ : JsonNode =
     | Object -> JsonValue.Create(null) // TODO verify
     | Array -> new JsonArray() // TODO verify
 
+let getVarType (value: JsonNode) : VariableType =
+    match value with
+    | null -> Object
+    | value ->
+        match value.GetValueKind() with
+        | JsonValueKind.String -> String
+        | JsonValueKind.Number ->
+            match value.AsValue().TryGetValue<int64>() with
+            | true, _ -> Integer
+            | _ -> Float
+        | JsonValueKind.True
+        | JsonValueKind.False -> Boolean
+        | JsonValueKind.Object -> Object
+        | JsonValueKind.Array -> Array
+        | _ -> failwithf "Unsupported value kind %A" (value.GetValueKind())
+
 let coerce (typ: VariableType) (value: JsonNode) : JsonNode =
     try
         match typ with
         | String -> JsonValue.Create(value.ToString())
-        | Integer -> JsonValue.Create(value.GetValue<int>())
+        | Integer -> JsonValue.Create(value.GetValue<int64>())
         | Float -> JsonValue.Create(value.GetValue<float>())
         | Boolean -> JsonValue.Create(value.GetValue<bool>())
         | Object ->
             begin
-                match value.GetValueKind() with
-                | JsonValueKind.Object -> value
-                | JsonValueKind.Null -> value
+                match value with
+                | null -> null
+                | v when v.GetValueKind() = JsonValueKind.Object -> value
+                | v when v.GetValueKind() = JsonValueKind.Null -> value
                 | _ -> raise <| new InvalidOperationException()
             end
         | Array ->
@@ -114,13 +131,13 @@ let coerce (typ: VariableType) (value: JsonNode) : JsonNode =
         raise
         <| new InvalidOperationException($"Failed to coerce value {value} to type {typ}")
 
-let getVarTypechecked (context: SimulatorContext) var typ =
-    if not (context.Variables.ContainsKey(var)) then
-        failwithf "Variable '%s' does not exist" var
+let getVarTypechecked (context: SimulatorContext) var typs =
+    match context.Variables.TryGetValue var with
+    | false, _ -> failwithf "Variable '%s' does not exist" var
+    | true, originalValue ->
+        let variableType = getVarType originalValue
 
-    let originalValue = context.Variables.[var]
+        if Seq.contains variableType typs then
+            failwithf "Variable is of type %A, expected one of %A" variableType typs
 
-    if originalValue.GetValueKind() <> typ then
-        failwithf "Variable is of type %A, expected %A" (originalValue.GetValueKind()) typ
-
-    originalValue
+        originalValue

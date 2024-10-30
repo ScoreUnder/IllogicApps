@@ -35,24 +35,27 @@ let private compareNumbers a b =
     else Less
 
 let private compareValues (a: JsonNode) (b: JsonNode) : ComparisonResult =
-    let ka = a.GetValueKind()
-    let kb = b.GetValueKind()
-
-    if ka = kb then
-        match ka with
-        | JsonValueKind.String -> compareStrings (a.GetValue<string>()) (b.GetValue<string>())
-        | JsonValueKind.Number -> compareNumbers (a.GetValue<float>()) (b.GetValue<float>())
-        | JsonValueKind.Array -> Incomparable // TODO is this how it works?
-        | JsonValueKind.Object -> Incomparable
-        | JsonValueKind.Null
-        | JsonValueKind.False
-        | JsonValueKind.True -> Equal
-        | _ -> failwith "Unknown enum value"
+    if a = null && b = null then Equal
+    elif a = null || b = null then Incomparable
     else
-        match ka, kb with
-        | JsonValueKind.String, JsonValueKind.Number -> compareStrings (a.ToString()) (b.ToString()) // TODO does this really coerce?
-        | JsonValueKind.Number, JsonValueKind.String -> compareStrings (a.ToString()) (b.ToString())
-        | _ -> Incomparable
+        let ka = a.GetValueKind()
+        let kb = b.GetValueKind()
+
+        if ka = kb then
+            match ka with
+            | JsonValueKind.String -> compareStrings (a.GetValue<string>()) (b.GetValue<string>())
+            | JsonValueKind.Number -> compareNumbers (a.GetValue<float>()) (b.GetValue<float>())
+            | JsonValueKind.Array -> Incomparable // TODO is this how it works?
+            | JsonValueKind.Object -> Incomparable
+            | JsonValueKind.Null
+            | JsonValueKind.False
+            | JsonValueKind.True -> Equal
+            | _ -> failwith "Unknown enum value"
+        else
+            match ka, kb with
+            | JsonValueKind.String, JsonValueKind.Number -> compareStrings (a.ToString()) (b.ToString()) // TODO does this really coerce?
+            | JsonValueKind.Number, JsonValueKind.String -> compareStrings (a.ToString()) (b.ToString())
+            | _ -> Incomparable
 
 let private checkComparison results a b =
     List.contains (compareValues a b) results

@@ -21,26 +21,29 @@ type MemberAccessResult =
         | SeriousError err -> failwith err
 
 let accessMember (parent: JsonNode) (mem: JsonNode) =
-    match parent.GetValueKind(), mem.GetValueKind() with
-    | JsonValueKind.Object, JsonValueKind.String ->
-        let propName = mem.GetValue<string>()
+    if parent = null then
+        ForgivableError "Cannot access property of null"
+    else
+        match parent.GetValueKind(), mem.GetValueKind() with
+        | JsonValueKind.Object, JsonValueKind.String ->
+            let propName = mem.GetValue<string>()
 
-        parent.AsObject().TryGetPropertyValue(propName)
-        |> function
-            | true, value -> AccessOk value
-            | _ -> ForgivableError(sprintf "Property %s not found" propName)
-    | JsonValueKind.Object, kind -> SeriousError(sprintf "Cannot access property of object using %A" kind)
-    | JsonValueKind.Array, JsonValueKind.Number ->
-        let index = mem.GetValue<int>()
-        let arr = parent.AsArray()
+            parent.AsObject().TryGetPropertyValue(propName)
+            |> function
+                | true, value -> AccessOk value
+                | _ -> ForgivableError(sprintf "Property %s not found" propName)
+        | JsonValueKind.Object, kind -> SeriousError(sprintf "Cannot access property of object using %A" kind)
+        | JsonValueKind.Array, JsonValueKind.Number ->
+            let index = mem.GetValue<int>()
+            let arr = parent.AsArray()
 
-        if index >= 0 && index < arr.Count then
-            AccessOk(arr.[index])
-        else
-            ForgivableError(sprintf "Index %d out of bounds in array of length %d" index arr.Count)
-    | JsonValueKind.Array, kind -> SeriousError(sprintf "Cannot index array with %A" kind)
-    | JsonValueKind.Null, _ -> ForgivableError "Cannot access property of null"
-    | kind, _ -> SeriousError(sprintf "Cannot access property of %A" kind)
+            if index >= 0 && index < arr.Count then
+                AccessOk(arr.[index])
+            else
+                ForgivableError(sprintf "Index %d out of bounds in array of length %d" index arr.Count)
+        | JsonValueKind.Array, kind -> SeriousError(sprintf "Cannot index array with %A" kind)
+        | JsonValueKind.Null, _ -> ForgivableError "Cannot access property of null"
+        | kind, _ -> SeriousError(sprintf "Cannot access property of %A" kind)
 
 let rec evaluate simContext (ast: LanguageParser.Ast) =
     match ast with
