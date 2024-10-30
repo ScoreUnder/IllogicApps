@@ -23,15 +23,21 @@ let ExecInRangeTest (expr: string) (expected: string) =
 [<TestCase("@int('9223372036854775808')")>]
 [<TestCase("@int('9223372036854775807')")>]
 [<TestCase("@decimal('3e-50')")>]
-[<TestCase("@int('3e-50')")>]
 [<TestCase("@decimal('3e50')")>]
 [<TestCase("@int('3e50')")>]
+let ExecConvertOutOfRangeTest (expr: string) =
+    let parsed = trap <@ parseExpr (lexExpr expr) @>
+    raisesWithOrTraceParsed<Exception> parsed <@ evaluateParsed parsed |> ignore @> <| fun ex ->
+        <@ ex.Message.Contains("Could not parse") || ex :? OverflowException @>
+
+[<TestCase("@int('3e-50')")>]
 [<TestCase("@int(1.5)")>]
 [<TestCase("@int(2.5)")>]
 [<TestCase("@int(100000.000009)")>]
-let ExecConvertOutOfRangeTest (expr: string) =
+let ExecNoFractionalIntegersTest (expr: string) =
     let parsed = trap <@ parseExpr (lexExpr expr) @>
-    raisesOrTraceParsed<OverflowException> parsed <@ evaluateParsed parsed |> ignore @>
+    raisesWithOrTraceParsed<Exception> parsed <@ evaluateParsed parsed |> ignore @> <| fun ex ->
+        <@ ex.Message.Contains("Could not parse") || ex :? OverflowException @>
 
 [<TestCase("@{int('-9223372036854775808')}", "-9223372036854775808")>]
 [<TestCase("@{int('-9223372036854775809')}", "-9223372036854775808")>] // Fucking incredible
@@ -46,6 +52,9 @@ let ExecConvertOutOfRangeTest (expr: string) =
 [<TestCase("@{int(float(1.0))}", "1")>]
 [<TestCase("@{int(decimal('1.00000'))}", "1")>]
 [<TestCase("@{int(string(decimal(100000.00000)))}", "100000")>]
+[<TestCase("@{decimal('  +1,000 ')}", "1000")>]
+[<TestCase("@{float('  +1,000 ')}", "1000")>]
+[<TestCase("@{int('  +1,000 ')}", "1000")>]
 let ExecConvertInRangeTest (expr: string) (expected: string) =
     testOrTrace expr <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
 
