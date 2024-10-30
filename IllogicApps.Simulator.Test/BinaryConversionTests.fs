@@ -1,5 +1,6 @@
 module IllogicApps.Simulator.Test.BinaryConversionTests
 
+open System
 open NUnit.Framework
 open Swensen.Unquote
 
@@ -14,26 +15,20 @@ let JsonOfBinaryTest () =
             |> jsonsEqual (jsonOf [| jsonOf 1L; jsonOf 2L; jsonOf 3L |])
         @>
 
-[<Test>]
-let BinaryOfJsonTest () =
+[<TestCase("@binary(json('{\"hello\": \"world\"}'))", "eyJoZWxsbyI6IndvcmxkIn0=")>]
+[<TestCase("@binary(3.14)", "My4xNA==")>]
+[<TestCase("@binary('123asdf?a=b%20c%2F')", "MTIzYXNkZj9hPWIlMjBjJTJG")>]
+[<TestCase("@binary(binary('123'))", "MTIz")>]
+[<TestCase("@binary(createArray('a','b','c'))", "WyJhIiwiYiIsImMiXQ==")>]
+[<TestCase("@binary(true)", "VHJ1ZQ==")>]
+[<TestCase("@binary(false)", "RmFsc2U=")>]
+let BinaryOfTest (expr: string) (expected: string) =
     let expected =
         jsonOf
             [ "$content-type", jsonOf "application/octet-stream"
-              "$content", jsonOf "eyJoZWxsbyI6IndvcmxkIn0=" ]
+              "$content", jsonOf expected ]
 
-    test <@ jsonsEqual expected (testExpressionEvaluation "@binary(json('{\"hello\": \"world\"}'))") @>
-
-[<Test>]
-let BinaryTest () =
-    test
-        <@
-            testExpressionEvaluation "@binary('123asdf?a=b%20c%2F')"
-            |> jsonsEqual (
-                jsonOf
-                    [ "$content-type", jsonOf "application/octet-stream"
-                      "$content", jsonOf "MTIzYXNkZj9hPWIlMjBjJTJG" ]
-            )
-        @>
+    test <@ jsonsEqual expected (testExpressionEvaluation expr) @>
 
 [<Test>]
 let Base64Test () =
@@ -68,3 +63,7 @@ let BinaryToStringTest () =
             |> _.GetValue<string>().ToCharArray()
             |> (=) [| char 0xfffd; char 0xfffd; char 0x2d |]
         @>
+
+[<TestCase("@binary(null)")>]
+let BinaryOfInvalidTypeTest (expr: string) =
+    raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>

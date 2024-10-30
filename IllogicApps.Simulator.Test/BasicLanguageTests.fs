@@ -117,3 +117,9 @@ let InterpolatedStringParsingTest (expr: string) (expected: string) =
 [<TestCase("@string( { \"name\": \"Sophie Owen\" } )")>]
 let UnparseableTest (expr: string) =
     raises<Exception> <@ parseExpr (lexExpr expr) @>
+
+[<TestCase("@{true}", "True")>]
+[<TestCase("@{false}", "False")>]
+[<TestCase("@{null}", "")>]
+let ConstantsInterpolationTest (expr: string) (expected: string) =
+    test <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
