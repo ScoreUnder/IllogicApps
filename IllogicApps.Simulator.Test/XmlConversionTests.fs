@@ -61,7 +61,7 @@ let JsonOfXmlTest expr (expected: string) =
 [<TestCase("@{xml('<root><![CDATA[<!--]]>testing<![CDATA[-->]]></root>')}",
            "<root><![CDATA[<!--]]>testing<![CDATA[-->]]></root>")>]
 let StringifiedXmlTest expr expected =
-    test <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
+    testOrTrace expr <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
 
 [<TestCase("@xml('<root>a<!--b-->c<!--d--><e><![CDATA[Testing]]><!-- one big comment --></e>f</root>')",
            "{ \"$content-type\": \"application/xml;charset=utf-8\", \"$content\": \"PHJvb3Q+YTwhLS1iLS0+YzwhLS1kLS0+PGU+PCFbQ0RBVEFbVGVzdGluZ11dPjwhLS0gb25lIGJpZyBjb21tZW50IC0tPjwvZT5mPC9yb290Pg==\" }")>]
@@ -79,13 +79,13 @@ let StringifiedXmlTest expr expected =
            "{ \"$content-type\": \"application/xml;charset=utf-8\", \"$content\": \"PHJvb3Q+PG5vZGUxIGF0dHI9IngiIC8+PG5vZGUyIGF0dHIyPSJ5Ij48aW5uZXJtb3N0IGlubmVyYXR0cj0ibyZxdW90O2giPndvd3dvd293PGJyZWFrIC8+PC9pbm5lcm1vc3Q+PC9ub2RlMj48L3Jvb3Q+\" }")>]
 let ObjectOfXmlTest expr (expected: string) =
     let expected = JsonSerializer.Deserialize<JsonNode>(expected)
-    test <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
 
 [<TestCase("@xml(json(xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow<break/>wowow</innermost></node2></root>')))",
            "{ \"$content-type\": \"application/xml;charset=utf-8\", \"$content\": \"PHJvb3Q+PG5vZGUxIGF0dHI9IngiIC8+PG5vZGUyIGF0dHIyPSJ5Ij48aW5uZXJtb3N0IGlubmVyYXR0cj0ibyZxdW90O2giPndvd3dvd293PGJyZWFrIC8+PC9pbm5lcm1vc3Q+PC9ub2RlMj48L3Jvb3Q+\" }")>]
 let XmlJsonRoundTrippingTest expr (expected: string) =
     let expected = JsonSerializer.Deserialize<JsonNode>(expected)
-    test <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
 
 [<TestCase("@{xml(json(xml('<root/>')))}", "<root />")>]
 [<TestCase("@{xml(json(xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow</innermost></node2></root>')))}",
@@ -112,28 +112,30 @@ let XmlJsonRoundTrippingTest expr (expected: string) =
 [<TestCase("@{xml(json(xml('<root><![CDATA[<!--]]>testing<![CDATA[-->]]></root>')))}",
            "<root><![CDATA[<!--]]><![CDATA[-->]]>testing</root>")>]
 let StringifiedXmlJsonRoundTrippingTest expr expected =
-    test <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
+    testOrTrace expr <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
 
 [<Test>]
 let XmlOfXmlTest () =
-    test
+    let expr = "@xml(xml('<root/>'))"
+    testOrTrace expr
         <@
             jsonsEqual
                 (jsonOf
                     [ "$content-type", jsonOf "application/xml;charset=utf-8"
                       "$content", jsonOf "PHJvb3QgLz4=" ])
-                (testExpressionEvaluation "@xml(xml('<root/>'))")
+                (testExpressionEvaluation expr)
         @>
 
 [<Test>]
 let XmlOfJsonTest () =
-    test
+    let expr = "@xml(json('{\"cow\":\"moo\"}'))"
+    testOrTrace expr
         <@
             jsonsEqual
                 (jsonOf
                     [ "$content-type", jsonOf "application/xml;charset=utf-8"
                       "$content", jsonOf "PGNvdz5tb288L2Nvdz+" ])
-                (testExpressionEvaluation "@xml(json('{\"cow\":\"moo\"}'))")
+                (testExpressionEvaluation expr)
         @>
 
 [<TestCase("""@json(xml(json('{"cow":"moo"}')))""", """{"cow":"moo"}""")>]
@@ -143,23 +145,24 @@ let XmlOfJsonTest () =
            """{"animals":{"cow":"moo","pig":"oink","birds":[{"call":"cheep"},{"call":"tweet"},{"call":"quack"},{"call":"caw"}]}}""")>]
 let JsonXmlRoundTrippingTest expr (expected: string) =
     let expected = JsonSerializer.Deserialize<JsonNode>(expected)
-    test <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
 
 [<Test>]
 let JsonToXmlEmptyObjectIsEmptyDocumentTest () =
-    test
+    let expr = "@xml(json('{}'))"
+    testOrTrace expr
         <@
             jsonsEqual
                 (jsonOf
                     [ "$content-type", jsonOf "application/xml;charset=utf-8"
                       "$content", jsonOf "" ])
-                (testExpressionEvaluation "@xml(json('{}'))")
+                (testExpressionEvaluation expr)
         @>
 
 [<TestCase("""@json(xml(json('{}')))""")>]
 [<TestCase("""@json(xml(json('{"hello":"world","oh no":"another root"}')))""")>]
 let JsonInvalidXmlRoundTripTest expr =
-    raises<XmlException> <@ testExpressionEvaluation expr @>
+    raisesOrTrace<XmlException> expr <@ testExpressionEvaluation expr @>
 
 [<TestCase("@{xml('<?xml version=\"1.0\" encoding=\"utf-8\"?>')}")>]
 [<TestCase("@{xml('<!-- comment -->')}")>]
@@ -177,4 +180,4 @@ let JsonInvalidXmlRoundTripTest expr =
 [<TestCase("@{xml('some text')}")>]
 let InvalidXmlTest expr =
     // Some of these cases are valid, strictly speaking, but they're not supported by the Logic Apps XML parser
-    raises<XmlException> <@ testExpressionEvaluation expr @>
+    raisesOrTrace<XmlException> expr <@ testExpressionEvaluation expr @>

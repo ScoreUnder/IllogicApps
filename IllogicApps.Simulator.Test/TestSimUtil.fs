@@ -1,6 +1,7 @@
 module IllogicApps.Simulator.Test.TestSimUtil
 
 open System.Text.Json.Nodes
+open NUnit.Framework
 open Swensen.Unquote
 open IllogicApps.Core
 open IllogicApps.Simulator
@@ -49,7 +50,7 @@ let traceEvaluation expr =
 
     let rec trace' simContext (ast: LanguageParser.Ast) =
         match ast with
-        | LanguageParser.Literal(lit) -> NoChanges ast
+        | LanguageParser.Literal _ -> NoChanges ast
         | LanguageParser.Call(name, args) ->
             args
             |> List.map (trace' simContext)
@@ -87,7 +88,7 @@ let traceEvaluation expr =
 
     let rec stringOfAst =
         function
-        | LanguageParser.Literal(lit) -> lit.ToJsonString()
+        | LanguageParser.Literal(lit) -> lit.ToJsonString(sensibleSerialiserOptions)
         | LanguageParser.Call(name, args) -> $"""{name}({args |> List.map stringOfAst |> String.concat ", "})"""
         | LanguageParser.Member(parent, mem) -> $"{stringOfAst parent}[{stringOfAst mem}]"
         | LanguageParser.ForgivingMember(parent, mem) -> $"{stringOfAst parent}?[{stringOfAst mem}]"
@@ -108,7 +109,7 @@ let traceEvaluation expr =
     let simContext = makeSimulator ()
 
     if LanguageLexer.isLiteralStringWithAtSign expr then
-        [ JsonValue.Create(expr.[1..]).ToJsonString() ]
+        [ JsonValue.Create(expr.[1..]).ToJsonString(sensibleSerialiserOptions) ]
     else if LanguageLexer.requiresInterpolation expr then
         expr
         |> LanguageLexer.lex
@@ -116,7 +117,7 @@ let traceEvaluation expr =
         |> trace'' simContext []
         |> List.rev
     else
-        [ JsonValue.Create(expr).ToJsonString() ]
+        [ JsonValue.Create(expr).ToJsonString(sensibleSerialiserOptions) ]
 
 let traceEvaluationTo f expr = traceEvaluation expr |> List.iter f
 
@@ -125,5 +126,13 @@ let testOrTrace expr quote =
         test quote
     with
     | e ->
+        traceEvaluationTo System.Console.WriteLine expr
+        reraise()
+
+let raisesOrTrace<'e when 'e :> exn> expr quote =
+    try
+        raises<'e> quote
+    with
+    | :? AssertionException | :? AssertionFailedException ->
         traceEvaluationTo System.Console.WriteLine expr
         reraise()

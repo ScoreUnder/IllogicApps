@@ -1,6 +1,7 @@
 module IllogicApps.Core.JsonUtil
 
 open System.Collections.Generic
+open System.Text.Encodings.Web
 open System.Text.Json
 open System.Text.Json.Nodes
 
@@ -99,3 +100,10 @@ let rec jsonsEqual (a: JsonNode) (b: JsonNode) =
     | JsonValueKind.Null, JsonValueKind.Null -> true
     | ta, tb when ta = tb -> a.GetValue().Equals(b.GetValue())
     | _ -> false
+
+let sensibleSerialiserOptions =
+    JsonSerializerOptions(
+        defaults = JsonSerializerDefaults.General,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    )
