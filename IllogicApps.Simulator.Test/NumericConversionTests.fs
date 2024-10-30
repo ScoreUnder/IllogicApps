@@ -25,6 +25,12 @@ let ExecConvertToDecimalTest (expr: string) (expected: string) =
 let ExecConvertToIntTest (expr: string) (expected: string) =
     testOrTrace expr <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
 
-[<TestCase("@{int('  200- ')}", "-200")>]
+[<TestCase("@{int('  200- ')}")>]
 let ExecInvalidConvertToIntTest (expr: string) =
+    raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
+
+[<TestCase("@decimal(binary('123.0'))")>]
+[<TestCase("@float(binary('123.0'))")>]
+[<TestCase("@int(binary('123.0'))")>]
+let ExecInvalidConvertFromBinaryTest (expr: string) =
     raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
