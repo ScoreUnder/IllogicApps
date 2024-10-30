@@ -56,6 +56,19 @@ type private 'a TraceResult =
     static member tuple2 (a: 'a TraceResult) (b: 'b TraceResult) =
         TraceResult.map2 (fun a b -> (a, b)) a b
 
+let rec stringOfAst =
+    function
+    | LanguageParser.Literal(lit) -> lit.ToJsonString(sensibleSerialiserOptions)
+    | LanguageParser.Call(name, args) -> $"""{name}({args |> List.map stringOfAst |> String.concat ", "})"""
+    | LanguageParser.Member(parent, mem) -> $"{stringOfAst parent}[{stringOfAst mem}]"
+    | LanguageParser.ForgivingMember(parent, mem) -> $"{stringOfAst parent}?[{stringOfAst mem}]"
+    | LanguageParser.BuiltinConcat(args) -> $"""concat({args |> List.map stringOfAst |> String.concat ", "})"""
+
+let stringOfAstResult =
+    function
+    | Ok v -> stringOfAst v
+    | Error err -> $"Error: {err}"
+
 let traceEvaluationParsed expr =
     let unpackLiteral =
         function
@@ -102,14 +115,6 @@ let traceEvaluationParsed expr =
                 |> LanguageParser.Literal
                 |> Changes)
 
-    let rec stringOfAst =
-        function
-        | LanguageParser.Literal(lit) -> lit.ToJsonString(sensibleSerialiserOptions)
-        | LanguageParser.Call(name, args) -> $"""{name}({args |> List.map stringOfAst |> String.concat ", "})"""
-        | LanguageParser.Member(parent, mem) -> $"{stringOfAst parent}[{stringOfAst mem}]"
-        | LanguageParser.ForgivingMember(parent, mem) -> $"{stringOfAst parent}?[{stringOfAst mem}]"
-        | LanguageParser.BuiltinConcat(args) -> $"""concat({args |> List.map stringOfAst |> String.concat ", "})"""
-
     let rec trace'' acc (ast: LanguageParser.Ast) =
         let result =
             try
@@ -118,24 +123,28 @@ let traceEvaluationParsed expr =
                 TraceError $"{e.GetType().Name}: {e.Message}"
 
         match result with
-        | NoChanges ast -> stringOfAst ast :: acc
-        | Changes nextAst -> trace'' (stringOfAst ast :: acc) nextAst
-        | TraceError err -> err :: acc
+        | NoChanges ast -> Ok ast :: acc
+        | Changes nextAst -> trace'' (Ok ast :: acc) nextAst
+        | TraceError err -> Error err :: acc
 
-    trace'' [stringOfAst expr] expr |> List.rev
+    trace'' [ Ok expr ] expr |> List.rev
 
 let traceEvaluation expr =
     if LanguageLexer.isLiteralStringWithAtSign expr then
         [ JsonValue.Create(expr.[1..]).ToJsonString(sensibleSerialiserOptions) ]
     else if LanguageLexer.requiresInterpolation expr then
-        expr |> LanguageLexer.lex |> LanguageParser.parse |> traceEvaluationParsed
+        expr
+        |> LanguageLexer.lex
+        |> LanguageParser.parse
+        |> traceEvaluationParsed
+        |> List.map stringOfAstResult
     else
         [ JsonValue.Create(expr).ToJsonString(sensibleSerialiserOptions) ]
 
 let traceEvaluationTo f expr = traceEvaluation expr |> List.iter f
 
 let traceEvaluationParsedTo f expr =
-    traceEvaluationParsed expr |> List.iter f
+    traceEvaluationParsed expr |> Seq.map stringOfAstResult |> Seq.iter f
 
 let testOrTrace expr quote =
     try
