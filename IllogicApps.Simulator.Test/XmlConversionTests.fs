@@ -67,8 +67,28 @@ let JsonOfXmlTest expr (expected: string) =
            "<?xml version=\"1.0\" encoding=\"ucs-2\"?><root />")>]
 [<TestCase("@{xml('<?xml version=\"1.0\" encoding=\"ucs-2le\"?><root/>')}",
            "<?xml version=\"1.0\" encoding=\"ucs-2le\"?><root />")>]
+[<TestCase("@{xml('<root>&#65;</root>')}", "<root>A</root>")>]
 let StringifiedXmlTest expr expected =
     testOrTrace expr <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
+
+[<TestCase("@{xml(json('{\"ro:ot\": \"text\"}'))}", "<ot>text</ot>")>]
+[<TestCase("@{xml(json('{\"ro>ot\": \"text\"}'))}", "<ro_x003E_ot>text</ro_x003E_ot>")>]
+[<TestCase("@{xml(json('{\"ro ot\": \"text\"}'))}", "<ro_x0020_ot>text</ro_x0020_ot>")>]
+[<TestCase("@{xml(json('{\"ro=ot\": \"text\"}'))}", "<ro_x003D_ot>text</ro_x003D_ot>")>]
+[<TestCase("@{xml(json('{\"ro\\\"ot\": \"text\"}'))}", "<ro_x0022_ot>text</ro_x0022_ot>")>]
+[<TestCase("@{xml(json('{\"ro/ot\": \"text\"}'))}", "<ro_x002F_ot>text</ro_x002F_ot>")>]
+[<TestCase("@{xml(json('{\"root\": \"te\\\"xt\"}'))}", "<root>te\"xt</root>")>]
+[<TestCase("@{xml(json('{\"root\": \"te\nxt\"}'))}", "<root>te\nxt</root>")>]
+[<TestCase("@{xml(json('{\"root\": \"te<xt\"}'))}", "<root>te&lt;xt</root>")>]
+[<TestCase("@{xml(json('{\"root\": \"te&xt\"}'))}", "<root>te&amp;xt</root>")>]
+[<TestCase("@{xml(json('{\"root\": {\"@attr\": \"te\\\"xt\"}}'))}", "<root attr=\"te&quot;xt\" />")>]
+[<TestCase("@{xml(json('{\"root\": {\"@attr\": \"te\\\">xt\"}}'))}", "<root attr=\"te&quot;&gt;xt\" />")>]
+[<TestCase("@{xml(json('{\"root\": {\"#comment\": \"-->test\"}}'))}",
+           "<root><_x0023_comment>--&gt;test</_x0023_comment></root>")>]
+[<TestCase("@{xml(json('{\"root\": {\"#comment\": [\"-->test\"]}}'))}",
+           "<root><_x0023_comment>--&gt;test</_x0023_comment></root>")>]
+let StringifiedXmlOfJsonTest expr expected =
+    testOrTrace expr <@ expected.Equals(testExpressionEvaluation expr) @>
 
 [<TestCase("@xml('<root>a<!--b-->c<!--d--><e><![CDATA[Testing]]><!-- one big comment --></e>f</root>')",
            "{ \"$content-type\": \"application/xml;charset=utf-8\", \"$content\": \"PHJvb3Q+YTwhLS1iLS0+YzwhLS1kLS0+PGU+PCFbQ0RBVEFbVGVzdGluZ11dPjwhLS0gb25lIGJpZyBjb21tZW50IC0tPjwvZT5mPC9yb290Pg==\" }")>]
@@ -141,19 +161,15 @@ let XmlOfXmlTest () =
                 (testExpressionEvaluation expr)
         @>
 
-[<Test>]
-let XmlOfJsonTest () =
-    let expr = "@xml(json('{\"cow\":\"moo\"}'))"
+[<TestCase("@xml(json('{\"cow\":\"moo\"}'))",
+           """{"$content-type":"application/xml;charset=utf-8","$content":"PGNvdz5tb288L2Nvdz4="}""")>]
+let XmlOfJsonTest expr (expected: string) =
+    let expected = JsonSerializer.Deserialize<JsonNode>(expected)
+    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
 
-    testOrTrace
-        expr
-        <@
-            jsonsEqual
-                (jsonOf
-                    [ "$content-type", jsonOf "application/xml;charset=utf-8"
-                      "$content", jsonOf "PGNvdz5tb288L2Nvdz4=" ])
-                (testExpressionEvaluation expr)
-        @>
+[<TestCase("@{xml(json('{\"root\": {\"#cdata-section\": \"]]>test\"}}'))}")>]
+let InvalidXmlOfJsonTest expr =
+    raisesOrTrace<XmlException> expr <@ testExpressionEvaluation expr @>
 
 [<TestCase("""@json(xml(json('{"cow":"moo"}')))""", """{"cow":"moo"}""")>]
 [<TestCase("""@json(xml(json('{"animals":{"cow":"moo","pig":"oink","birds":["cheep","tweet","quack","caw"]}}')))""",
@@ -214,6 +230,11 @@ let AllowInvalidXmlOfBinaryTest expr (expected: string) =
 [<TestCase("@json(xml(binary('<')))")>]
 let InvalidXmlOfBinaryToJsonTest expr =
     raisesOrTrace<XmlException> expr <@ testExpressionEvaluation expr @>
+
+[<TestCase("@binary(xml('<root/>'))", """{"$content-type":"application/octet-stream","$content":"PHJvb3QgLz4="}""")>]
+let BinaryOfXmlTest expr (expected: string) =
+    let expected = JsonSerializer.Deserialize<JsonNode>(expected)
+    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
 
 [<TestCase("@xml(json('{\"$content\":\"dGVzdA==\",\"$content-type\":\"text/plain;charset=ascii\"}'))",
            """{"$content-type":"application/xml;charset=utf-8","$content":"dGVzdA=="}""")>]
