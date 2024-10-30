@@ -26,7 +26,16 @@ let ExecConvertToIntTest (expr: string) (expected: string) =
     testOrTrace expr <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
 
 [<TestCase("@{int('  200- ')}")>]
+[<TestCase("@{int('(200)')}")>]
 let ExecInvalidConvertToIntTest (expr: string) =
+    raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
+
+[<TestCase("@{float('(200)')}")>]
+let ExecInvalidConvertToFloatTest (expr: string) =
+    raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
+
+[<TestCase("@{decimal('(200)')}")>]
+let ExecInvalidConvertToDecimalTest (expr: string) =
     raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
 
 [<TestCase("@decimal(binary('123.0'))")>]
