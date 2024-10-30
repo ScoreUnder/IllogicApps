@@ -60,6 +60,10 @@ let JsonOfXmlTest expr (expected: string) =
 [<TestCase("@{xml('<root><![CDATA[<>&''\"]]></root>')}", "<root><![CDATA[<>&'\"]]></root>")>]
 [<TestCase("@{xml('<root><![CDATA[<!--]]>testing<![CDATA[-->]]></root>')}",
            "<root><![CDATA[<!--]]>testing<![CDATA[-->]]></root>")>]
+[<TestCase("@{xml('<root><![CDATA[testing]]><![CDATA[testing2]]></root>')}",
+           "<root><![CDATA[testing]]><![CDATA[testing2]]></root>")>]
+[<TestCase("@{xml('<aaa:root xmlns:aaa=\"test\" />')}",
+           "<aaa:root xmlns:aaa=\"test\" />")>]
 let StringifiedXmlTest expr expected =
     testOrTrace expr <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
 
@@ -167,6 +171,7 @@ let JsonInvalidXmlRoundTripTest expr =
 [<TestCase("@{xml('<?xml version=\"1.0\" encoding=\"utf-8\"?>')}")>]
 [<TestCase("@{xml('<!-- comment -->')}")>]
 [<TestCase("@{xml('<root> a <!-- b <!-- c --> d --> e </root>')}")>]
+[<TestCase("@{xml('<aaa:root />')}")>]
 [<TestCase("@{xml('<?xml standalone=\"yes\" encoding=\"ascii\"?><root/>')}")>]
 [<TestCase("@{xml('<?xml version=\"1.0\" standalone=\"yes\" encoding=\"ascii\"?><root/>')}")>]
 [<TestCase("@{xml('<?xml version=\"1.0\" standalone=\"yes\" encoding=\"utf-8\"?><root/>')}")>]
