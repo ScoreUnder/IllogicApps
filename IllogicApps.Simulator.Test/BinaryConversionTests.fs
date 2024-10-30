@@ -1,6 +1,8 @@
 module IllogicApps.Simulator.Test.BinaryConversionTests
 
 open System
+open System.Text.Json
+open System.Text.Json.Nodes
 open NUnit.Framework
 open Swensen.Unquote
 
@@ -67,3 +69,18 @@ let BinaryToStringTest () =
 [<TestCase("@binary(null)")>]
 let BinaryOfInvalidTypeTest (expr: string) =
     raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
+
+[<TestCase("@dataUriToBinary('data:text/plain;charset=utf-8;base64,aGVsbG8=')",
+           """{"$content-type":"text/plain;charset=utf-8","$content":"aGVsbG8="}""")>]
+[<TestCase("@dataUriToBinary('data:text/plain;charset=utf-8,aGVsbG8=')",
+           """{"$content-type":"text/plain;charset=utf-8","$content":"YUdWc2JHOD0="}""")>]
+let DataUriToBinaryTest (expr: string) (expected: string) =
+    let expected = JsonSerializer.Deserialize<JsonNode>(expected)
+    test <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+
+[<TestCase("@dataUri('test')", "data:text/plain;charset=utf-8;base64,dGVzdA==")>]
+[<TestCase("@dataUri(xml('<t/>'))", "data:application/xml;charset=utf-8;base64,PHQgLz4=")>]
+[<TestCase("@dataUri(json('{\"a\":3}'))", "data:application/json;charset=utf-8;base64,eyJhIjozfQ==")>]
+[<TestCase("@dataUri(createArray(1,2,3))", "data:application/json;charset=utf-8;base64,WzEsMiwzXQ==")>]
+let DataUriTest (expr: string) (expected: string) =
+    test <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
