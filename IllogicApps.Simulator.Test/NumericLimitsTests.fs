@@ -25,6 +25,7 @@ let ExecInRangeTest (expr: string) (expected: string) =
 [<TestCase("@decimal('3e-50')")>]
 [<TestCase("@decimal('3e50')")>]
 [<TestCase("@int('3e50')")>]
+[<TestCase("@int(mul(2e200,2e200))")>]
 let ExecConvertOutOfRangeTest (expr: string) =
     let parsed = trap <@ parseExpr (lexExpr expr) @>
     raisesWithOrTraceParsed<Exception> parsed <@ evaluateParsed parsed |> ignore @> <| fun ex ->
@@ -66,6 +67,7 @@ let ExecMathOutOfRangeTest (expr: string) =
 [<TestCase("@{add(2147483647, 1)}", "2147483648")>]
 [<TestCase("@{add(4294967295, 1)}", "4294967296")>]
 [<TestCase("@{mul(1e308, 2)}", "Infinity")>]
+[<TestCase("@{float(mul(2e200,2e200))}", "Infinity")>]
 [<TestCase("@{mul(4294967295, 4294967295.0)}", "1.8446744065119617E+19")>]
 [<TestCase("@{mul(decimal('4294967295'), 4294967295)}", "18446744065119617025")>]
 [<TestCase("@{mul(decimal('4294967295'), 4294967295.0)}", "18446744065119617025")>]

@@ -10,6 +10,11 @@ open TestSimUtil
 [<TestCase("@{float('  200- ')}", "-200")>]
 [<TestCase("@{float('NaN')}", "NaN")>]
 [<TestCase("@{float('nan')}", "NaN")>]
+[<TestCase("@{float('Infinity','')}", "Infinity")>]
+[<TestCase("@{float('400,000','en-gb')}", "400000")>]
+[<TestCase("@{float('400.000','en-gb')}", "400")>]
+[<TestCase("@{float('400,000','de-de')}", "400")>]
+[<TestCase("@{float('400.000','de-de')}", "400000")>]
 let ExecConvertToFloatTest (expr: string) (expected: string) =
     testOrTrace expr <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
 
@@ -24,6 +29,7 @@ let ExecConvertToDecimalTest (expr: string) (expected: string) =
 [<TestCase("@{int(decimal('1.00000'))}", "1")>]
 [<TestCase("@{int(string(decimal(100000.00000)))}", "100000")>]
 [<TestCase("@{int('  +1,000 ')}", "1000")>]
+[<TestCase("@{int('nan')}", "-9223372036854776000")>] // Another incredible case from Logic Apps
 let ExecConvertToIntTest (expr: string) (expected: string) =
     testOrTrace expr <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
 
@@ -47,4 +53,38 @@ let ExecInvalidConvertToDecimalTest (expr: string) =
 [<TestCase("@float(binary('123.0'))")>]
 [<TestCase("@int(binary('123.0'))")>]
 let ExecInvalidConvertFromBinaryTest (expr: string) =
+    raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
+
+// Note: isFloat does not test if the value passed is a float,
+// it checks if it is a string which is convertible to a float
+[<TestCase("@{isFloat(json('{\"x\":\"Infinity\"}').x)}", "True")>]  // (Proves that "Infinity" is not parsed as float implicitly already)
+[<TestCase("@{isFloat('NaN')}", "True")>]
+[<TestCase("@{isFloat('NaN','')}", "True")>]
+[<TestCase("@{isFloat('NaN','en-gb')}", "True")>]
+[<TestCase("@{isFloat('NaN','en-us')}", "True")>]
+[<TestCase("@{isFloat('NaN','de-de')}", "True")>]
+[<TestCase("@{isFloat('Infinity')}", "True")>]
+[<TestCase("@{isFloat('Infinity','')}", "True")>]
+[<TestCase("@{isFloat('infINITY','')}", "True")>]
+[<TestCase("@{isFloat('Infinity','en-gb')}", "False")>]
+[<TestCase("@{isFloat('Infinity','en-us')}", "False")>]
+[<TestCase("@{isFloat('Infinity','de-de')}", "False")>]
+[<TestCase("@{isFloat('inf')}", "False")>]
+[<TestCase("@{isFloat('inf','')}", "False")>]
+[<TestCase("@{isFloat('inf','en-gb')}", "False")>]
+[<TestCase("@{isFloat('inf','en-us')}", "False")>]
+[<TestCase("@{isFloat('inf','de-de')}", "False")>]
+[<TestCase("@{isFloat('400,000','en-gb')}", "True")>]
+[<TestCase("@{isFloat('400.000','en-gb')}", "True")>]
+[<TestCase("@{isFloat('400,000','de-de')}", "True")>]
+[<TestCase("@{isFloat('400.000','de-de')}", "True")>]
+[<TestCase("@{isFloat('111.222.333')}", "False")>]
+[<TestCase("@{isFloat('111.222.333','')}", "False")>]
+[<TestCase("@{isFloat('111.222.333','en-gb')}", "False")>]
+[<TestCase("@{isFloat('111.222.333','de-de')}", "True")>]
+let ExecIsStringifiedFloatTest (expr: string) (expected: string) =
+    testOrTrace expr <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
+
+[<TestCase("@{isFloat(3.14)}")>]
+let ExecIsNotStringifiedFloatTest (expr: string) =
     raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
