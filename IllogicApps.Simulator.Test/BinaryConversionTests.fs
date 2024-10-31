@@ -123,6 +123,7 @@ let DataUriToBinaryTest (expr: string) (expected: string) =
 
 [<TestCase("@dataUriToString('data:text/plain;charset=utf-8,%22hello,%20world%22')", "\"hello, world\"")>]
 [<TestCase("@dataUriToString('data:text/plain;charset=utf-8;base64,aGVsbG8 gd29ybGQ=')", "hello world")>]
+[<TestCase("@dataUriToString('data:text/plain;test=wow;charset=nope;base64,aGVsbG8gd29ybGQ=')", "hello world")>]
 [<TestCase("@dataUriToString('data:text/plain;charset=utf-8,abc+def ghi+jkl=asdf+qwer?abc+def=ghi+jkl')",
            "abc def ghi jkl=asdf qwer?abc def=ghi jkl")>]
 [<TestCase("@dataUriToString('data:text/plain;charset=utf-8;base64,JTIyaGVsbG8rd29ybGQlMjIlM0YlM2Y=')",
@@ -166,8 +167,10 @@ let StringifiedDataUriToBinaryTest expr (expected: string) =
 [<TestCase("@dataUriToBinary('data:;,test')")>] // too many semicolons
 [<TestCase("@dataUriToBinary('data:;;,test')")>] // too many semicolons
 [<TestCase("@dataUriToBinary('data:badmime;charset=utf-8,  [ 1, 2, 3 ]  ')")>] // MIME is not formatted correctly
+[<TestCase("@dataUriToBinary('data:text/plain/epic;charset=utf-8;base64,aGVsbG8g d29ybGQ=')")>] // MIME is not formatted correctly
 [<TestCase("@dataUriToBinary('data:application/json;charset=fake-encoding,  [ 1, 2, 3 ]  ')")>] // encoding is wrong
-[<TestCase("@dataUriToBinary('data:text/plain;cows=moo;base64;charset=ascii;cats=cute=very,dGVzdA==')")>] // double equals sign in parameter
+[<TestCase("@dataUriToBinary('data:text/plain;charset=martian;base64,aGVsbG8gd29ybGQ=')")>] // encoding is wrong, but already base64
+[<TestCase("@dataUriToBinary('data:text/plain;cows=moo;base64;charset=ascii;cats=cute=very,dGVzdA==')")>] // double equals sign in parameter, base64 not at end
 let InvalidDataUriToBinaryTest (expr: string) =
     raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
 
@@ -175,6 +178,7 @@ let InvalidDataUriToBinaryTest (expr: string) =
 [<TestCase("@{dataUriToBinary('data:;,test')}")>] // too many semicolons
 [<TestCase("@{dataUriToBinary('data:;;,test')}")>] // too many semicolons
 [<TestCase("@{dataUriToBinary('data:badmime;charset=utf-8,  [ 1, 2, 3 ]  ')}")>] // MIME is not formatted correctly
+[<TestCase("@{dataUriToBinary('data:text/plain/epic;charset=utf-8;base64,aGVsbG8g d29ybGQ=')}")>] // MIME is not formatted correctly
 [<TestCase("@{dataUriToBinary('data:application/json;charset=fake-encoding,  [ 1, 2, 3 ]  ')}")>] // encoding is wrong
 [<TestCase("@{dataUriToBinary('data:text/plain;cows=moo;base64;charset=ascii;cats=cute=very,dGVzdA==')}")>] // double equals sign in parameter
 [<TestCase("@{dataUriToBinary('data:text/plain;base64;charset=ascii,dGVzdA==')}")>] // base64 is not last
@@ -188,6 +192,7 @@ let InvalidStringifiedDataUriToBinaryTest (expr: string) =
 [<TestCase("@dataUriToString('data:application/json;charset=fake-encoding,  [ 1, 2, 3 ]  ')")>] // encoding is wrong
 [<TestCase("@dataUriToString('data:text/plain;charset=ascii;cats=cute;base64,dGVzdA==')")>] // Seems to think any alternative charset is wrong?
 [<TestCase("@dataUriToString('data:text/plain;charset=ascii;base64,dGVzdA==')")>] // ditto
+[<TestCase("@dataUriToString('data:text/plain;CHARSET=nope;base64,aGVsbG8gd29ybGQ=')")>] // ditto but charset tag is uppercase
 [<TestCase("@dataUriToString('data:text/plain;charset=utf-8;base64,aGVsbG8%20gd29ybGQ=')")>] // base64 is invalid
 let InvalidDataUriToStringTest (expr: string) =
     raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
