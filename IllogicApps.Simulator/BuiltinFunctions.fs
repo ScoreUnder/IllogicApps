@@ -405,21 +405,29 @@ let f_decimal _ (args: Args) : JsonNode =
     | _ -> failwithf "Could not parse %s as decimal" str
 
 let f_float _ (args: Args) : JsonNode =
-    expectArgs 1 args
-    let str = List.head args |> _.ToString()
+    let str, culture =
+        match args with
+        | [ s ] -> s, CultureInfo.DefaultThreadCurrentCulture
+        | [ s; c ] -> s, CultureInfo.GetCultureInfo(c.GetValue<string>())
+        | _ -> failwithf "Expected 1 or 2 args, got %d" (List.length args)
 
-    match Double.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, CultureInfo.InvariantCulture) with
+    let str = str.ToString()
+
+    match Double.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, culture) with
     | true, result -> JsonValue.Create(result)
     | _ -> failwithf "Could not parse %s as float" str
 
 let f_int (sim: SimulatorContext) (args: Args) : JsonNode =
-    expectArgs 1 args
-    let str = List.head args |> _.ToString()
+    let str, culture =
+        match args with
+        | [ s ] -> s, CultureInfo.DefaultThreadCurrentCulture
+        | [ s; c ] -> s, CultureInfo.GetCultureInfo(c.GetValue<string>())
+        | _ -> failwithf "Expected 1 or 2 args, got %d" (List.length args)
+
+    let str = str.ToString()
 
     if sim.IsBugForBugAccurate then
-        match
-            Double.TryParse(str, NumberStyles.Float ||| NumberStyles.AllowThousands, CultureInfo.InvariantCulture)
-        with
+        match Double.TryParse(str, NumberStyles.Float ||| NumberStyles.AllowThousands, culture) with
         | true, result ->
             if Math.Truncate(result) <> result then
                 failwithf "Could not parse %s as int" str
