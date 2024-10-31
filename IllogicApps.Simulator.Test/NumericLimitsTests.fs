@@ -49,6 +49,7 @@ let ExecNoFractionalIntegersTest (expr: string) =
 [<TestCase("@{float('1.7e+308')}", "1.7E+308")>]
 [<TestCase("@{float('5e-350')}", "0")>]
 [<TestCase("@{float('1.7e+350')}", "Infinity")>]
+[<TestCase("@{float('-1e400')}", "-Infinity")>]
 [<TestCase("@{decimal(100000.000009)}", "100000.000009")>]
 [<TestCase("@{decimal('10000000000.00000000001234')}", "10000000000.00000000001234")>]
 [<TestCase("@{decimal('70000000000000000000000000000')}", "70000000000000000000000000000")>]
