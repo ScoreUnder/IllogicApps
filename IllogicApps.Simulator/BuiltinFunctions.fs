@@ -282,7 +282,7 @@ let f_decimal _ (args: Args) : JsonNode =
     expectArgs 1 args
     let str = List.head args |> _.ToString()
 
-    match System.Decimal.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, CultureInfo.InvariantCulture) with
+    match System.Decimal.TryParse(str, NumberStyles.Number, CultureInfo.InvariantCulture) with
     | true, result -> JsonValue.Create(result)
     | _ -> failwithf "Could not parse %s as decimal" str
 
