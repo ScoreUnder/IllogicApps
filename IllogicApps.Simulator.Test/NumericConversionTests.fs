@@ -30,6 +30,7 @@ let ExecConvertToDecimalTest (expr: string) (expected: string) =
 [<TestCase("@{int(string(decimal(100000.00000)))}", "100000")>]
 [<TestCase("@{int('  +1,000 ')}", "1000")>]
 [<TestCase("@{int('nan')}", "-9223372036854776000")>] // Another incredible case from Logic Apps
+[<TestCase("@{int('100000000000000010')}", "100000000000000016")>]
 let ExecConvertToIntTest (expr: string) (expected: string) =
     testOrTrace expr <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
 
