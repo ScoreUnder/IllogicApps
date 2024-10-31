@@ -490,8 +490,7 @@ let f_outputs (sim: SimulatorContext) (args: Args) : JsonNode =
 let f_trigger (sim: SimulatorContext) (args: Args) : JsonNode =
     expectArgs 0 args
 
-    // TODO: Implement trigger() function
-    new JsonObject()
+    JsonValue.Create sim.TriggerResult
 
 let f_variables (sim: SimulatorContext) (args: Args) : JsonNode =
     expectArgs 1 args

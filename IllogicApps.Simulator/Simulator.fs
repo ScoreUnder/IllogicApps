@@ -157,7 +157,7 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
                 startTime = stringOfDateTime startTime,
                 Inputs = result.inputs,
                 Outputs = result.outputs,
-                workflowRunId = this.GetTriggerResult.ClientTrackingId
+                workflowRunId = this.TriggerResult.ClientTrackingId
             )
 
         this.RecordActionResult name result
@@ -189,7 +189,7 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
 
     override this.LoopContext = this.LoopContextStack.Peek()
     override this.ArrayOperationContext = this.ArrayOperationContextStack.Peek()
-    override this.GetTriggerResult = triggerResult
+    override this.TriggerResult = triggerResult
     override this.IsBugForBugAccurate = isBugForBugAccurate
 
     override this.GetActionResult name =

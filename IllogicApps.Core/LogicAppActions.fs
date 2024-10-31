@@ -24,7 +24,7 @@ type Request() =
 
         // TODO: Does this ever get called?
 
-        let triggerResult = context.GetTriggerResult
+        let triggerResult = context.TriggerResult
 
         { status = triggerResult.Status
           inputs = triggerResult.Inputs

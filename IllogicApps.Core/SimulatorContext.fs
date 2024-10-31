@@ -43,7 +43,7 @@ and [<AbstractClass>] SimulatorContext() =
     abstract member ArrayOperationContext: LoopContext
 
     /// Gets the result of the trigger which invoked this workflow.
-    abstract member GetTriggerResult: CompletedTrigger
+    abstract member TriggerResult: CompletedTrigger
 
     /// Gets the result of an action by its name.
     abstract member GetActionResult: string -> CompletedAction option
