@@ -447,18 +447,17 @@ let f_int (sim: SimulatorContext) (args: Args) : JsonNode =
         | true, result -> JsonValue.Create(result)
         | _ -> failwithf "Could not parse %s as int" str
 
-let f_isFloat sim (args: Args) : JsonNode =
-    let forwardedArgs =
+let f_isFloat _ (args: Args) : JsonNode =
+    let str, culture =
         match args with
-        | [ s ] -> [ s; JsonValue.Create "" ]
-        | [ s; c ] -> [ s; c ]
+        | [ s ] -> s, CultureInfo.InvariantCulture
+        | [ s; c ] -> s, CultureInfo.GetCultureInfo(c.GetValue<string>())
         | _ -> failwithf "Expected 1 or 2 args, got %d" (List.length args)
 
-    try
-        f_float sim forwardedArgs |> ignore
-        JsonValue.Create true
-    with _ ->
-        JsonValue.Create false
+    let str = ensureString str
+
+    match Double.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, culture) with
+    | v, _ -> JsonValue.Create v
 
 let f_json _ (args: Args) : JsonNode =
     expectArgs 1 args
