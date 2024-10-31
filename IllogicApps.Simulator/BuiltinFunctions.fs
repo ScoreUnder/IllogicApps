@@ -335,16 +335,27 @@ let f_int (sim: SimulatorContext) (args: Args) : JsonNode =
 
     if sim.IsBugForBugAccurate then
         match
-            System.Double.TryParse(str, NumberStyles.Float ||| NumberStyles.AllowThousands, CultureInfo.InvariantCulture)
+            System.Double.TryParse(
+                str,
+                NumberStyles.Float ||| NumberStyles.AllowThousands,
+                CultureInfo.InvariantCulture
+            )
         with
         | true, result ->
             if System.Math.Truncate(result) <> result then
                 failwithf "Could not parse %s as int" str
+
             JsonValue.Create(Operators.Checked.int64 result)
         | _ -> failwithf "Could not parse %s as int" str
     else
         match
-            System.Int64.TryParse(str, NumberStyles.Integer ||| NumberStyles.AllowExponent ||| NumberStyles.AllowThousands, CultureInfo.InvariantCulture)
+            System.Int64.TryParse(
+                str,
+                NumberStyles.Integer
+                ||| NumberStyles.AllowExponent
+                ||| NumberStyles.AllowThousands,
+                CultureInfo.InvariantCulture
+            )
         with
         | true, result -> JsonValue.Create(result)
         | _ -> failwithf "Could not parse %s as int" str
