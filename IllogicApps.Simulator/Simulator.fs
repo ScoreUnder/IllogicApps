@@ -141,8 +141,10 @@ type LoopContextImpl(values: JsonNode list, disposeHook: LoopContext -> unit) as
 
     override this.Current = this.values.Head
 
-type Simulator private (triggerResult: CompletedTrigger) as this =
+type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: bool) as this =
     inherit SimulatorContext()
+
+    let isBugForBugAccurate = defaultArg isBugForBugAccurate true
 
     let recordResultOf name f =
         let startTime = DateTime.UtcNow
@@ -188,6 +190,7 @@ type Simulator private (triggerResult: CompletedTrigger) as this =
     override this.LoopContext = this.LoopContextStack.Peek()
     override this.ArrayOperationContext = this.ArrayOperationContextStack.Peek()
     override this.GetTriggerResult = triggerResult
+    override this.IsBugForBugAccurate = isBugForBugAccurate
 
     override this.GetActionResult name =
         this.ActionResults.TryGetValue name
