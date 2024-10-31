@@ -79,7 +79,7 @@ let parse (items: (int * Token) list list) =
                 | Number num -> Ast(Literal(JsonValue.Create(num))) :: stack
                 | CloseParen -> Token token :: stack |> must collapseCall
                 | CloseBracket -> Token token :: stack |> must collapseIndexAccess
-                | _ -> Token token :: stack
+                | _ -> Token token :: stack |> collapseMemberAccess
             with ex ->
                 raise
                 <| new System.Exception(
