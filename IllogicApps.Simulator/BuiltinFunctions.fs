@@ -429,10 +429,12 @@ let f_int (sim: SimulatorContext) (args: Args) : JsonNode =
     if sim.IsBugForBugAccurate then
         match Double.TryParse(str, NumberStyles.Float ||| NumberStyles.AllowThousands, culture) with
         | true, result ->
-            if Math.Truncate(result) <> result then
+            if Double.IsNaN result then
+                JsonValue.Create(int64 result)
+            elif not (Double.IsInteger result) then
                 failwithf "Could not parse %s as int" str
-
-            JsonValue.Create(Operators.Checked.int64 result)
+            else
+                JsonValue.Create(Operators.Checked.int64 result)
         | _ -> failwithf "Could not parse %s as int" str
     else
         match
