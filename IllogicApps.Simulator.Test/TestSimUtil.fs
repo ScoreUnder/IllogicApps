@@ -162,6 +162,15 @@ let raisesOrTrace<'e when 'e :> exn> expr quote =
         traceEvaluationTo System.Console.WriteLine expr
         reraise ()
 
+let raisesWithOrTrace<'e when 'e :> exn> expr quote f =
+    try
+        raisesWith<'e> quote f
+    with
+    | :? AssertionException
+    | :? AssertionFailedException ->
+        traceEvaluationTo System.Console.WriteLine expr
+        reraise ()
+
 let testOrTraceParsed expr quote =
     try
         test quote

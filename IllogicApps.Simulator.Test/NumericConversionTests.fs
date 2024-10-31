@@ -36,7 +36,8 @@ let ExecInvalidConvertToIntTest (expr: string) =
 [<TestCase("@{float('Infinity')}")>]
 [<TestCase("@{float('inf')}")>]
 let ExecInvalidConvertToFloatTest (expr: string) =
-    raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
+    raisesWithOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
+    <| fun e -> let message = e.Message in <@ message.Contains("Could not parse") @>
 
 [<TestCase("@{decimal('(200)')}")>]
 let ExecInvalidConvertToDecimalTest (expr: string) =
