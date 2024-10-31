@@ -447,6 +447,19 @@ let f_int (sim: SimulatorContext) (args: Args) : JsonNode =
         | true, result -> JsonValue.Create(result)
         | _ -> failwithf "Could not parse %s as int" str
 
+let f_isFloat sim (args: Args) : JsonNode =
+    let forwardedArgs =
+        match args with
+        | [ s ] -> [ s; JsonValue.Create "" ]
+        | [ s; c ] -> [ s; c ]
+        | _ -> failwithf "Expected 1 or 2 args, got %d" (List.length args)
+
+    try
+        f_float sim forwardedArgs |> ignore
+        JsonValue.Create true
+    with _ ->
+        JsonValue.Create false
+
 let f_json _ (args: Args) : JsonNode =
     expectArgs 1 args
 
@@ -624,6 +637,7 @@ let functions: Map<string, LanguageFunction> =
       "decimal", f_decimal
       "float", f_float
       "int", f_int
+      "isFloat", f_isFloat
       "json", f_json
       "string", f_string
       "xml", f_xml
