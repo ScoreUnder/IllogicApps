@@ -7,7 +7,10 @@ open IllogicApps.Core
 open IllogicApps.Simulator
 open JsonUtil
 
-let makeSimulator () = Foq.Mock<SimulatorContext>().Create()
+let makeSimulator () =
+    Foq.Mock<SimulatorContext>()
+        .Setup(fun x -> <@ x.IsBugForBugAccurate @>).Returns(true)
+        .Create()
 
 let testExpressionEvaluation expr =
     LanguageEvaluator.evaluateIfNecessary (makeSimulator ()) expr

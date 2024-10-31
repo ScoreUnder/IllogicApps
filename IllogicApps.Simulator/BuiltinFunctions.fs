@@ -294,15 +294,25 @@ let f_float _ (args: Args) : JsonNode =
     | true, result -> JsonValue.Create(result)
     | _ -> failwithf "Could not parse %s as float" str
 
-let f_int _ (args: Args) : JsonNode =
+let f_int (sim: SimulatorContext) (args: Args) : JsonNode =
     expectArgs 1 args
     let str = List.head args |> _.ToString()
 
-    match
-        System.Int64.TryParse(str, NumberStyles.Float ||| NumberStyles.AllowThousands, CultureInfo.InvariantCulture)
-    with
-    | true, result -> JsonValue.Create(int64 (float result))
-    | _ -> failwithf "Could not parse %s as int" str
+    if sim.IsBugForBugAccurate then
+        match
+            System.Double.TryParse(str, NumberStyles.Float ||| NumberStyles.AllowThousands, CultureInfo.InvariantCulture)
+        with
+        | true, result ->
+            if System.Math.Truncate(result) <> result then
+                failwithf "Could not parse %s as int" str
+            JsonValue.Create(Operators.Checked.int64 result)
+        | _ -> failwithf "Could not parse %s as int" str
+    else
+        match
+            System.Int64.TryParse(str, NumberStyles.Integer ||| NumberStyles.AllowExponent ||| NumberStyles.AllowThousands, CultureInfo.InvariantCulture)
+        with
+        | true, result -> JsonValue.Create(result)
+        | _ -> failwithf "Could not parse %s as int" str
 
 let f_json _ (args: Args) : JsonNode =
     expectArgs 1 args
