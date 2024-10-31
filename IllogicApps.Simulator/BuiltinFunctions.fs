@@ -4,6 +4,7 @@ open System.Collections.Generic
 open System.Globalization
 open System.IO
 open System.Runtime.Serialization.Json
+open System.Text
 open System.Text.Json
 open System.Text.Json.Nodes
 open System.Xml
@@ -18,18 +19,25 @@ type Args = JsonNode list
 module ContentType =
     let Binary = "application/octet-stream"
     let Xml = "application/xml"
+    let Json = "application/json"
+    let Text = "text/plain"
 
-    let private CharsetEq = "charset="
+    module Charset =
+        let private CharsetEq = "charset="
 
-    let getCharset (contentType: string) =
-        let parts = contentType.Split(';')
+        let Utf8 = "utf-8"
 
-        parts
-        |> Array.tryPick (fun v ->
-            let v = v.Trim()
-            if v.StartsWith(CharsetEq) then Some v else None)
-        |> Option.map _.Substring(CharsetEq.Length)
-        |> Option.map System.Text.Encoding.GetEncoding
+        let set (contentType: string) (charset: string) = $"{contentType};{CharsetEq}{charset}"
+
+        let get (contentType: string) =
+            let parts = contentType.Split(';')
+
+            parts
+            |> Array.tryPick (fun v ->
+                let v = v.Trim()
+                if v.StartsWith(CharsetEq) then Some v else None)
+            |> Option.map _.Substring(CharsetEq.Length)
+            |> Option.map Encoding.GetEncoding
 
 let expectArgs n (args: Args) =
     if args.Length <> n then
@@ -44,10 +52,10 @@ let expectArgsAtLeast n (args: Args) =
         failwithf "Expected at least %d arguments, got %d" n args.Length
 
 let toBase64 (str: string) =
-    str |> System.Text.Encoding.UTF8.GetBytes |> System.Convert.ToBase64String
+    str |> Encoding.UTF8.GetBytes |> System.Convert.ToBase64String
 
 let fromBase64 (str: string) =
-    str |> System.Convert.FromBase64String |> System.Text.Encoding.UTF8.GetString
+    str |> System.Convert.FromBase64String |> Encoding.UTF8.GetString
 
 let base64ToBlob (contentType: string) (base64: string) : JsonNode =
     new JsonObject(
@@ -59,7 +67,7 @@ let strToBase64Blob (contentType: string) (str: string) : JsonNode =
     str |> toBase64 |> base64ToBlob contentType
 
 let toBinary (str: string) : JsonNode =
-    str |> strToBase64Blob "application/octet-stream"
+    str |> strToBase64Blob ContentType.Binary
 
 let (|Base64StringBlob|_|) (node: JsonNode) : (string * byte array) option =
     if node = null then
@@ -77,8 +85,8 @@ let (|Base64StringBlob|_|) (node: JsonNode) : (string * byte array) option =
         | _ -> None
 
 let decodeByContentType contentType (content: byte array) =
-    ContentType.getCharset contentType
-    |> Option.defaultValue System.Text.Encoding.UTF8
+    ContentType.Charset.get contentType
+    |> Option.defaultValue Encoding.UTF8
     |> _.GetString(content)
 
 let (|StringOrEncodedString|_|) (node: JsonNode) : string option =
@@ -102,6 +110,22 @@ let objectToString (node: JsonNode) : string =
         | JsonValueKind.Array
         | JsonValueKind.Object -> n.ToJsonString(sensibleSerialiserOptions)
         | _ -> n.ToString()
+
+let (|ContentTypedAny|_|) (node: JsonNode) =
+    match node with
+    | null -> None
+    | Base64StringBlob(contentType, content) -> Some(contentType, content)
+    | n when n.GetValueKind() = JsonValueKind.Null -> None
+    | n when n.GetValueKind() = JsonValueKind.String ->
+        Some(
+            ContentType.Charset.set ContentType.Text ContentType.Charset.Utf8,
+            Encoding.UTF8.GetBytes(n.GetValue<string>())
+        )
+    | n ->
+        Some(
+            ContentType.Charset.set ContentType.Json ContentType.Charset.Utf8,
+            Encoding.UTF8.GetBytes(objectToString n)
+        )
 
 let isXmlContentType (contentType: string) =
     $"{contentType};"
@@ -278,6 +302,17 @@ let f_createArray _ (args: Args) : JsonNode =
 
     args |> Seq.map safeClone |> Seq.toArray |> JsonArray :> JsonNode
 
+
+let f_dataUri _ (args: Args) : JsonNode =
+    expectArgs 1 args
+
+    match List.head args with
+    | ContentTypedAny(contentType, content) ->
+        let base64 = System.Convert.ToBase64String(content)
+        let dataUri = $"data:{contentType};base64,{base64}"
+        JsonValue.Create(dataUri)
+    | _ -> failwith "Cannot convert to data URI"
+
 let f_decimal _ (args: Args) : JsonNode =
     expectArgs 1 args
     let str = List.head args |> _.ToString()
@@ -331,7 +366,7 @@ let f_json _ (args: Args) : JsonNode =
                 with ex ->
                     failwithf "Could not parse XML: %s\nDocument: %s\nOriginal: %s" ex.Message xmlStr (ex.ToString())
 
-                stringWriter.ToArray() |> System.Text.Encoding.UTF8.GetString
+                stringWriter.ToArray() |> Encoding.UTF8.GetString
             else if isBinaryContentType contentType then
                 content |> decodeByContentType contentType
             else
@@ -358,7 +393,7 @@ let f_xml _ (args: Args) : JsonNode =
         |> System.Convert.ToBase64String
         |> base64ToBlob $"{ContentType.Xml};charset=utf-8"
     | v when v.GetValueKind() = JsonValueKind.Object ->
-        let jsonBytes = System.Text.Encoding.UTF8.GetBytes(v.ToJsonString())
+        let jsonBytes = Encoding.UTF8.GetBytes(v.ToJsonString())
 
         let reader =
             JsonReaderWriterFactory.CreateJsonReader(jsonBytes, new XmlDictionaryReaderQuotas())
@@ -486,6 +521,7 @@ let functions: Map<string, LanguageFunction> =
       "base64ToString", f_base64ToString
       "binary", f_binary
       "createArray", f_createArray
+      "dataUri", f_dataUri
       "decimal", f_decimal
       "float", f_float
       "int", f_int
