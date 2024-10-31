@@ -1,8 +1,10 @@
 module IllogicApps.Simulator.BuiltinFunctions
 
+open System
 open System.Collections.Generic
 open System.Globalization
 open System.IO
+open System.Net
 open System.Runtime.Serialization.Json
 open System.Text
 open System.Text.Json
@@ -35,9 +37,22 @@ module ContentType =
             parts
             |> Array.tryPick (fun v ->
                 let v = v.Trim()
-                if v.StartsWith(CharsetEq) then Some v else None)
+
+                if v.StartsWith(CharsetEq, StringComparison.OrdinalIgnoreCase) then
+                    Some v
+                else
+                    None)
             |> Option.map _.Substring(CharsetEq.Length)
             |> Option.map Encoding.GetEncoding
+
+        let getBuggy (contentType: string) =
+            let parts = contentType.Split(';', 3)
+
+            match parts with
+            | [| _; second; _ |]
+            | [| _; second |] when second.StartsWith(CharsetEq, StringComparison.OrdinalIgnoreCase) ->
+                Some(Encoding.GetEncoding(second.Substring CharsetEq.Length))
+            | _ -> None
 
 let expectArgs n (args: Args) =
     if args.Length <> n then
@@ -51,11 +66,13 @@ let expectArgsAtLeast n (args: Args) =
     if args.Length < n then
         failwithf "Expected at least %d arguments, got %d" n args.Length
 
+let count seq el = Seq.filter ((=) el) seq |> Seq.length
+
 let toBase64 (str: string) =
-    str |> Encoding.UTF8.GetBytes |> System.Convert.ToBase64String
+    str |> Encoding.UTF8.GetBytes |> Convert.ToBase64String
 
 let fromBase64 (str: string) =
-    str |> System.Convert.FromBase64String |> Encoding.UTF8.GetString
+    str |> Convert.FromBase64String |> Encoding.UTF8.GetString
 
 let base64ToBlob (contentType: string) (base64: string) : JsonNode =
     new JsonObject(
@@ -78,13 +95,19 @@ let (|Base64StringBlob|_|) (node: JsonNode) : (string * byte array) option =
             let node = node.AsObject()
 
             if node.ContainsKey("$content-type") && node.ContainsKey("$content") then
-                let content = node["$content"].ToString() |> System.Convert.FromBase64String
+                let content = node["$content"].ToString() |> Convert.FromBase64String
                 Some(node["$content-type"].ToString(), content)
             else
                 None
         | _ -> None
 
-let decodeByContentType contentType (content: byte array) =
+let decodeByContentType (contentType: string) (content: byte array) =
+    contentType.Split(";")
+    |> Seq.skip 1
+    |> Seq.iter (fun seg ->
+        if count seg '=' = 0 then
+            failwithf "Bad content type segment %s" seg)
+
     ContentType.Charset.get contentType
     |> Option.defaultValue Encoding.UTF8
     |> _.GetString(content)
@@ -129,11 +152,11 @@ let (|ContentTypedAny|_|) (node: JsonNode) =
 
 let isXmlContentType (contentType: string) =
     $"{contentType};"
-        .StartsWith($"{ContentType.Xml};", System.StringComparison.OrdinalIgnoreCase)
+        .StartsWith($"{ContentType.Xml};", StringComparison.OrdinalIgnoreCase)
 
 let isBinaryContentType (contentType: string) =
     $"{contentType};"
-        .StartsWith($"{ContentType.Binary};", System.StringComparison.OrdinalIgnoreCase)
+        .StartsWith($"{ContentType.Binary};", StringComparison.OrdinalIgnoreCase)
 
 type Arithmetic2Type =
     | Add
@@ -201,16 +224,16 @@ let arrayReduceArithmetic2 op (args: Args) : JsonNode =
     | _ :: _ :: _ -> aux args
     | _ -> failwith "Expected 2 or more arguments, or an array"
 
-let myRand = lazy (System.Random())
+let myRand = lazy (Random())
 
-let dateTimeFunc2f (f: System.DateTimeOffset -> int -> System.DateTimeOffset) (args: Args) : JsonNode =
+let dateTimeFunc2f (f: DateTimeOffset -> int -> DateTimeOffset) (args: Args) : JsonNode =
     let dateTimeFunc2f' (a: JsonNode) (b: JsonNode) (fmt: string) =
         match a.GetValueKind(), b.GetValueKind() with
         | JsonValueKind.String, JsonValueKind.String ->
             let ts1 = a.GetValue<string>()
             let val2 = b.GetValue<int>()
 
-            let dt1 = System.DateTimeOffset.Parse(ts1)
+            let dt1 = DateTimeOffset.Parse(ts1)
             let result = f dt1 val2
 
             JsonValue.Create(result.ToString(fmt))
@@ -220,6 +243,41 @@ let dateTimeFunc2f (f: System.DateTimeOffset -> int -> System.DateTimeOffset) (a
     | [ ts1; ts2 ] -> dateTimeFunc2f' ts1 ts2 "o"
     | [ ts1; ts2; fmt ] -> dateTimeFunc2f' ts1 ts2 (fmt |> ensureString)
     | _ -> failwith "Expected 2 or 3 arguments"
+
+let parseDataUri (str: string) isForString =
+    if not (str.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) then
+        failwith "Not a data URI"
+
+    let parts = str.Substring(5).Split(',', 2)
+
+    if parts.Length <> 2 then
+        failwith "Badly formed data URI (no comma)"
+
+    let metaParts = parts.[0].Split(';')
+
+    let contentTypeParts, text =
+        if (Array.last metaParts).Equals("base64", StringComparison.OrdinalIgnoreCase) then
+            let metaPartsWithoutBase64 =
+                metaParts |> Seq.ofArray |> Seq.take (metaParts.Length - 1)
+
+            metaPartsWithoutBase64, parts.[1]
+        else
+            metaParts, toBase64 (WebUtility.UrlDecode parts.[1])
+
+    let contentType =
+        match List.ofSeq contentTypeParts with
+        | [] -> ContentType.Text
+        | [ "" ] -> ContentType.Text
+        | mime :: _ ->
+            if isForString then
+                if mime = "" then
+                    failwith "Empty MIME type"
+            else if count mime '/' <> 1 then
+                failwithf "Badly formed MIME type: %s" mime
+
+            String.concat ";" contentTypeParts
+
+    contentType, text
 
 // String functions
 
@@ -278,7 +336,7 @@ let f_base64ToBinary _ (args: Args) : JsonNode =
     let str = ensureString <| List.head args
 
     // Try decoding the base64 string to ensure it's valid
-    System.Convert.FromBase64String str |> ignore
+    Convert.FromBase64String str |> ignore
 
     str |> base64ToBlob ContentType.Binary
 
@@ -308,10 +366,35 @@ let f_dataUri _ (args: Args) : JsonNode =
 
     match List.head args with
     | ContentTypedAny(contentType, content) ->
-        let base64 = System.Convert.ToBase64String(content)
+        let base64 = Convert.ToBase64String(content)
         let dataUri = $"data:{contentType};base64,{base64}"
         JsonValue.Create(dataUri)
     | _ -> failwith "Cannot convert to data URI"
+
+let f_dataUriToBinary _ (args: Args) : JsonNode =
+    expectArgs 1 args
+    let str = ensureString <| List.head args
+    let contentType, text = parseDataUri str false
+
+    contentType.Split(";")
+    |> Seq.skip 1
+    |> Seq.iter (fun seg ->
+        if count seg '=' > 1 then
+            failwithf "Bad data URI segment: %s" seg)
+
+    ContentType.Charset.get contentType |> ignore // just want to throw if the charset is wrong
+
+    base64ToBlob contentType text
+
+let f_dataUriToString _ (args: Args) : JsonNode =
+    expectArgs 1 args
+    let str = ensureString <| List.head args
+    let contentType, text = parseDataUri str true
+
+    if ContentType.Charset.getBuggy contentType |> Option.exists ((<>) Encoding.UTF8) then
+        failwith "dataUriToString only supports utf-8 encoded text"
+
+    JsonValue.Create(fromBase64 text)
 
 let f_decimal _ (args: Args) : JsonNode =
     expectArgs 1 args
@@ -325,7 +408,7 @@ let f_float _ (args: Args) : JsonNode =
     expectArgs 1 args
     let str = List.head args |> _.ToString()
 
-    match System.Double.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, CultureInfo.InvariantCulture) with
+    match Double.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, CultureInfo.InvariantCulture) with
     | true, result -> JsonValue.Create(result)
     | _ -> failwithf "Could not parse %s as float" str
 
@@ -335,21 +418,17 @@ let f_int (sim: SimulatorContext) (args: Args) : JsonNode =
 
     if sim.IsBugForBugAccurate then
         match
-            System.Double.TryParse(
-                str,
-                NumberStyles.Float ||| NumberStyles.AllowThousands,
-                CultureInfo.InvariantCulture
-            )
+            Double.TryParse(str, NumberStyles.Float ||| NumberStyles.AllowThousands, CultureInfo.InvariantCulture)
         with
         | true, result ->
-            if System.Math.Truncate(result) <> result then
+            if Math.Truncate(result) <> result then
                 failwithf "Could not parse %s as int" str
 
             JsonValue.Create(Operators.Checked.int64 result)
         | _ -> failwithf "Could not parse %s as int" str
     else
         match
-            System.Int64.TryParse(
+            Int64.TryParse(
                 str,
                 NumberStyles.Integer
                 ||| NumberStyles.AllowExponent
@@ -401,7 +480,7 @@ let f_xml _ (args: Args) : JsonNode =
         doc.OuterXml |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
     | Base64StringBlob(_, content) ->
         content
-        |> System.Convert.ToBase64String
+        |> Convert.ToBase64String
         |> base64ToBlob $"{ContentType.Xml};charset=utf-8"
     | v when v.GetValueKind() = JsonValueKind.Object ->
         let jsonBytes = Encoding.UTF8.GetBytes(v.ToJsonString())
@@ -467,7 +546,7 @@ let f_addToTime _ (args: Args) : JsonNode =
             let interval = interval.GetValue<int>()
             let unit = unit.GetValue<string>()
 
-            let datetime = System.DateTimeOffset.Parse(datetime)
+            let datetime = DateTimeOffset.Parse(datetime)
 
             let result =
                 match unit.ToLowerInvariant() with
@@ -532,6 +611,8 @@ let functions: Map<string, LanguageFunction> =
       "binary", f_binary
       "createArray", f_createArray
       "dataUri", f_dataUri
+      "dataUriToBinary", f_dataUriToBinary
+      "dataUriToString", f_dataUriToString
       "decimal", f_decimal
       "float", f_float
       "int", f_int
