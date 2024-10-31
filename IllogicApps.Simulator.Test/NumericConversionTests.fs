@@ -48,6 +48,7 @@ let ExecInvalidConvertToFloatTest (expr: string) =
 
 [<TestCase("@{decimal('(200)')}")>]
 [<TestCase("@{decimal('3e-1')}")>]
+[<TestCase("@{decimal('7e28')}")>]
 let ExecInvalidConvertToDecimalTest (expr: string) =
     raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
 
