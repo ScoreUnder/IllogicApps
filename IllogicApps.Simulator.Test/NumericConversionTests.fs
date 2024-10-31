@@ -46,6 +46,7 @@ let ExecInvalidConvertToFloatTest (expr: string) =
     <| fun e -> let message = e.Message in <@ message.Contains("Could not parse") @>
 
 [<TestCase("@{decimal('(200)')}")>]
+[<TestCase("@{decimal('3e-1')}")>]
 let ExecInvalidConvertToDecimalTest (expr: string) =
     raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
 
