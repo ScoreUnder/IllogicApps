@@ -277,10 +277,10 @@ let f_base64ToBinary _ (args: Args) : JsonNode =
     expectArgs 1 args
     let str = ensureString <| List.head args
 
-    // Re-generate the base64 string to ensure it's valid
-    System.Convert.FromBase64String str
-    |> System.Convert.ToBase64String
-    |> base64ToBlob ContentType.Binary
+    // Try decoding the base64 string to ensure it's valid
+    System.Convert.FromBase64String str |> ignore
+
+    str |> base64ToBlob ContentType.Binary
 
 let f_base64ToString _ (args: Args) : JsonNode =
     expectArgs 1 args
