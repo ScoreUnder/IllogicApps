@@ -192,4 +192,117 @@ let ``Parse deeply nested structure`` () =
 [<Ignore("Intentionally slow")>]
 let ``Parse deeply nested structure a million times`` () =
     for i in 1..1_000_000 do
-        parse "{\"key1\":[{\"key2\":[{\"key3\":\"value3\"}],\"key4\":{\"arr\":[],\"obj\":{}}}]}" |> ignore
+        parse "{\"key1\":[{\"key2\":[{\"key3\":\"value3\"}],\"key4\":{\"arr\":[],\"obj\":{}}}]}"
+        |> ignore
+
+[<Test>]
+let ``Parse invalid json: missing closing quote`` () =
+    raises<JsonFormatException> <@ parse "\"hello" @>
+
+[<Test>]
+let ``Parse invalid json: missing closing brace`` () =
+    raises<JsonFormatException> <@ parse "{\"key\":\"value\"" @>
+
+[<Test>]
+let ``Parse invalid json: missing closing bracket`` () =
+    raises<JsonFormatException> <@ parse "[\"value\"" @>
+
+[<Test>]
+let ``Parse invalid json: missing comma in object`` () =
+    raises<JsonFormatException> <@ parse "{\"key1\":\"value1\"\"key2\":\"value2\"}" @>
+
+[<Test>]
+let ``Parse invalid json: missing comma in array`` () =
+    raises<JsonFormatException> <@ parse "[\"value1\"\"value2\"]" @>
+
+[<Test>]
+let ``Parse invalid json: missing colon in object`` () =
+    raises<JsonFormatException> <@ parse "{\"key1\"\"value1\"}" @>
+
+[<Test>]
+let ``Parse invalid json: missing value in object`` () =
+    raises<JsonFormatException> <@ parse "{\"key1\":}" @>
+
+[<Test>]
+let ``Parse invalid json: missing value in array start`` () =
+    raises<JsonFormatException> <@ parse "[,1]" @>
+
+[<Test>]
+let ``Parse invalid json: missing value in array middle`` () =
+    raises<JsonFormatException> <@ parse "[1,,2]" @>
+
+[<Test>]
+let ``Parse invalid json: missing value in array end`` () =
+    raises<JsonFormatException> <@ parse "[1,]" @>
+
+[<Test>]
+let ``Parse invalid json: missing key in object`` () =
+    raises<JsonFormatException> <@ parse "{:\"value\"}" @>
+
+[<Test>]
+let ``Parse invalid json: missing opening brace`` () =
+    raises<JsonFormatException> <@ parse "key\":\"value\"}" @>
+
+[<Test>]
+let ``Parse invalid json: missing opening bracket`` () =
+    raises<JsonFormatException> <@ parse "\"value\"]" @>
+
+[<Test>]
+let ``Parse invalid json: missing opening quote`` () =
+    raises<JsonFormatException> <@ parse "hello\"" @>
+
+[<Test>]
+let ``Parse invalid json: mismatched braces`` () =
+    raises<JsonFormatException> <@ parse "[{\"key\":\"value\"]}" @>
+
+[<Test>]
+let ``Parse invalid json: comma-separated key and value in object`` () =
+    raises<JsonFormatException> <@ parse "{\"key1\",\"value1\"}" @>
+
+[<Test>]
+let ``Parse invalid json: colon-separated value in array`` () =
+    raises<JsonFormatException> <@ parse "[\"value1\":\"value2\"]" @>
+
+[<Test>]
+let ``Parse invalid json: colon-separated pairs in object`` () =
+    raises<JsonFormatException> <@ parse "{\"value1\":\"value2\":\"value3\":\"value4\"}" @>
+
+[<Test>]
+let ``Parse invalid json: number with leading zeros`` () =
+    raises<JsonFormatException> <@ parse "0123" @>
+
+[<Test>]
+let ``Parse invalid json: number with leading plus sign`` () =
+    raises<JsonFormatException> <@ parse "+123" @>
+
+[<Test>]
+let ``Parse invalid json: number with leading plus sign and zeros`` () =
+    raises<JsonFormatException> <@ parse "+0123" @>
+
+[<Test>]
+let ``Parse invalid json: number with leading minus sign and zeros`` () =
+    raises<JsonFormatException> <@ parse "-0123" @>
+
+[<Test>]
+let ``Parse invalid json: number with nothing after decimal point`` () =
+    raises<JsonFormatException> <@ parse "123." @>
+
+[<Test>]
+let ``Parse invalid json: number with nothing after exponent`` () =
+    raises<JsonFormatException> <@ parse "123e" @>
+
+[<Test>]
+let ``Parse invalid json: number with nothing after exponent sign`` () =
+    raises<JsonFormatException> <@ parse "123e+" @>
+
+[<Test>]
+let ``Parse invalid json: number with exponent after decimal point`` () =
+    raises<JsonFormatException> <@ parse "123.e+1" @>
+
+[<Test>]
+let ``Parse invalid json: number with no integral part`` () =
+    raises<JsonFormatException> <@ parse ".123" @>
+
+[<Test>]
+let ``Parse invalid json: number with leading minus sign and no integral part`` () =
+    raises<JsonFormatException> <@ parse "-.123" @>
