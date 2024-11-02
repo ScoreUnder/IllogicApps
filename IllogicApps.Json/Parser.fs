@@ -294,12 +294,7 @@ let parse (str: string) =
                 | '\t'
                 | '\n'
                 | '\r' -> parse' (index + 1) ObjectStart stack
-                | '"' ->
-                    parse'
-                        (index + 1)
-
-                        (StringLiteral(StringBuilder()))
-                        (ConstructingObject [] :: stack)
+                | '"' -> parse' (index + 1) (StringLiteral(StringBuilder())) (ConstructingObject [] :: stack)
                 | '}' -> parse' (index + 1) (ValueEnd(JsonTree.Object(Map.empty))) stack
                 | c -> fail c index state stack
             | ArrayStart ->
