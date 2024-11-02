@@ -190,7 +190,7 @@ let parse (str: string) =
             | StringLiteral sb ->
                 let rec auxParse start index =
                     let finishStep () =
-                        sb.Append(str.AsSpan().Slice(start, index - start)) |> ignore
+                        sb.Append(str.AsSpan(start, index - start)) |> ignore
 
                     if index = str.Length then
                         fail ' ' -1 state stack
