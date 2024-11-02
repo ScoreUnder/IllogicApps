@@ -249,7 +249,7 @@ let ``Getter benchmark tests`` () =
 
 type ParserBenchmark() =
     [<Benchmark>]
-    member _.ParseBigJson() = parse bigJson.Value |> ignore
+    member _.ParseBigJson() = parse bigJson.Value
 
 [<Test; Ignore("Slow benchmarking test")>]
 let ``Parser benchmark tests`` () =
