@@ -31,7 +31,8 @@ let stringOfJson json =
         | Float f when System.Double.IsPositiveInfinity f -> "\"Infinity\"" :: acc
         | Float f -> string f :: acc
         | Decimal d -> string d :: acc
-        | Boolean b -> string b :: acc
+        | Boolean true -> "true" :: acc
+        | Boolean false -> "false" :: acc
 
     aux [] json |> String.concat ""
 

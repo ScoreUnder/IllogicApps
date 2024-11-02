@@ -10,9 +10,12 @@
 
     <ItemGroup>
         <Compile Include="BasicTests.fs"/>
+        <Compile Include="ConversionTests.fs"/>
+        <Content Include="TestData\SkippingTestWorkflow.json"/>
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="BenchmarkDotNet" Version="0.14.0"/>
         <PackageReference Include="coverlet.collector" Version="6.0.2">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
@@ -30,5 +33,9 @@
 
     <ItemGroup>
         <ProjectReference Include="..\IllogicApps.Json\IllogicApps.Json.fsproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <EmbeddedResource Include="TestData\**"/>
     </ItemGroup>
 </Project>

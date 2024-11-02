@@ -1,0 +1,124 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Condition": {
+                "type": "If",
+                "expression": {
+                    "and": [
+                        {
+                            "equals": [
+                                1,
+                                1
+                            ]
+                        }
+                    ]
+                },
+                "actions": {
+                    "Compose": {
+                        "type": "Compose",
+                        "inputs": "test test'ing @{outputs('Execute_JavaScript_Code')}"
+                    },
+                    "Compose_2": {
+                        "type": "Compose",
+                        "inputs": "d",
+                        "runAfter": {
+                            "Compose": [
+                                "SKIPPED"
+                            ]
+                        }
+                    },
+                    "Compose_2-copy": {
+                        "type": "Compose",
+                        "inputs": "@@testing testing one two three",
+                        "runAfter": {
+                            "Compose_2": [
+                                "SKIPPED"
+                            ]
+                        }
+                    }
+                },
+                "else": {
+                    "actions": {
+                        "Compose_1": {
+                            "type": "Compose",
+                            "inputs": "@@{testing!!}"
+                        },
+                        "Compose_3": {
+                            "type": "Compose",
+                            "inputs": "a",
+                            "runAfter": {
+                                "Compose_1": [
+                                    "SKIPPED"
+                                ]
+                            }
+                        },
+                        "Compose_3-copy": {
+                            "type": "Compose",
+                            "inputs": "a",
+                            "runAfter": {
+                                "Compose_3": [
+                                    "SKIPPED"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Execute_JavaScript_Code": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Execute_JavaScript_Code": {
+                "type": "JavaScriptCode",
+                "inputs": {
+                    "code": "return \"@{concat('data:,',binary('123asdf?a=b%20c%2F'))}\";"
+                },
+                "runAfter": {
+                    "Initialize_variable": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Initialize_variable": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "blah",
+                            "type": "array",
+                            "value": [
+                                "n", "@null",
+                                "blah", "test",
+                                "1", "one", "@binary('123asdf?a=b%20c%2F')",
+                                "@base64('test')", "@base64ToString(base64('test'))",
+                                "@base64ToBinary(base64('test'))", "@{base64ToBinary('test')}",
+                                "@concat(2,json('{\"other\":\"wow\",\"$content-type\":\"text/plain\",\"$content\":\"dGVzdA==\"}'))", "@trigger()",
+                                "@decimal(sub(decimal('999.00000000000000000000314'),decimal('999')))",
+                                "@sub(123,100)",
+                                "@xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow</innermost></node2></root>')",
+                                "@{xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow</innermost></node2></root>')}",
+                                "@json(xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow<break/>wowow</innermost></node2></root>'))",
+                                "@xml(json(xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow<break/>wowow</innermost></node2></root>')))",
+                                "@xml(xml('<root/>'))",
+                                "@xml(json('{\"cow\":\"moo\"}'))",
+                                "@json(binary('[1,2,3]'))"
+                            ]
+                        }
+                    ]
+                },
+                "runAfter": {}
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "triggers": {
+            "When_a_HTTP_request_is_received": {
+                "type": "Request",
+                "kind": "Http"
+            }
+        }
+    },
+    "kind": "Stateful"
+}

@@ -1,8 +1,11 @@
-module IllogicApps.Json.Test
+module IllogicApps.Json.Test.BasicTests
 
 open System.Collections.Immutable
+open BenchmarkDotNet.Attributes
+open BenchmarkDotNet.Running
 open NUnit.Framework
 open Swensen.Unquote
+open IllogicApps.Json
 open IllogicApps.Json.Parser
 
 [<Test>]
@@ -188,12 +191,73 @@ let ``Parse deeply nested structure`` () =
             )
         @>
 
-[<Test>]
-[<Ignore("Intentionally slow")>]
-let ``Parse deeply nested structure a million times`` () =
-    for i in 1..1_000_000 do
-        parse "{\"key1\":[{\"key2\":[{\"key3\":\"value3\"}],\"key4\":{\"arr\":[],\"obj\":{}}}]}"
-        |> ignore
+type Dummy() =
+    inherit obj()
+
+let bigJson =
+    lazy
+        use stream =
+            new System.IO.StreamReader(
+                typeof<Dummy>.Assembly
+                    .GetManifestResourceStream("IllogicApps.Json.Test.TestData.SkippingTestWorkflow.json")
+            )
+
+        stream.ReadToEnd()
+
+type GetterBenchmarks() =
+    let alreadyParsed = parse bigJson.Value
+
+    [<Benchmark(Baseline = true)>]
+    member _.AccessBigJson() =
+        alreadyParsed
+        |> JsonTree.getKey "definition"
+        |> JsonTree.getKey "actions"
+        |> JsonTree.getKey "Condition"
+        |> JsonTree.getKey "actions"
+        |> JsonTree.getKey "Compose"
+        |> JsonTree.getKey "inputs"
+
+    [<Benchmark>]
+    member _.TryAccessBigJson() =
+        alreadyParsed
+        |> JsonTree.tryGetKey "definition"
+        |> Option.bind (JsonTree.tryGetKey "actions")
+        |> Option.bind (JsonTree.tryGetKey "Condition")
+        |> Option.bind (JsonTree.tryGetKey "actions")
+        |> Option.bind (JsonTree.tryGetKey "Compose")
+        |> Option.bind (JsonTree.tryGetKey "inputs")
+        |> Option.get
+
+    [<Benchmark>]
+    member _.TryAccessBigJsonLambdas() =
+        alreadyParsed
+        |> JsonTree.tryGetKey "definition"
+        |> Option.bind (fun x -> JsonTree.tryGetKey "actions" x)
+        |> Option.bind (fun x -> JsonTree.tryGetKey "Condition" x)
+        |> Option.bind (fun x -> JsonTree.tryGetKey "actions" x)
+        |> Option.bind (fun x -> JsonTree.tryGetKey "Compose" x)
+        |> Option.bind (fun x -> JsonTree.tryGetKey "inputs" x)
+        |> Option.get
+
+[<Test; Ignore("Slow benchmarking test")>]
+let ``Getter benchmark tests`` () =
+    let summary = BenchmarkRunner.Run<GetterBenchmarks>()
+    System.Console.WriteLine(summary)
+
+    if summary.HasCriticalValidationErrors then
+        Assert.Inconclusive()
+
+type ParserBenchmark() =
+    [<Benchmark>]
+    member _.ParseBigJson() = parse bigJson.Value |> ignore
+
+[<Test; Ignore("Slow benchmarking test")>]
+let ``Parser benchmark tests`` () =
+    let summary = BenchmarkRunner.Run<ParserBenchmark>()
+    System.Console.WriteLine(summary)
+
+    if summary.HasCriticalValidationErrors then
+        Assert.Inconclusive()
 
 [<Test>]
 let ``Parse invalid json: missing closing quote`` () =
