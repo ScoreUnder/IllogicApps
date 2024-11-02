@@ -99,8 +99,7 @@ let parse (str: string) =
                 | '"' -> parse' (index + 1) (StringLiteral(StringBuilder())) stack
                 | '-' as c -> parse' (index + 1) (NumberZeroOrDigit(StringBuilder().Append(c))) stack
                 | '0' as c -> parse' (index + 1) (NumberFractionDot(StringBuilder().Append(c))) stack
-                | c when Char.IsAsciiDigit(c) ->
-                    parse' (index + 1) (NumberDigit(StringBuilder().Append(c))) stack
+                | c when Char.IsAsciiDigit(c) -> parse' (index + 1) (NumberDigit(StringBuilder().Append(c))) stack
                 | '[' -> parse' (index + 1) ArrayStart stack
                 | '{' -> parse' (index + 1) ObjectStart stack
                 | 'n'
@@ -128,7 +127,10 @@ let parse (str: string) =
                 | ']' ->
                     match stack with
                     | ConstructingArray a :: stack' ->
-                        parse' (index + 1) (ValueEnd(JsonTree.Array(ImmutableArray.ToImmutableArray(List.rev (v :: a))))) stack'
+                        parse'
+                            (index + 1)
+                            (ValueEnd(JsonTree.Array(ImmutableArray.ToImmutableArray(List.rev (v :: a)))))
+                            stack'
                     | _ -> fail c index state stack
                 | '}' ->
                     match stack with
@@ -141,48 +143,54 @@ let parse (str: string) =
                     let finishStep () =
                         sb.Append(str.AsSpan().Slice(start, index - start)) |> ignore
 
-                    match str.[index] with
-                    | '\\' ->
-                        finishStep ()
-                        auxEscape (index + 1)
-                    | '"' ->
-                        finishStep ()
-                        parse' (index + 1) (ValueEnd(JsonTree.String(sb.ToString()))) stack
-                    | c when c < char 0x20 ->
-                        finishStep ()
-                        fail c index state stack
-                    | _ -> auxParse start (index + 1)
+                    if index = str.Length then
+                        fail ' ' -1 state stack
+                    else
+                        match str.[index] with
+                        | '\\' ->
+                            finishStep ()
+                            auxEscape (index + 1)
+                        | '"' ->
+                            finishStep ()
+                            parse' (index + 1) (ValueEnd(JsonTree.String(sb.ToString()))) stack
+                        | c when c < char 0x20 ->
+                            finishStep ()
+                            fail c index state stack
+                        | _ -> auxParse start (index + 1)
 
                 and startAuxParse i = auxParse i i
 
                 and auxEscape index =
-                    match str.[index] with
-                    | '"'
-                    | '\\'
-                    | '/' as c ->
-                        sb.Append(c) |> ignore
-                        startAuxParse (index + 1)
-                    | 'b' ->
-                        sb.Append('\b') |> ignore
-                        startAuxParse (index + 1)
-                    | 'f' ->
-                        sb.Append('\f') |> ignore
-                        startAuxParse (index + 1)
-                    | 'n' ->
-                        sb.Append('\n') |> ignore
-                        startAuxParse (index + 1)
-                    | 'r' ->
-                        sb.Append('\r') |> ignore
-                        startAuxParse (index + 1)
-                    | 't' ->
-                        sb.Append('\t') |> ignore
-                        startAuxParse (index + 1)
-                    | 'u' when index + 4 < str.Length ->
-                        let hex = str.Substring(index + 1, 4)
-                        let c = char (Int32.Parse(hex, NumberStyles.HexNumber))
-                        sb.Append(c) |> ignore
-                        startAuxParse (index + 5)
-                    | c -> fail c index (StringEscape sb) stack
+                    if index = str.Length then
+                        fail ' ' -1 state stack
+                    else
+                        match str.[index] with
+                        | '"'
+                        | '\\'
+                        | '/' as c ->
+                            sb.Append(c) |> ignore
+                            startAuxParse (index + 1)
+                        | 'b' ->
+                            sb.Append('\b') |> ignore
+                            startAuxParse (index + 1)
+                        | 'f' ->
+                            sb.Append('\f') |> ignore
+                            startAuxParse (index + 1)
+                        | 'n' ->
+                            sb.Append('\n') |> ignore
+                            startAuxParse (index + 1)
+                        | 'r' ->
+                            sb.Append('\r') |> ignore
+                            startAuxParse (index + 1)
+                        | 't' ->
+                            sb.Append('\t') |> ignore
+                            startAuxParse (index + 1)
+                        | 'u' when index + 4 < str.Length ->
+                            let hex = str.Substring(index + 1, 4)
+                            let c = char (Int32.Parse(hex, NumberStyles.HexNumber))
+                            sb.Append(c) |> ignore
+                            startAuxParse (index + 5)
+                        | c -> fail c index (StringEscape sb) stack
 
                 startAuxParse index
             | NumberZeroOrDigit sb ->
