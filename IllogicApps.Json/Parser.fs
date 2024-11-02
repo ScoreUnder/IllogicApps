@@ -3,6 +3,9 @@ module IllogicApps.Json.Parser
 open System
 open System.Collections.Immutable
 open System.Globalization
+open System.Runtime.CompilerServices
+open System.Runtime.InteropServices
+open System.Runtime.Intrinsics
 open System.Text
 
 type private ParserState =
@@ -77,6 +80,40 @@ let private parseLiteralIdentifier s c index state stack =
     | "false" -> JsonTree.Boolean false
     | _ -> fail c index state stack
 
+#nowarn "9" // FS0009: Uses of this construct may result in the generation of unverifiable .NET IL code.
+
+let private getNumWhitespaces (str: char ReadOnlySpan) =
+    // let charVec = Vector256.Create<int16>(MemoryMarshal.Cast<char, int16>(str))
+
+    // Avoid size-of-span integer overflow check which you get with MemoryMarshal.Cast (we do not use the full span)
+    use addr = fixed &MemoryMarshal.GetReference(str)
+
+    let charVec =
+        Unsafe.ReadUnaligned<Vector256<int16>>(FSharp.NativeInterop.NativePtr.toVoidPtr addr)
+
+    let matchesVector =
+        Vector256.Equals(charVec, Vector256.Create(int16 ' '))
+        |> (fun f -> Vector256.BitwiseOr(f, Vector256.Equals(charVec, Vector256.Create(int16 '\t'))))
+        |> (fun f -> Vector256.BitwiseOr(f, Vector256.Equals(charVec, Vector256.Create(int16 '\n'))))
+        |> (fun f -> Vector256.BitwiseOr(f, Vector256.Equals(charVec, Vector256.Create(int16 '\r'))))
+        |> Vector256.OnesComplement
+
+    if X86.Avx2.IsSupported then
+        matchesVector
+        |> Vector256.AsByte
+        |> X86.Avx2.MoveMask
+        |> Int32.TrailingZeroCount
+        |> fun v -> v >>> 1
+    else
+        let mask = Vector256.Create(
+            0x0001s, 0x0002s, 0x0004s, 0x0008s, 0x0010s, 0x0020s, 0x0040s, 0x0080s,
+            0x0100s, 0x0200s, 0x0400s, 0x0800s, 0x1000s, 0x2000s, 0x4000s, 0x8000s)
+
+        Vector256.BitwiseAnd(mask, matchesVector)
+        |> Vector256.Sum
+        |> Int16.TrailingZeroCount
+        |> int32
+
 let parse (str: string) =
     let rec parse' (index: int) (state: ParserState) (stack: ConstructingState list) =
         if index = str.Length then
@@ -91,7 +128,13 @@ let parse (str: string) =
 
             match state with
             | ValueStart ->
-                match c with
+                let index =
+                    if index + Vector256<int16>.Count <= str.Length then
+                        getNumWhitespaces (str.AsSpan(index)) + index
+                    else
+                        index
+
+                match str.[index] with
                 | ' '
                 | '\t'
                 | '\n'
@@ -107,24 +150,30 @@ let parse (str: string) =
                 | 'f' as c -> parse' (index + 1) (LiteralIdentifier(StringBuilder().Append(c))) stack
                 | c -> fail c index state stack
             | ValueEnd v ->
-                match c with
+                let index =
+                    if index + Vector256<int16>.Count <= str.Length then
+                        getNumWhitespaces (str.AsSpan(index)) + index
+                    else
+                        index
+
+                match str.[index] with
                 | ' '
                 | '\t'
                 | '\n'
                 | '\r' -> parse' (index + 1) state stack
-                | ',' ->
+                | ',' as c ->
                     match stack with
                     | ConstructingObjectValue(k, o) :: stack' ->
                         parse' (index + 1) ValueStart (ConstructingObject((k, v) :: o) :: stack')
                     | ConstructingArray a :: stack' ->
                         parse' (index + 1) ValueStart (ConstructingArray(v :: a) :: stack')
                     | _ -> fail c index state stack
-                | ':' ->
+                | ':' as c ->
                     match v, stack with
                     | String v, ConstructingObject k :: stack' ->
                         parse' (index + 1) ValueStart (ConstructingObjectValue(v, k) :: stack')
                     | _ -> fail c index state stack
-                | ']' ->
+                | ']' as c ->
                     match stack with
                     | ConstructingArray a :: stack' ->
                         parse'
@@ -132,12 +181,12 @@ let parse (str: string) =
                             (ValueEnd(JsonTree.Array(ImmutableArray.ToImmutableArray(List.rev (v :: a)))))
                             stack'
                     | _ -> fail c index state stack
-                | '}' ->
+                | '}' as c ->
                     match stack with
                     | ConstructingObjectValue(k, o) :: stack' ->
                         parse' (index + 1) (ValueEnd(JsonTree.Object(Map.ofList ((k, v) :: o)))) stack'
                     | _ -> fail c index state stack
-                | _ -> fail c index state stack
+                | c -> fail c index state stack
             | StringLiteral sb ->
                 let rec auxParse start index =
                     let finishStep () =
@@ -234,7 +283,13 @@ let parse (str: string) =
                 | c when Char.IsAsciiDigit(c) -> parse' (index + 1) (NumberExponentDigit(sb.Append(c))) stack
                 | _ -> parse' index (ValueEnd(parseFloat index (sb.ToString()))) stack
             | ObjectStart ->
-                match c with
+                let index =
+                    if index + Vector256<int16>.Count <= str.Length then
+                        getNumWhitespaces (str.AsSpan(index)) + index
+                    else
+                        index
+
+                match str.[index] with
                 | ' '
                 | '\t'
                 | '\n'
@@ -246,9 +301,15 @@ let parse (str: string) =
                         (StringLiteral(StringBuilder()))
                         (ConstructingObject [] :: stack)
                 | '}' -> parse' (index + 1) (ValueEnd(JsonTree.Object(Map.empty))) stack
-                | _ -> fail c index state stack
+                | c -> fail c index state stack
             | ArrayStart ->
-                match c with
+                let index =
+                    if index + Vector256<int16>.Count <= str.Length then
+                        getNumWhitespaces (str.AsSpan(index)) + index
+                    else
+                        index
+
+                match str.[index] with
                 | ' '
                 | '\t'
                 | '\n'
