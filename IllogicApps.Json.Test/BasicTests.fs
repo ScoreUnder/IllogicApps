@@ -261,19 +261,22 @@ let ``Parser benchmark tests`` () =
 
 [<Test>]
 let ``Parse invalid json: missing closing quote`` () =
-    raises<JsonFormatException> <@ parse "\"hello" @>
+    raisesWith<JsonFormatException> <@ parse "\"hello" @> (fun e -> <@ e.Message.Contains("Missing closing quote") @>)
 
 [<Test>]
 let ``Parse invalid json: missing closing brace`` () =
-    raises<JsonFormatException> <@ parse "{\"key\":\"value\"" @>
+    raisesWith<JsonFormatException> <@ parse "{\"key\":\"value\"" @> (fun e ->
+        <@ e.Message.Contains("Missing closing brace") @>)
 
 [<Test>]
 let ``Parse invalid json: missing closing bracket`` () =
-    raises<JsonFormatException> <@ parse "[\"value\"" @>
+    raisesWith<JsonFormatException> <@ parse "[\"value\"" @> (fun e ->
+        <@ e.Message.Contains("Missing closing bracket") @>)
 
 [<Test>]
 let ``Parse invalid json: missing comma in object`` () =
-    raises<JsonFormatException> <@ parse "{\"key1\":\"value1\"\"key2\":\"value2\"}" @>
+    raisesWith<JsonFormatException> <@ parse "{\"key1\":\"value1\"\"key2\":\"value2\"}" @> (fun e ->
+        <@ e.Message.Contains("Expecting comma") @>)
 
 [<Test>]
 let ``Parse invalid json: missing comma in array`` () =
