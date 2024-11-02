@@ -11,7 +11,7 @@
     <ItemGroup>
         <Compile Include="BasicTests.fs"/>
         <Compile Include="ConversionTests.fs"/>
-        <Content Include="TestData\SkippingTestWorkflow.json"/>
+        <EmbeddedResource Include="TestData\**"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -33,9 +33,5 @@
 
     <ItemGroup>
         <ProjectReference Include="..\IllogicApps.Json\IllogicApps.Json.fsproj"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <EmbeddedResource Include="TestData\**"/>
     </ItemGroup>
 </Project>
