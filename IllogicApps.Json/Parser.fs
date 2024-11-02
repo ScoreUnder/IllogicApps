@@ -27,6 +27,9 @@ type private ConstructingState =
     | ConstructingObjectValue of string * (string * JsonTree) list
     | ConstructingArray of JsonTree list
 
+type JsonFormatException(message) =
+    inherit FormatException(message)
+
 let private parseFloat index (str: string) =
     match
         Double.TryParse(
@@ -44,9 +47,6 @@ let private parseInteger index (str: string) =
     match Int64.TryParse(str, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture) with
     | true, result -> Integer result
     | _ -> parseFloat index str
-
-type JsonFormatException(message) =
-    inherit FormatException(message)
 
 let private fail (c: char) (index: int) (state: ParserState) (stack: ConstructingState list) =
     if index = -1 then
