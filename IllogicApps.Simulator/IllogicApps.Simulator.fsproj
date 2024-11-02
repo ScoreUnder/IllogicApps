@@ -1,18 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
-  <ItemGroup>
-    <Compile Include="Helpers.fs" />
-    <Compile Include="LanguageLexer.fs" />
-    <Compile Include="LanguageParser.fs" />
-    <Compile Include="BuiltinCondition.fs" />
-    <Compile Include="BuiltinFunctions.fs" />
-    <Compile Include="LanguageEvaluator.fs" />
-    <Compile Include="Simulator.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\IllogicApps.Core\IllogicApps.Core.fsproj" />
-  </ItemGroup>
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <TailCalls>true</TailCalls>
+    </PropertyGroup>
+    <ItemGroup>
+        <Compile Include="Helpers.fs"/>
+        <Compile Include="LanguageLexer.fs"/>
+        <Compile Include="LanguageParser.fs"/>
+        <Compile Include="BuiltinCondition.fs"/>
+        <Compile Include="BuiltinFunctions.fs"/>
+        <Compile Include="LanguageEvaluator.fs"/>
+        <Compile Include="Simulator.fs"/>
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\IllogicApps.Core\IllogicApps.Core.fsproj"/>
+    </ItemGroup>
 </Project>
