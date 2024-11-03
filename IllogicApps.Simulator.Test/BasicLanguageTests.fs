@@ -22,6 +22,7 @@ let StringPassthroughTest (str: string) =
 [<TestCase("@@unparsed!")>]
 [<TestCase("@@{still unparsed}")>]
 [<TestCase("@@,,}")>]
+[<TestCase("@@{'abc'}@{'def'}@@{'ghi'}j@{'kl'}")>]
 let StringAtSignPassthroughTest (str: string) =
     test <@ String str.[1..] = testExpressionEvaluation str @>
 
@@ -79,6 +80,10 @@ let StringParsingTest (expr: string) (expected: string) =
 [<TestCase("@{'h'}@{'e'}@{'l'}@{'l'}@{'o'}", "hello")>]
 [<TestCase("@{'hello'} @{'world'}", "hello world")>]
 let InterpolatedStringParsingTest (expr: string) (expected: string) =
+    test <@ String expected = testExpressionEvaluation expr @>
+
+[<TestCase("testing @@{'blah'} @{'thing'}", "testing @{'blah'} thing")>]
+let InterpolatedStringWithPassthroughTest (expr: string) (expected: string) =
     test <@ String expected = testExpressionEvaluation expr @>
 
 [<TestCase("@'a','b','c'")>]
