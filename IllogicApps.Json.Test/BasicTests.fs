@@ -191,6 +191,23 @@ let ``Parse deeply nested structure`` () =
             )
         @>
 
+[<Test>]
+let ``Boundary case: maximum integer`` () =
+    test <@ parse "9223372036854775807" = Integer 9223372036854775807L @>
+
+[<Test>]
+let ``Boundary case: minimum integer`` () =
+    test <@ parse "-9223372036854775808" = Integer -9223372036854775808L @>
+
+[<Test>]
+let ``Boundary case: over maximum integer`` () =
+    // Note: These float literals will both lose precision, but that's okay.
+    test <@ parse "9223372036854775808" = Float 9223372036854775808.0 @>
+
+[<Test>]
+let ``Boundary case: over minimum integer`` () =
+    test <@ parse "-9223372036854775809" = Float -9223372036854775809.0 @>
+
 type Dummy() =
     inherit obj()
 
