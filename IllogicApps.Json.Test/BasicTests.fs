@@ -207,6 +207,9 @@ let bigJson =
 type GetterBenchmarks() =
     let alreadyParsed = parse bigJson.Value
 
+    let alreadyParsedSystemText =
+        System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.Nodes.JsonNode>(bigJson.Value)
+
     [<Benchmark(Baseline = true)>]
     member _.AccessBigJson() =
         alreadyParsed
@@ -239,6 +242,17 @@ type GetterBenchmarks() =
         |> Option.bind (fun x -> JsonTree.tryGetKey "inputs" x)
         |> Option.get
 
+    [<Benchmark>]
+    member _.SystemTextJson() =
+        alreadyParsedSystemText
+            .AsObject()
+            .["definition"].AsObject()
+            .["actions"].AsObject()
+            .["Condition"].AsObject()
+            .["actions"].AsObject()
+            .["Compose"].AsObject()
+            .["inputs"]
+
 [<Test; Ignore("Slow benchmarking test")>]
 let ``Getter benchmark tests`` () =
     let summary = BenchmarkRunner.Run<GetterBenchmarks>()
@@ -248,8 +262,12 @@ let ``Getter benchmark tests`` () =
         Assert.Inconclusive()
 
 type ParserBenchmark() =
-    [<Benchmark>]
+    [<Benchmark(Baseline = true)>]
     member _.ParseBigJson() = parse bigJson.Value
+
+    [<Benchmark>]
+    member _.SystemTextJson() =
+        System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.Nodes.JsonNode>(bigJson.Value)
 
 [<Test; Ignore("Slow benchmarking test")>]
 let ``Parser benchmark tests`` () =
