@@ -13,6 +13,14 @@ open TestSimUtil
            "{\"?xml\":{\"@version\":\"1.0\",\"@encoding\":\"utf-8\"},\"root\":null}")>]
 [<TestCase("@{json(xml('<?xml version=\"1.0\" encoding=\"ascii\"?><root/>'))}",
            "{\"?xml\":{\"@version\":\"1.0\",\"@encoding\":\"ascii\"},\"root\":null}")>]
+[<TestCase("@{json(xml('<?xml\tversion=\"1.0\"\nencoding=\"ascii\"\tstandalone=\"yes\"?><root/>'))}",
+           "{\"?xml\":{\"@version\":\"1.0\",\"@encoding\":\"ascii\",\"@standalone\":\"yes\"},\"root\":null}")>]
+[<TestCase("@{json(xml('<r xmlns:mmm=\"zzz\"><z/><x/>c<v/><b/>n<m/>a</r>'))}",
+           "{\"r\":{\"@xmlns:mmm\":\"zzz\",\"z\":null,\"x\":null,\"#text\":[\"c\",\"n\",\"a\"],\"v\":null,\"b\":null,\"m\":null}}")>]
+[<TestCase("@{json(xml('<r xmlns:mmm=\"zzz\"><z/><mmm:x/>c<v/><b/>n<m/>a</r>'))}",
+           "{\"r\":{\"@xmlns:mmm\":\"zzz\",\"z\":null,\"mmm:x\":null,\"#text\":[\"c\",\"n\",\"a\"],\"v\":null,\"b\":null,\"m\":null}}")>]
+[<TestCase("@{json(xml('<mmm:r xmlns:mmm=\"zzz\"><z/><mmm:x/>c<v/><b/>n<m/>a</mmm:r>'))}",
+           "{\"mmm:r\":{\"@xmlns:mmm\":\"zzz\",\"z\":null,\"mmm:x\":null,\"#text\":[\"c\",\"n\",\"a\"],\"v\":null,\"b\":null,\"m\":null}}")>]
 let StringifiedJsonOfXmlTest expr expected =
     testOrTrace expr <@ String expected = testExpressionEvaluation expr @>
 
@@ -29,6 +37,7 @@ let StringifiedJsonOfXmlTest expr expected =
            "{\"root\":{\"#text\":[\"aaa\",\"f\"],\"e\":{\"#cdata-section\":\"Testing\"}}}")>]
 [<TestCase("@json(xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow<break/>wowow</innermost></node2></root>'))",
            "{ \"root\": { \"node1\": { \"@attr\": \"x\" }, \"node2\": { \"@attr2\": \"y\", \"innermost\": { \"@innerattr\": \"o\\\"h\", \"#text\": [ \"wow\", \"wowow\" ], \"break\": null } } } }")>]
+[<TestCase("@json(xml('<thing:root xmlns:thing=\"namespace\"/>'))", """{"thing:root":{"@xmlns:thing":"namespace"}}""")>]
 let JsonOfXmlTest expr (expected: string) =
     testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
 
@@ -194,7 +203,7 @@ let JsonInvalidXmlRoundTripTest expr =
 [<TestCase("@{xml('<?xml version=\"1.0\" encoding=\"utf-8\"?>')}")>]
 [<TestCase("@{xml('<!-- comment -->')}")>]
 [<TestCase("@{xml('<root> a <!-- b <!-- c --> d --> e </root>')}")>]
-[<TestCase("@{xml('<aaa:root />')}")>]
+[<TestCase("@{xml('<aaa:root />')}")>] // bad xmlns
 [<TestCase("@{xml('<?xml standalone=\"yes\" encoding=\"ascii\"?><root/>')}")>]
 [<TestCase("@{xml('<?xml version=\"1.0\" standalone=\"yes\" encoding=\"ascii\"?><root/>')}")>]
 [<TestCase("@{xml('<?xml version=\"1.0\" standalone=\"yes\" encoding=\"utf-8\"?><root/>')}")>]
