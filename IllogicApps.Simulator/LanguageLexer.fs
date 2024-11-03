@@ -158,6 +158,12 @@ let lex rawStr =
 
         if nextInterpolation = -1 then
             List.rev ([(start, String remaining)] :: acc)
+        elif nextInterpolation <> 0 && remaining.[nextInterpolation - 1] = '@' then
+            let str = remaining.[.. nextInterpolation - 1]
+            let acc = [(start, String str)] :: acc
+            let start = start + nextInterpolation + 1
+            let remaining = remaining.[nextInterpolation + 1 ..]
+            lexStringified start acc remaining
         else
             let str = remaining.[.. nextInterpolation - 1]
             let acc = [(start, String str)] :: acc
