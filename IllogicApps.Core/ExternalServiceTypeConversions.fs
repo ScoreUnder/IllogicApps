@@ -33,7 +33,8 @@ let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
         new Http.HttpRequestMessage(
             method = new Http.HttpMethod(req.Method),
             requestUri = formUri req.Uri req.QueryParameters,
-            Content = new Http.StringContent(req.Body.Value))
+            Content = new Http.StringContent(req.Body.Value)
+        )
 
     req.Cookie |> Option.iter (fun v -> netReq.Headers.Add("Cookie", v))
     req.Headers |> Map.iter (fun k v -> netReq.Headers.Add(k, v))
@@ -56,17 +57,15 @@ let httpRequestReplyOfNetHttpResponseMessage (resp: Http.HttpResponseMessage) =
 
     // Not implemented, probably shouldn't be handled here: RetryPolicy
 
-    new HttpRequestReply(
-        StatusCode = (int) resp.StatusCode,
-        Headers = headers,
-        Body = body)
+    new HttpRequestReply(StatusCode = (int) resp.StatusCode, Headers = headers, Body = body)
 
 let netHttpRequestMessageOfWorkflowRequest (req: WorkflowRequest) =
     let netReq =
         new Http.HttpRequestMessage(
             method = new Http.HttpMethod("POST"),
             requestUri = new Uri($"https://dummyWorkflowInvoker/{req.Host.Workflow.Id}"),
-            Content = new Http.StringContent(req.Body.ToString()))
+            Content = new Http.StringContent(req.Body.ToString())
+        )
 
     if req.Body.GetValueKind() = JsonValueKind.Object then
         netReq.Headers.Add("Content-Type", "application/json")

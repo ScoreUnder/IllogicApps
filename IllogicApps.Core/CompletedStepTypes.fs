@@ -12,18 +12,17 @@ type Status =
     | TimedOut
     | Cancelled
 
-let makeNewWorkflowRunId() =
+let makeNewWorkflowRunId () =
     // This isn't a GUID but oh well
     Guid.NewGuid().ToString()
 
-let makeNewTrackingId() =
-    Guid.NewGuid().ToString()
+let makeNewTrackingId () = Guid.NewGuid().ToString()
 
 let stringOfDateTime (dt: DateTime) =
     dt.ToString("o", CultureInfo.InvariantCulture)
 
 type CompletedAction(name: string, status: Status, startTime: string, ?workflowRunId: string) =
-    let workflowRunId = defaultArg workflowRunId (makeNewWorkflowRunId())
+    let workflowRunId = defaultArg workflowRunId (makeNewWorkflowRunId ())
 
     [<JsonPropertyName("name")>]
     member val Name = name with get, set
@@ -41,7 +40,7 @@ type CompletedAction(name: string, status: Status, startTime: string, ?workflowR
     member val EndTime = stringOfDateTime DateTime.UtcNow with get, set
 
     [<JsonPropertyName("trackingId")>]
-    member val TrackingId = makeNewTrackingId() with get, set
+    member val TrackingId = makeNewTrackingId () with get, set
 
     [<JsonPropertyName("clientTrackingId")>]
     member val ClientTrackingId = workflowRunId with get, set

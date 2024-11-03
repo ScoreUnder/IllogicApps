@@ -252,8 +252,7 @@ type SetVariable() =
 
         context.Variables.[this.Inputs.Name] <- value
 
-        let inputs =
-            jsonOf [ "name", jsonOf this.Inputs.Name; "value", value.DeepClone() ]
+        let inputs = jsonOf [ "name", jsonOf this.Inputs.Name; "value", value.DeepClone() ]
 
         { status = Succeeded
           inputs = Some(inputs)
@@ -273,12 +272,7 @@ type AppendToStringVariable() =
         context.Variables.[this.Inputs.Name] <- newValue
 
         { status = Succeeded
-          inputs =
-            Some(
-                jsonOf
-                    [ "name", jsonOf this.Inputs.Name
-                      "value", this.Inputs.Value.DeepClone() ]
-            )
+          inputs = Some(jsonOf [ "name", jsonOf this.Inputs.Name; "value", this.Inputs.Value.DeepClone() ])
           outputs = None }
 
     abstract member ExpectedType: VariableType with get
@@ -314,17 +308,15 @@ type IncrementVariable() =
     override this.Execute(context: SimulatorContext) =
         printfn "%s: %s" this.ActionType this.Inputs.Name
 
-        let originalValue = getVarTypechecked context this.Inputs.Name [ VariableType.Integer; VariableType.Float ]
+        let originalValue =
+            getVarTypechecked context this.Inputs.Name [ VariableType.Integer; VariableType.Float ]
+
         let increment = this.Inputs.Value |> context.EvaluateLanguage
         let value = this.Add (originalValue.GetValue<int64>()) (increment.GetValue<int64>())
         context.Variables.[this.Inputs.Name] <- JsonValue.Create(value)
 
         { status = Succeeded
-          inputs =
-            Some(
-                jsonOf
-                    [ "body", jsonOf [ "name", jsonOf this.Inputs.Name; "value", increment.DeepClone() ] ]
-            )
+          inputs = Some(jsonOf [ "body", jsonOf [ "name", jsonOf this.Inputs.Name; "value", increment.DeepClone() ] ])
           outputs = Some(jsonOf [ "name", jsonOf this.Inputs.Name; "value", jsonOf value ]) }
 
     abstract member Add: int64 -> int64 -> int64
@@ -459,10 +451,7 @@ type Response() =
             new HttpRequestReply(
                 StatusCode = processedStatusCode.GetValue<int>(),
                 Headers = (processedHeaders |> Option.map Map.ofSeq |> Option.defaultValue Map.empty),
-                Body =
-                    (processedBody
-                     |> Option.map _.DeepClone()
-                     |> Option.defaultValue jsonNull)
+                Body = (processedBody |> Option.map _.DeepClone() |> Option.defaultValue jsonNull)
             )
         )
 
