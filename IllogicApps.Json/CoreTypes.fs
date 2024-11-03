@@ -13,6 +13,17 @@ type JsonTree =
     | Decimal of decimal
     | Boolean of bool
 
+[<RequireQualifiedAccess>]
+type JsonType =
+    | Null
+    | Object
+    | Array
+    | String
+    | Integer
+    | Float
+    | Decimal
+    | Boolean
+
 module JsonTree =
     let inline tryGetKey (key: string) (json: JsonTree) =
         match json with
@@ -37,3 +48,14 @@ module JsonTree =
         match json with
         | Array a -> a.[index]
         | _ -> failwithf "Expected array, got %A" json
+
+    let inline getType (json: JsonTree) =
+        match json with
+        | Null -> JsonType.Null
+        | Object _ -> JsonType.Object
+        | Array _ -> JsonType.Array
+        | String _ -> JsonType.String
+        | Integer _ -> JsonType.Integer
+        | Float _ -> JsonType.Float
+        | Decimal _ -> JsonType.Decimal
+        | Boolean _ -> JsonType.Boolean

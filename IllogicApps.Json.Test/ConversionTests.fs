@@ -21,9 +21,9 @@ let ``stringOfJson should convert JsonTree to string`` () =
 
 [<Test>]
 let ``stringOfJsonType should return correct type`` () =
-    let json = JsonTree.String "test"
+    let jsonType = JsonType.String
     let expected = "string"
-    test <@ expected = stringOfJsonType json @>
+    test <@ expected = stringOfJsonType jsonType @>
 
 let stringOfJsonTestCases =
     [ TestCaseData("null", JsonTree.Null)

@@ -38,12 +38,11 @@ let stringOfJson json =
 
 let stringOfJsonType json =
     match json with
-    | Null -> "null"
-    | Array _ -> "array"
-    | Object _ -> "object"
-    | String _ -> "string"
-    | Integer _ -> "integer"
-    | Float _ -> "float"
-    | Decimal _ -> "decimal"
-    | Boolean _ -> "boolean"
-    
+    | JsonType.Null -> "null"
+    | JsonType.Array -> "array"
+    | JsonType.Object -> "object"
+    | JsonType.String -> "string"
+    | JsonType.Integer -> "integer"
+    | JsonType.Float -> "float"
+    | JsonType.Decimal -> "decimal"
+    | JsonType.Boolean -> "boolean"
