@@ -82,6 +82,36 @@ let private parseLiteralIdentifier s c index state stack =
 
 #nowarn "9" // FS0009: Uses of this construct may result in the generation of unverifiable .NET IL code.
 
+let private getNumStringPassthroughChars (str: char ReadOnlySpan) =
+    // let charVec = Vector256.Create<int16>(MemoryMarshal.Cast<char, int16>(str))
+
+    // Avoid size-of-span integer overflow check which you get with MemoryMarshal.Cast (we do not use the full span)
+    use addr = fixed &MemoryMarshal.GetReference(str)
+
+    let charVec =
+        Unsafe.ReadUnaligned<Vector256<int16>>(FSharp.NativeInterop.NativePtr.toVoidPtr addr)
+
+    let matchesVector =
+        Vector256.Equals(charVec, Vector256.Create(int16 '"'))
+        |> (fun f -> Vector256.BitwiseOr(f, Vector256.Equals(charVec, Vector256.Create(int16 '\\'))))
+        |> (fun f -> Vector256.BitwiseOr(f, Vector256.LessThan(charVec, Vector256.Create(int16 ' '))))
+
+    if X86.Avx2.IsSupported then
+        matchesVector
+        |> Vector256.AsByte
+        |> X86.Avx2.MoveMask
+        |> Int32.TrailingZeroCount
+        |> fun v -> v >>> 1
+    else
+        let mask = Vector256.Create(
+            0x0001s, 0x0002s, 0x0004s, 0x0008s, 0x0010s, 0x0020s, 0x0040s, 0x0080s,
+            0x0100s, 0x0200s, 0x0400s, 0x0800s, 0x1000s, 0x2000s, 0x4000s, 0x8000s)
+
+        Vector256.BitwiseAnd(mask, matchesVector)
+        |> Vector256.Sum
+        |> Int16.TrailingZeroCount
+        |> int32
+
 let private getNumWhitespaces (str: char ReadOnlySpan) =
     // let charVec = Vector256.Create<int16>(MemoryMarshal.Cast<char, int16>(str))
 
@@ -197,6 +227,12 @@ let parse (str: string) =
                     | c -> fail c index state stack
             | StringLiteral sb ->
                 let rec auxParse start index =
+                    let index =
+                        if index + Vector256<int16>.Count <= str.Length then
+                            index + getNumStringPassthroughChars (str.AsSpan(index))
+                        else
+                            index
+
                     let finishStep () =
                         sb.Append(str.AsSpan(start, index - start)) |> ignore
 
