@@ -34,15 +34,15 @@ let LiteralParsingTest (expr: string) =
 [<TestCase("@1", 1L)>]
 [<TestCase("@-51", -51L)>]
 [<TestCase("@+54", 54L)>]
-[<TestCase("@3e1", 30L)>]
-[<TestCase("@+1.", 1L)>]
 let NumericIntegerParsingTest (expr: string) (expected: int64) =
     test <@ Integer expected = testExpressionEvaluation expr @>
 
 [<TestCase("@0.5", 0.5)>]
 [<TestCase("@+.5", 0.5)>]
+[<TestCase("@+1.", 1.0)>]
 [<TestCase("@+15.75", 15.75)>]
 [<TestCase("@-01.0", -1.0)>]
+[<TestCase("@3e1", 30.0)>]
 [<TestCase("@3.2e1", 32.0)>]
 [<TestCase("@0.9e+1", 9.0)>]
 [<TestCase("@3.2e-1", 0.32)>]
