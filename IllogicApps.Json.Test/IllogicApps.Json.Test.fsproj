@@ -11,6 +11,7 @@
     <ItemGroup>
         <Compile Include="BasicTests.fs"/>
         <Compile Include="ConversionTests.fs"/>
+        <Compile Include="RoundTripTests.fs" />
         <Compile Include="Program.fs" />
         <EmbeddedResource Include="TestData\**"/>
     </ItemGroup>
