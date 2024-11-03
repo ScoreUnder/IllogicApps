@@ -134,21 +134,24 @@ let parse (str: string) =
                     else
                         index
 
-                match str.[index] with
-                | ' '
-                | '\t'
-                | '\n'
-                | '\r' -> parse' (index + 1) ValueStart stack
-                | '"' -> parse' (index + 1) (StringLiteral(StringBuilder())) stack
-                | '-' as c -> parse' (index + 1) (NumberZeroOrDigit(StringBuilder().Append(c))) stack
-                | '0' as c -> parse' (index + 1) (NumberFractionDot(StringBuilder().Append(c))) stack
-                | c when Char.IsAsciiDigit(c) -> parse' (index + 1) (NumberDigit(StringBuilder().Append(c))) stack
-                | '[' -> parse' (index + 1) ArrayStart stack
-                | '{' -> parse' (index + 1) ObjectStart stack
-                | 'n'
-                | 't'
-                | 'f' as c -> parse' (index + 1) (LiteralIdentifier(StringBuilder().Append(c))) stack
-                | c -> fail c index state stack
+                if index = str.Length then
+                    fail ' ' -1 state stack
+                else
+                    match str.[index] with
+                    | ' '
+                    | '\t'
+                    | '\n'
+                    | '\r' -> parse' (index + 1) ValueStart stack
+                    | '"' -> parse' (index + 1) (StringLiteral(StringBuilder())) stack
+                    | '-' as c -> parse' (index + 1) (NumberZeroOrDigit(StringBuilder().Append(c))) stack
+                    | '0' as c -> parse' (index + 1) (NumberFractionDot(StringBuilder().Append(c))) stack
+                    | c when Char.IsAsciiDigit(c) -> parse' (index + 1) (NumberDigit(StringBuilder().Append(c))) stack
+                    | '[' -> parse' (index + 1) ArrayStart stack
+                    | '{' -> parse' (index + 1) ObjectStart stack
+                    | 'n'
+                    | 't'
+                    | 'f' as c -> parse' (index + 1) (LiteralIdentifier(StringBuilder().Append(c))) stack
+                    | c -> fail c index state stack
             | ValueEnd v ->
                 let index =
                     if index + Vector256<int16>.Count <= str.Length then
@@ -156,37 +159,42 @@ let parse (str: string) =
                     else
                         index
 
-                match str.[index] with
-                | ' '
-                | '\t'
-                | '\n'
-                | '\r' -> parse' (index + 1) state stack
-                | ',' as c ->
+                if index = str.Length then
                     match stack with
-                    | ConstructingObjectValue(k, o) :: stack' ->
-                        parse' (index + 1) ValueStart (ConstructingObject((k, v) :: o) :: stack')
-                    | ConstructingArray a :: stack' ->
-                        parse' (index + 1) ValueStart (ConstructingArray(v :: a) :: stack')
-                    | _ -> fail c index state stack
-                | ':' as c ->
-                    match v, stack with
-                    | String v, ConstructingObject k :: stack' ->
-                        parse' (index + 1) ValueStart (ConstructingObjectValue(v, k) :: stack')
-                    | _ -> fail c index state stack
-                | ']' as c ->
-                    match stack with
-                    | ConstructingArray a :: stack' ->
-                        parse'
-                            (index + 1)
-                            (ValueEnd(JsonTree.Array(ImmutableArray.ToImmutableArray(List.rev (v :: a)))))
-                            stack'
-                    | _ -> fail c index state stack
-                | '}' as c ->
-                    match stack with
-                    | ConstructingObjectValue(k, o) :: stack' ->
-                        parse' (index + 1) (ValueEnd(JsonTree.Object(Map.ofList ((k, v) :: o)))) stack'
-                    | _ -> fail c index state stack
-                | c -> fail c index state stack
+                    | [] -> v
+                    | _ -> fail ' ' -1 state stack
+                else
+                    match str.[index] with
+                    | ' '
+                    | '\t'
+                    | '\n'
+                    | '\r' -> parse' (index + 1) state stack
+                    | ',' as c ->
+                        match stack with
+                        | ConstructingObjectValue(k, o) :: stack' ->
+                            parse' (index + 1) ValueStart (ConstructingObject((k, v) :: o) :: stack')
+                        | ConstructingArray a :: stack' ->
+                            parse' (index + 1) ValueStart (ConstructingArray(v :: a) :: stack')
+                        | _ -> fail c index state stack
+                    | ':' as c ->
+                        match v, stack with
+                        | String v, ConstructingObject k :: stack' ->
+                            parse' (index + 1) ValueStart (ConstructingObjectValue(v, k) :: stack')
+                        | _ -> fail c index state stack
+                    | ']' as c ->
+                        match stack with
+                        | ConstructingArray a :: stack' ->
+                            parse'
+                                (index + 1)
+                                (ValueEnd(JsonTree.Array(ImmutableArray.ToImmutableArray(List.rev (v :: a)))))
+                                stack'
+                        | _ -> fail c index state stack
+                    | '}' as c ->
+                        match stack with
+                        | ConstructingObjectValue(k, o) :: stack' ->
+                            parse' (index + 1) (ValueEnd(JsonTree.Object(Map.ofList ((k, v) :: o)))) stack'
+                        | _ -> fail c index state stack
+                    | c -> fail c index state stack
             | StringLiteral sb ->
                 let rec auxParse start index =
                     let finishStep () =
@@ -289,14 +297,17 @@ let parse (str: string) =
                     else
                         index
 
-                match str.[index] with
-                | ' '
-                | '\t'
-                | '\n'
-                | '\r' -> parse' (index + 1) ObjectStart stack
-                | '"' -> parse' (index + 1) (StringLiteral(StringBuilder())) (ConstructingObject [] :: stack)
-                | '}' -> parse' (index + 1) (ValueEnd(JsonTree.Object(Map.empty))) stack
-                | c -> fail c index state stack
+                if index = str.Length then
+                    fail ' ' -1 state stack
+                else
+                    match str.[index] with
+                    | ' '
+                    | '\t'
+                    | '\n'
+                    | '\r' -> parse' (index + 1) ObjectStart stack
+                    | '"' -> parse' (index + 1) (StringLiteral(StringBuilder())) (ConstructingObject [] :: stack)
+                    | '}' -> parse' (index + 1) (ValueEnd(JsonTree.Object(Map.empty))) stack
+                    | c -> fail c index state stack
             | ArrayStart ->
                 let index =
                     if index + Vector256<int16>.Count <= str.Length then
@@ -304,13 +315,16 @@ let parse (str: string) =
                     else
                         index
 
-                match str.[index] with
-                | ' '
-                | '\t'
-                | '\n'
-                | '\r' -> parse' (index + 1) ArrayStart stack
-                | ']' -> parse' (index + 1) (ValueEnd(JsonTree.Array(ImmutableArray.Empty))) stack
-                | _ -> parse' index ValueStart (ConstructingArray [] :: stack)
+                if index = str.Length then
+                    fail ' ' -1 state stack
+                else
+                    match str.[index] with
+                    | ' '
+                    | '\t'
+                    | '\n'
+                    | '\r' -> parse' (index + 1) ArrayStart stack
+                    | ']' -> parse' (index + 1) (ValueEnd(JsonTree.Array(ImmutableArray.Empty))) stack
+                    | _ -> parse' index ValueStart (ConstructingArray [] :: stack)
             | LiteralIdentifier sb ->
                 match c with
                 | c when Char.IsAsciiLetter(c) -> parse' (index + 1) (LiteralIdentifier(sb.Append(c))) stack
