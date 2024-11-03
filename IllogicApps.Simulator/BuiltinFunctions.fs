@@ -357,17 +357,20 @@ let f_decimal _ (args: Args) : JsonTree =
     | _ -> failwithf "Could not parse %s as decimal" str
 
 let f_float _ (args: Args) : JsonTree =
-    let str, culture =
+    let convertFrom, culture =
         match args with
         | [ s ] -> s, CultureInfo.DefaultThreadCurrentCulture
         | [ s; c ] -> s, CultureInfo.GetCultureInfo(Conversions.ensureString c)
         | _ -> failwithf "Expected 1 or 2 args, got %d" (List.length args)
 
-    let str = Conversions.rawStringOfJson str
+    match convertFrom with
+    | Float _ -> convertFrom
+    | _ ->
+        let str = Conversions.rawStringOfJson convertFrom
 
-    match Double.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, culture) with
-    | true, result -> Float result
-    | _ -> failwithf "Could not parse %s as float" str
+        match Double.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, culture) with
+        | true, result -> Float result
+        | _ -> failwithf "Could not parse %s as float" str
 
 let f_int (sim: SimulatorContext) (args: Args) : JsonTree =
     let str, culture =
