@@ -12,6 +12,7 @@ open TestSimUtil
 [<TestCase("@{float('NaN')}", "NaN")>]
 [<TestCase("@{float('nan')}", "NaN")>]
 [<TestCase("@{float('Infinity','')}", "Infinity")>]
+[<TestCase("@{float(float('Infinity',''))}", "Infinity")>]
 [<TestCase("@{float('400,000','en-gb')}", "400000")>]
 [<TestCase("@{float('400.000','en-gb')}", "400")>]
 [<TestCase("@{float('400,000','de-de')}", "400")>]
@@ -43,6 +44,7 @@ let ExecInvalidConvertToIntTest (expr: string) =
 [<TestCase("@{float('(200)')}")>]
 [<TestCase("@{float('Infinity')}")>]
 [<TestCase("@{float('inf')}")>]
+[<TestCase("@{float(string(float('Infinity','')))}")>]
 let ExecInvalidConvertToFloatTest (expr: string) =
     raisesWithOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
     <| fun e -> let message = e.Message in <@ message.Contains("Could not parse") @>
