@@ -1,6 +1,7 @@
 module IllogicApps.Simulator.Test.TestSimUtil
 
 open System.Text.Json.Nodes
+open IllogicApps.Json
 open NUnit.Framework
 open Swensen.Unquote
 open IllogicApps.Core
@@ -61,7 +62,7 @@ type private 'a TraceResult =
 
 let rec stringOfAst =
     function
-    | LanguageParser.Literal(lit) -> lit.ToJsonString(sensibleSerialiserOptions)
+    | LanguageParser.Literal(lit) -> Conversions.stringOfJson lit
     | LanguageParser.Call(name, args) -> $"""{name}({args |> List.map stringOfAst |> String.concat ", "})"""
     | LanguageParser.Member(parent, mem) -> $"{stringOfAst parent}[{stringOfAst mem}]"
     | LanguageParser.ForgivingMember(parent, mem) -> $"{stringOfAst parent}?[{stringOfAst mem}]"
@@ -103,7 +104,7 @@ let traceEvaluationParsed expr =
             |> TraceResult.step LanguageParser.ForgivingMember (fun (parent, mem) ->
                 match LanguageEvaluator.accessMember (unpackLiteral parent) (unpackLiteral mem) with
                 | LanguageEvaluator.AccessOk value -> Changes(LanguageParser.Literal(value))
-                | LanguageEvaluator.ForgivableError _ -> Changes(LanguageParser.Literal(jsonNull))
+                | LanguageEvaluator.ForgivableError _ -> Changes(LanguageParser.Literal(Null))
                 | LanguageEvaluator.SeriousError err -> TraceError err)
         | LanguageParser.BuiltinConcat(args) ->
             args
@@ -113,8 +114,7 @@ let traceEvaluationParsed expr =
                 args
                 |> List.map (unpackLiteral >> BuiltinFunctions.objectToString)
                 |> String.concat ""
-                |> JsonValue.Create
-                :> JsonNode
+                |> String
                 |> LanguageParser.Literal
                 |> Changes)
 

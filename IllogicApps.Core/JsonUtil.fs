@@ -1,10 +1,12 @@
 module IllogicApps.Core.JsonUtil
 
 open System.Collections.Generic
+open System.Collections.Immutable
 open System.Text.Encodings.Web
 open System.Text.Json
 open System.Text.Json.Nodes
 open System.Text.Json.Serialization
+open IllogicApps.Json
 
 type KVP = KeyValuePair<string, JsonNode>
 
@@ -35,12 +37,6 @@ let jsonNumberToSubtype (node: JsonNode) : NumberSubtype =
                 | _ -> failwithf "Expected number, got %A" (node.GetValue().GetType().Name)
     | kind -> failwithf "Expected number, got %A" kind
 
-let numberSubtypeToJson: NumberSubtype -> JsonNode =
-    function
-    | Integer i -> JsonValue.Create i
-    | Float f -> JsonValue.Create f
-    | Decimal d -> JsonValue.Create d
-
 let promoteNums a b =
     match a, b with
     | Integer a, Integer b -> Integer2(a, b)
@@ -52,25 +48,6 @@ let promoteNums a b =
     | Decimal a, Integer b -> Decimal2(a, decimal b)
     | Decimal a, Float b -> Decimal2(a, decimal b)
     | Decimal a, Decimal b -> Decimal2(a, b)
-
-let rec jsonToObject (jsonNode: JsonNode) =
-    if jsonNode = null then
-        null
-    else
-        match jsonNode.GetValueKind() with
-        | JsonValueKind.Object ->
-            jsonNode.AsObject()
-            |> Seq.map (fun kvp -> kvp.Key, jsonToObject kvp.Value)
-            |> Map.ofSeq
-            :> obj
-        | JsonValueKind.Array -> jsonNode.AsArray() |> Seq.map jsonToObject |> Array.ofSeq :> obj
-        | JsonValueKind.True
-        | JsonValueKind.False
-        | JsonValueKind.Null
-        | JsonValueKind.Number
-        | JsonValueKind.String -> jsonNode.GetValue()
-        | JsonValueKind.Undefined -> failwithf "Undefined value in JSON at %s" (jsonNode.GetPath())
-        | _ -> failwithf "Unsupported value kind %A" (jsonNode.GetValueKind())
 
 [<AutoOpen>]
 type JsonOfHelper =
@@ -85,48 +62,97 @@ type JsonOfHelper =
     static member inline jsonOf(o: (string * JsonNode) seq) : JsonNode = JsonObject(Map.ofSeq o)
     static member inline jsonNull: JsonNode = JsonValue.Create null
 
-let rec jsonsEqual (a: JsonNode) (b: JsonNode) =
-    if a = null then
-        b = null
-    elif b = null then
-        false
-    else
-        match a.GetValueKind(), b.GetValueKind() with
-        | JsonValueKind.Object, JsonValueKind.Object ->
-            let aObj = a.AsObject()
-            let bObj = b.AsObject()
-            let aSorted = aObj |> Seq.sortBy _.Key |> Seq.toList
-            let bSorted = bObj |> Seq.sortBy _.Key |> Seq.toList
-            let aKeys = aSorted |> Seq.map _.Key |> Set.ofSeq
-            let bKeys = bSorted |> Seq.map _.Key |> Set.ofSeq
-
-            aKeys = bKeys
-            && Seq.forall2 (fun (a: KVP) (b: KVP) -> jsonsEqual a.Value b.Value) aSorted bSorted
-        | JsonValueKind.Array, JsonValueKind.Array ->
-            let aArr = a.AsArray()
-            let bArr = b.AsArray()
-            aArr.Count = bArr.Count && Seq.forall2 jsonsEqual aArr bArr
-        | JsonValueKind.Number, JsonValueKind.Number ->
-            match promoteNums (jsonNumberToSubtype a) (jsonNumberToSubtype b) with
-            | Integer2(a, b) -> a = b
-            | Float2(a, b) -> a = b
-            | Decimal2(a, b) -> a = b
-        | JsonValueKind.True, JsonValueKind.True
-        | JsonValueKind.False, JsonValueKind.False
-        | JsonValueKind.Null, JsonValueKind.Null -> true
-        | JsonValueKind.String, JsonValueKind.String -> a.GetValue<string>().Equals(b.GetValue<string>())
-        | _ -> false
-
-let sensibleSerialiserOptions =
-    JsonSerializerOptions(
-        defaults = JsonSerializerDefaults.General,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        WriteIndented = false,
-        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
-    )
-
 let safeClone (node: JsonNode) =
     match node with
     | null -> null
     | v -> v.DeepClone()
+
+let rec illogicJsonOfSystemTextJson (node: JsonNode) : JsonTree =
+    match node with
+    | null -> Null
+    | _ ->
+        match node.GetValueKind() with
+        | JsonValueKind.Object ->
+            node.AsObject()
+            |> Seq.map (fun kvp -> kvp.Key, illogicJsonOfSystemTextJson kvp.Value)
+            |> Map.ofSeq
+            |> Object
+        | JsonValueKind.Array ->
+            node.AsArray()
+            |> Seq.map illogicJsonOfSystemTextJson
+            |> ImmutableArray.CreateRange
+            |> Array
+        | JsonValueKind.Number ->
+            let node = node.AsValue()
+
+            match node.TryGetValue<int64>() with
+            | true, i -> JsonTree.Integer i
+            | _ ->
+                match node.TryGetValue<float>() with
+                | true, f -> JsonTree.Float f
+                | _ ->
+                    match node.TryGetValue<decimal>() with
+                    | true, d -> JsonTree.Decimal d
+                    | _ -> failwithf "Expected number, got %A" (node.GetValue().GetType().Name)
+        | JsonValueKind.String -> String(node.GetValue<string>())
+        | JsonValueKind.True -> Boolean true
+        | JsonValueKind.False -> Boolean false
+        | JsonValueKind.Null -> Null
+        | _ -> failwithf "Unsupported value kind %A" (node.GetValueKind())
+
+let rec systemTextJsonOfIllogicJson (tree: JsonTree) : JsonNode =
+    match tree with
+    | Null -> null
+    | Object o ->
+        o
+        |> Map.toSeq
+        |> Seq.map (fun (k, v) -> KVP(k, systemTextJsonOfIllogicJson v))
+        |> JsonObject
+        :> JsonNode
+    | Array a -> JsonArray(a |> Seq.map systemTextJsonOfIllogicJson |> Seq.toArray)
+    | String s -> JsonValue.Create s
+    | JsonTree.Integer i -> JsonValue.Create i
+    | JsonTree.Float f -> JsonValue.Create f
+    | JsonTree.Decimal d -> JsonValue.Create d
+    | Boolean b -> JsonValue.Create b
+
+let rec systemTextJsonOfIllogicJsonIgnoringNulls (tree: JsonTree) : JsonNode =
+    match tree with
+    | Null -> null
+    | Object o ->
+        o
+        |> Map.toSeq
+        |> Seq.filter (fun (_, v) -> v <> Null)
+        |> Seq.map (fun (k, v) -> KVP(k, systemTextJsonOfIllogicJson v))
+        |> JsonObject
+        :> JsonNode
+    | Array a -> JsonArray(a |> Seq.map systemTextJsonOfIllogicJson |> Seq.toArray)
+    | String s -> JsonValue.Create s
+    | JsonTree.Integer i -> JsonValue.Create i
+    | JsonTree.Float f -> JsonValue.Create f
+    | JsonTree.Decimal d -> JsonValue.Create d
+    | Boolean b -> JsonValue.Create b
+
+type IllogicToSystemTextSerializerAdapter() =
+    inherit JsonConverter<JsonTree>()
+
+    override this.Read(reader, typeToConvert, options) =
+        JsonSerializer.Deserialize<JsonNode>(&reader, options)
+        |> illogicJsonOfSystemTextJson
+
+    override this.Write(writer, value, options) =
+        let value = systemTextJsonOfIllogicJsonIgnoringNulls value
+        JsonSerializer.Serialize(writer, value, options)
+
+let sensibleSerialiserOptions =
+    let options =
+        JsonSerializerOptions(
+            defaults = JsonSerializerDefaults.General,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            WriteIndented = false,
+            NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
+        )
+
+    options.Converters.Add(IllogicToSystemTextSerializerAdapter())
+    options

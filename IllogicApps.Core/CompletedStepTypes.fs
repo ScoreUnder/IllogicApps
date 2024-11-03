@@ -2,8 +2,8 @@ module IllogicApps.Core.CompletedStepTypes
 
 open System
 open System.Globalization
-open System.Text.Json.Nodes
 open System.Text.Json.Serialization
+open IllogicApps.Json
 
 type Status =
     | Succeeded
@@ -29,10 +29,10 @@ type CompletedAction(name: string, status: Status, startTime: string, ?workflowR
     member val Name = name with get, set
 
     [<JsonPropertyName("inputs")>]
-    member val Inputs: JsonNode option = None with get, set
+    member val Inputs: JsonTree = Null with get, set
 
     [<JsonPropertyName("outputs")>]
-    member val Outputs: JsonNode option = None with get, set
+    member val Outputs: JsonTree = Null with get, set
 
     [<JsonPropertyName("startTime")>]
     member val StartTime = startTime with get, set

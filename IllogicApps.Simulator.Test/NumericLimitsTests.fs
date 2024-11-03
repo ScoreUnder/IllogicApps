@@ -4,7 +4,7 @@ open System
 open NUnit.Framework
 open Swensen.Unquote
 
-open IllogicApps.Core.JsonUtil
+open IllogicApps.Json
 open TestSimUtil
 
 [<TestCase("@{18446744073709551615}")>]
@@ -18,7 +18,7 @@ let UnlexableOutOfRangeTest (expr: string) =
 [<TestCase("@{9223372036854775809.5}", "9.223372036854776E+18")>]
 [<TestCase("@{-9223372036854775809.5}", "-9.223372036854776E+18")>]
 let ExecInRangeTest (expr: string) (expected: string) =
-    testOrTrace expr <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ String expected = testExpressionEvaluation expr @>
 
 [<TestCase("@int('9223372036854775808')")>]
 [<TestCase("@int('9223372036854775807')")>]
@@ -28,8 +28,9 @@ let ExecInRangeTest (expr: string) (expected: string) =
 [<TestCase("@int(mul(2e200,2e200))")>]
 let ExecConvertOutOfRangeTest (expr: string) =
     let parsed = trap <@ parseExpr (lexExpr expr) @>
-    raisesWithOrTraceParsed<Exception> parsed <@ evaluateParsed parsed |> ignore @> <| fun ex ->
-        <@ ex.Message.Contains("Could not parse") || ex :? OverflowException @>
+
+    raisesWithOrTraceParsed<Exception> parsed <@ evaluateParsed parsed |> ignore @>
+    <| fun ex -> <@ ex.Message.Contains("Could not parse") || ex :? OverflowException @>
 
 [<TestCase("@int('3e-50')")>]
 [<TestCase("@int(1.5)")>]
@@ -38,8 +39,9 @@ let ExecConvertOutOfRangeTest (expr: string) =
 [<TestCase("@int(100000.000009)")>]
 let ExecNoFractionalIntegersTest (expr: string) =
     let parsed = trap <@ parseExpr (lexExpr expr) @>
-    raisesWithOrTraceParsed<Exception> parsed <@ evaluateParsed parsed |> ignore @> <| fun ex ->
-        <@ ex.Message.Contains("Could not parse") || ex :? OverflowException @>
+
+    raisesWithOrTraceParsed<Exception> parsed <@ evaluateParsed parsed |> ignore @>
+    <| fun ex -> <@ ex.Message.Contains("Could not parse") || ex :? OverflowException @>
 
 [<TestCase("@{int('-9223372036854775808')}", "-9223372036854775808")>]
 [<TestCase("@{int('-9223372036854775809')}", "-9223372036854775808")>] // Fucking incredible
@@ -54,12 +56,12 @@ let ExecNoFractionalIntegersTest (expr: string) =
 [<TestCase("@{decimal('10000000000.00000000001234')}", "10000000000.00000000001234")>]
 [<TestCase("@{decimal('70000000000000000000000000000')}", "70000000000000000000000000000")>]
 let ExecConvertInRangeTest (expr: string) (expected: string) =
-    testOrTrace expr <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ String expected = testExpressionEvaluation expr @>
 
 [<TestCase("@{mul(decimal('70000000000000000000000000000'), 10)}")>]
 [<TestCase("@{add(9223372036854775807, 1)}")>]
 [<TestCase("@{mul(4294967295, 4294967295)}")>]
-[<TestCase("@{mul(max(20, decimal('10'), 30.1), 1e50)}")>]  // Converts 30.1 up to decimal
+[<TestCase("@{mul(max(20, decimal('10'), 30.1), 1e50)}")>] // Converts 30.1 up to decimal
 [<TestCase("@div(-1, 0)")>]
 [<TestCase("@div(0, 0)")>]
 let ExecMathOutOfRangeTest (expr: string) =
@@ -74,4 +76,4 @@ let ExecMathOutOfRangeTest (expr: string) =
 [<TestCase("@{mul(decimal('4294967295'), 4294967295)}", "18446744065119617025")>]
 [<TestCase("@{mul(decimal('4294967295'), 4294967295.0)}", "18446744065119617025")>]
 let ExecMathInRangeTest (expr: string) (expected: string) =
-    testOrTrace expr <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ String expected = testExpressionEvaluation expr @>

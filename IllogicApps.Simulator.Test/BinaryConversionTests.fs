@@ -1,21 +1,17 @@
 module IllogicApps.Simulator.Test.BinaryConversionTests
 
 open System
-open System.Text.Json
-open System.Text.Json.Nodes
+open System.Collections.Immutable
 open NUnit.Framework
 open Swensen.Unquote
 
-open IllogicApps.Core.JsonUtil
+open IllogicApps.Json
 open TestSimUtil
 
 [<Test>]
 let JsonOfBinaryTest () =
-    test
-        <@
-            testExpressionEvaluation "@json(binary('[1,2,3]'))"
-            |> jsonsEqual (jsonOf [| jsonOf 1L; jsonOf 2L; jsonOf 3L |])
-        @>
+    let expected = Array(ImmutableArray.Create(Integer 1L, Integer 2L, Integer 3L))
+    test <@ expected = testExpressionEvaluation "@json(binary('[1,2,3]'))" @>
 
 [<TestCase("@binary(json('{\"hello\": \"world\"}'))", "eyJoZWxsbyI6IndvcmxkIn0=")>]
 [<TestCase("@binary(3.14)", "My4xNA==")>]
@@ -26,24 +22,21 @@ let JsonOfBinaryTest () =
 [<TestCase("@binary(false)", "RmFsc2U=")>]
 let BinaryOfTest (expr: string) (expected: string) =
     let expected =
-        jsonOf
-            [ "$content-type", jsonOf "application/octet-stream"
-              "$content", jsonOf expected ]
+        Object(
+            Map.ofSeq
+                [ "$content-type", String "application/octet-stream"
+                  "$content", String expected ]
+        )
 
-    test <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    test <@ expected = testExpressionEvaluation expr @>
 
 [<Test>]
 let Base64Test () =
-    test <@ testExpressionEvaluation "@base64('test')" |> jsonToObject |> "dGVzdA==".Equals @>
+    test <@ String "dGVzdA==" = testExpressionEvaluation "@base64('test')" @>
 
 [<Test>]
 let Base64RoundTripTest () =
-    test
-        <@
-            testExpressionEvaluation "@base64ToString(base64('test'))"
-            |> jsonToObject
-            |> "test".Equals
-        @>
+    test <@ String "test" = testExpressionEvaluation "@base64ToString(base64('test'))" @>
 
 [<TestCase("@base64ToBinary(base64('test'))", "dGVzdA==")>]
 [<TestCase("@base64ToBinary('')", "")>]
@@ -51,24 +44,21 @@ let Base64RoundTripTest () =
 [<TestCase("@base64ToBinary('aGVsbG8gd29ybGQ=')", "aGVsbG8gd29ybGQ=")>]
 let Base64ToBinaryTest expr (expectedBase64: string) =
     let expected =
-        jsonOf
-            [ "$content-type", jsonOf "application/octet-stream"
-              "$content", jsonOf expectedBase64 ]
+        Object(
+            Map.ofSeq
+                [ "$content-type", String "application/octet-stream"
+                  "$content", String expectedBase64 ]
+        )
 
-    test <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    test <@ expected = testExpressionEvaluation expr @>
 
 [<TestCase("@base64ToString('aGVsbG8gd29ybGQ=')", "hello world")>]
 let Base64ToStringTest (expr: string) (expected: string) =
-    test <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
+    test <@ String expected = testExpressionEvaluation expr @>
 
 [<Test>]
 let BinaryToStringTest () =
-    test
-        <@
-            testExpressionEvaluation "@{base64ToBinary('test')}"
-            |> _.GetValue<string>().ToCharArray()
-            |> (=) [| char 0xfffd; char 0xfffd; char 0x2d |]
-        @>
+    test <@ String "\ufffd\ufffd-" = testExpressionEvaluation "@{base64ToBinary('test')}" @>
 
 [<TestCase("@binary(null)")>]
 let BinaryOfInvalidTypeTest (expr: string) =
@@ -118,8 +108,7 @@ let InvalidBase64ToBinaryTest (expr: string) =
 [<TestCase("@dataUriToBinary('DATA:TEXT/PLAIN;COWS=MOO;CHARSET=UTF-8;CATS=CUTE;BASE64,dGVzdA==')",
            "{\"$content-type\":\"TEXT/PLAIN;COWS=MOO;CHARSET=UTF-8;CATS=CUTE\",\"$content\":\"dGVzdA==\"}")>]
 let DataUriToBinaryTest (expr: string) (expected: string) =
-    let expected = JsonSerializer.Deserialize<JsonNode>(expected)
-    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
 
 [<TestCase("@dataUriToString('data:text/plain;charset=utf-8,%22hello,%20world%22')", "\"hello, world\"")>]
 [<TestCase("@dataUriToString('data:text/plain;charset=utf-8;base64,aGVsbG8 gd29ybGQ=')", "hello world")>]
@@ -142,7 +131,7 @@ let DataUriToBinaryTest (expr: string) (expected: string) =
 [<TestCase("@dataUriToString('data:text/plain;cows=moo;charset=utf-8;cats=cute;base64,dGVzdA==')", "test")>]
 [<TestCase("@dataUriToString('DATA:TEXT/PLAIN;COWS=MOO;CHARSET=UTF-8;CATS=CUTE;BASE64,dGVzdA==')", "test")>]
 let DataUriToStringTest expr (expected: string) =
-    testOrTrace expr <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
+    testOrTrace expr <@ String expected = testExpressionEvaluation expr @>
 
 [<TestCase("@{dataUriToBinary('data:text/plain;charset=utf-8,abc+def ghi+jkl=asdf+qwer?abc+def=ghi+jkl')}",
            "abc def ghi jkl=asdf qwer?abc def=ghi jkl")>]
@@ -161,7 +150,7 @@ let DataUriToStringTest expr (expected: string) =
 [<TestCase("@{dataUriToBinary('data:text/plain;charset=utf-8;base64,dGVzdA==')}", "test")>]
 [<TestCase("@{dataUriToBinary('DATA:TEXT/PLAIN;COWS=MOO;CHARSET=UTF-8;CATS=CUTE;BASE64,dGVzdA==')}", "test")>]
 let StringifiedDataUriToBinaryTest expr (expected: string) =
-    testOrTrace expr <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
+    testOrTrace expr <@ String expected = testExpressionEvaluation expr @>
 
 [<TestCase("@dataUriToBinary('data:;;base64,dGVzdA==')")>] // too many semicolons
 [<TestCase("@dataUriToBinary('data:;,test')")>] // too many semicolons
@@ -204,7 +193,7 @@ let InvalidDataUriToStringTest (expr: string) =
 [<TestCase("@{dataUri(1)}", "data:application/json;charset=utf-8;base64,MQ==")>]
 [<TestCase("@{dataUri(true)}", "data:application/json;charset=utf-8;base64,VHJ1ZQ==")>]
 let DataUriTest (expr: string) (expected: string) =
-    test <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
+    test <@ String expected = testExpressionEvaluation expr @>
 
 [<TestCase("@{dataUri(null)}")>]
 let InvalidDataUriTest (expr: string) =

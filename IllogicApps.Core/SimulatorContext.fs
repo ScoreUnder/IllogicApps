@@ -6,6 +6,7 @@ open System.Text.Json.Nodes
 
 open CompletedStepTypes
 open ExternalServiceTypes
+open IllogicApps.Json
 
 type Expression = JsonObject
 
@@ -21,7 +22,7 @@ type LoopContext() =
 
     abstract member Dispose: unit -> unit
     abstract member Advance: unit -> bool
-    abstract member Current: JsonNode
+    abstract member Current: JsonTree
 
 type IGraphExecutable =
     abstract member Execute: SimulatorContext -> ActionResult

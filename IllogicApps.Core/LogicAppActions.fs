@@ -27,8 +27,8 @@ type Request() =
         let triggerResult = context.TriggerResult
 
         { status = triggerResult.Status
-          inputs = triggerResult.Inputs
-          outputs = triggerResult.Outputs }
+          inputs = Option.ofObj (systemTextJsonOfIllogicJson triggerResult.Inputs)
+          outputs = Option.ofObj (systemTextJsonOfIllogicJson triggerResult.Outputs) }
 
 // Actions
 
@@ -389,11 +389,7 @@ type Query() =
             let current = loopContext.Current
             let condition = this.Inputs.where |> context.EvaluateLanguage
 
-            let next =
-                if condition.GetValue<bool>() then
-                    current.DeepClone() :: acc
-                else
-                    acc
+            let next = if condition.GetValue<bool>() then current :: acc else acc
 
             if loopContext.Advance() then filterValsRev next else next
 
@@ -403,7 +399,7 @@ type Query() =
 
         { status = Succeeded
           inputs = Some(from.DeepClone())
-          outputs = Some(jsonOf [ "body", jsonOf result ]) }
+          outputs = Some(jsonOf [ "body", jsonOf (result |> List.map systemTextJsonOfIllogicJson) ]) }
 
 // Inline Code actions
 

@@ -2,11 +2,12 @@ namespace IllogicApps.Simulator
 
 open System
 open System.Collections.Generic
-open System.Text.Json
-open System.Text.Json.Nodes
 
+open System.Collections.Immutable
+open System.Text.Json.Nodes
 open IllogicApps.Core
 open IllogicApps.Core.LogicAppBaseAction
+open IllogicApps.Json
 open IllogicApps.Simulator.BuiltinCondition
 open CompletedStepTypes
 
@@ -96,27 +97,30 @@ module private SimulatorHelper =
         | (Succeeded, Succeeded) -> Succeeded
         | c -> failwithf "Unexpected status combination %A" c
 
-    let arrayOfObjects (node: JsonNode) =
+    let unpackObject (node: JsonTree) =
         match node with
-        | :? JsonArray as a -> a |> Seq.map _.AsObject()
+        | Object o -> o |> Map.toSeq
+        | _ -> failwithf "Expected object, got %O" (JsonTree.getType node)
+
+    let unpackArray (node: JsonTree) =
+        match node with
+        | Array a -> a
+        | _ -> failwithf "Expected array, got %O" (JsonTree.getType node)
+
+    let arrayOfObjects (node: JsonTree) =
+        match node with
+        | Array a -> a |> Seq.map unpackObject
         | _ -> failwithf "Expected array of objects, got %O" node
 
-    let rec jsonMapStrs (f: string -> JsonNode) (node: JsonNode) =
-        if node = null then
-            null
-        else
-            match node.GetValueKind() with
-            | JsonValueKind.Undefined -> failwith "Undefined value"
-            | JsonValueKind.Object ->
-                new JsonObject(
-                    node.AsObject()
-                    |> Seq.map (fun kv ->
-                        new KeyValuePair<string, JsonNode>((f kv.Key).GetValue<string>(), jsonMapStrs f kv.Value))
-                )
-                : JsonNode
-            | JsonValueKind.Array -> new JsonArray(node.AsArray() |> Seq.map (jsonMapStrs f) |> Seq.toArray)
-            | JsonValueKind.String -> f <| node.GetValue<string>()
-            | _ -> node.DeepClone()
+    let rec jsonMapStrs (f: string -> JsonTree) (node: JsonTree) =
+        match node with
+        | Object o ->
+            o
+            |> Map.fold (fun acc k v -> Map.add (f k |> Conversions.ensureString) (jsonMapStrs f v) acc) Map.empty
+            |> Object
+        | Array a -> a |> Seq.map (jsonMapStrs f) |> ImmutableArray.CreateRange |> Array
+        | String s -> f s
+        | _ -> node
 
     let skippedResult =
         { status = Skipped
@@ -125,11 +129,11 @@ module private SimulatorHelper =
 
 open SimulatorHelper
 
-type LoopContextImpl(values: JsonNode list, disposeHook: LoopContext -> unit) as this =
+type LoopContextImpl(values: JsonTree list, disposeHook: LoopContext -> unit) as this =
     inherit LoopContext()
 
     [<DefaultValue>]
-    val mutable values: JsonNode list
+    val mutable values: JsonTree list
 
     do this.values <- values
 
@@ -155,8 +159,8 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
                 name = name,
                 status = result.status,
                 startTime = stringOfDateTime startTime,
-                Inputs = result.inputs,
-                Outputs = result.outputs,
+                Inputs = JsonUtil.illogicJsonOfSystemTextJson (Option.toObj result.inputs),
+                Outputs = JsonUtil.illogicJsonOfSystemTextJson (Option.toObj result.outputs),
                 workflowRunId = this.TriggerResult.ClientTrackingId
             )
 
@@ -255,20 +259,24 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
             |> Seq.fold mergeStatus Succeeded
 
     override this.EvaluateCondition expr =
-        let rec eval (expr: Expression) =
+        let rec eval expr =
             let kv = expr |> Seq.exactlyOne
+            let key, value = kv
 
-            match kv.Key with
-            | "and" -> kv.Value |> arrayOfObjects |> Seq.forall eval
-            | "or" -> kv.Value |> arrayOfObjects |> Seq.exists eval
-            | "not" -> kv.Value.AsObject() |> eval |> not
-            | LanguageCondition fn -> kv.Value.AsArray() |> List.ofSeq |> fn |> _.GetValue<bool>()
+            match key with
+            | "and" -> value |> arrayOfObjects |> Seq.forall eval
+            | "or" -> value |> arrayOfObjects |> Seq.exists eval
+            | "not" -> value |> unpackObject |> eval |> not
+            | LanguageCondition fn -> value |> unpackArray |> List.ofSeq |> fn
             | _ -> failwithf "Unexpected expression %A" expr
 
-        eval expr
+        expr |> JsonUtil.illogicJsonOfSystemTextJson |> unpackObject |> eval
 
     override this.EvaluateLanguage expr =
-        expr |> jsonMapStrs (LanguageEvaluator.evaluateIfNecessary this)
+        expr
+        |> JsonUtil.illogicJsonOfSystemTextJson
+        |> jsonMapStrs (LanguageEvaluator.evaluateIfNecessary this)
+        |> JsonUtil.systemTextJsonOfIllogicJson
 
     override this.StopExecuting status = this.TerminationStatus <- Some status
 
@@ -277,12 +285,12 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
         ()
 
     override this.PushLoopContext(arg1: JsonNode seq) : LoopContext =
-        this.PushLoopContext(this.LoopContextStack, arg1)
+        this.PushLoopContext(this.LoopContextStack, Seq.map JsonUtil.illogicJsonOfSystemTextJson arg1)
 
     override this.PushArrayOperationContext(arg1: JsonNode seq) : LoopContext =
-        this.PushLoopContext(this.ArrayOperationContextStack, arg1)
+        this.PushLoopContext(this.ArrayOperationContextStack, Seq.map JsonUtil.illogicJsonOfSystemTextJson arg1)
 
-    member this.PushLoopContext(stack: Stack<LoopContextImpl>, values: JsonNode seq) =
+    member this.PushLoopContext(stack: Stack<LoopContextImpl>, values: JsonTree seq) =
         let loopContext =
             new LoopContextImpl(List.ofSeq values, this.PopAndCompareLoopContext stack)
 

@@ -1,97 +1,110 @@
 module IllogicApps.Simulator.BuiltinCondition
 
-open System
-open System.Text.Json
-open System.Text.Json.Nodes
-open Helpers
+open IllogicApps.Json
 
-let private toNode (a: 'a) : JsonNode =
-    match box a with
-    | :? JsonArray as arr -> arr
-    | :? JsonObject as obj -> obj
-    | _ -> JsonValue.Create<'a>(a)
-
-let private twoArg (f: JsonNode -> JsonNode -> 'a) (args: JsonNode list) : JsonNode =
+let private twoArg (f: JsonTree -> JsonTree -> bool) (args: JsonTree list) : bool =
     match args with
-    | [ a; b ] -> f a b |> toNode
+    | [ a; b ] -> f a b
     | _ -> failwithf "Expected 2 arguments, got %d" args.Length
 
 type private ComparisonResult =
-    | Equal
-    | Greater
-    | Less
-    | Incomparable
+    | Equal // The two values are equal
+    | UnorderedEqual // The two values are equal, but not ordered (i.e. you can't say that true is greater than false)
+    | Greater // The first value is greater than the second
+    | Less // The first value is less than the second
+    | SneakyIncomparable // NaN is involved (pretends to be ordered, but is actually incomparable)
+    | Incomparable // The two values are incomparable (i.e. not equal and not ordered)
+
+let private comparisonIsUnordered =
+    function
+    | UnorderedEqual
+    | Incomparable -> true
+    | _ -> false
 
 let private compareStrings a b =
-    match String.Compare(a, b) with
+    match System.String.CompareOrdinal(a, b) with
     | 0 -> Equal
     | n when n > 0 -> Greater
     | _ -> Less
 
-let private compareNumbers a b =
-    if Double.IsNaN(a) || Double.IsNaN(b) then Incomparable
-    elif a = b then Equal
+let private compareIntegers a b =
+    if a = b then Equal
     elif a > b then Greater
     else Less
 
-let private compareValues (a: JsonNode) (b: JsonNode) : ComparisonResult =
-    if a = null && b = null then Equal
-    elif a = null || b = null then Incomparable
+let private compareFloats a b =
+    if System.Double.IsNaN(a) || System.Double.IsNaN(b) then
+        SneakyIncomparable
+    elif a = b then
+        Equal
+    elif a > b then
+        Greater
     else
-        let ka = a.GetValueKind()
-        let kb = b.GetValueKind()
+        Less
 
-        if ka = kb then
-            match ka with
-            | JsonValueKind.String -> compareStrings (a.GetValue<string>()) (b.GetValue<string>())
-            | JsonValueKind.Number -> compareNumbers (a.GetValue<float>()) (b.GetValue<float>())
-            | JsonValueKind.Array -> Incomparable // TODO is this how it works?
-            | JsonValueKind.Object -> Incomparable
-            | JsonValueKind.Null
-            | JsonValueKind.False
-            | JsonValueKind.True -> Equal
-            | _ -> failwith "Unknown enum value"
-        else
-            match ka, kb with
-            | JsonValueKind.String, JsonValueKind.Number -> compareStrings (a.ToString()) (b.ToString()) // TODO does this really coerce?
-            | JsonValueKind.Number, JsonValueKind.String -> compareStrings (a.ToString()) (b.ToString())
-            | _ -> Incomparable
+let private compareDecimals a b =
+    if a = b then Equal
+    elif a > b then Greater
+    else Less
 
-let private checkComparison results a b =
-    List.contains (compareValues a b) results
+let private compareValues (a: JsonTree) (b: JsonTree) : ComparisonResult =
+    match a, b with
+    | String a, String b -> compareStrings a b
+    | Boolean a, Boolean b when a = b -> UnorderedEqual
+    | String s, Boolean _ when s = Conversions.stringOfJson b -> UnorderedEqual
+    | Boolean _, String s when s = Conversions.stringOfJson a -> UnorderedEqual
+    | Null, Null -> UnorderedEqual
+    | Conversions.NumbersAsInteger(a, b) -> compareIntegers a b
+    | Conversions.NumbersAsFloat(a, b) -> compareFloats a b
+    | Conversions.NumbersAsDecimal(a, b) -> compareDecimals a b
+    | _ -> Incomparable
 
-type LanguageFunction = JsonNode list -> JsonNode
+let private checkComparison strictOrdering results a b =
+    let comparison = compareValues a b
+
+    if strictOrdering && comparisonIsUnordered comparison then
+        failwithf "Expected %A to be strictly comparable to %A" a b
+
+    List.contains comparison results
+
+type LanguageCondition = JsonTree list -> bool
 
 let condContains =
     twoArg (fun a b ->
-        match a with
-        | :? JsonArray as arr -> arr.Contains(b)
-        | :? JsonValue as value when value.GetValueKind() = JsonValueKind.String ->
-            value.GetValue<string>().Contains(b.ToString())
-        | _ -> false)
+        match a, b with
+        | Array arr, _ -> arr.Contains(b)
+        | Object o, String k -> o.ContainsKey(k)
+        | String a, String b -> a.Contains(b)
+        | _ ->
+            failwithf
+                "Expected array (and element), object (and string key), or string (and substring), got %A and %A"
+                (JsonTree.getType a)
+                (JsonTree.getType b))
 
-let condEquals: LanguageFunction = twoArg (checkComparison [ Equal ])
-let condGreater: LanguageFunction = twoArg (checkComparison [ Greater ])
+let condEquals: LanguageCondition =
+    twoArg (checkComparison false [ Equal; UnorderedEqual ])
 
-let condGreaterOrEquals: LanguageFunction =
-    twoArg (checkComparison [ Greater; Equal ])
+let condGreater: LanguageCondition = twoArg (checkComparison true [ Greater ])
 
-let condLess: LanguageFunction = twoArg (checkComparison [ Less ])
-let condLessOrEquals: LanguageFunction = twoArg (checkComparison [ Less; Equal ])
+let condGreaterOrEquals: LanguageCondition =
+    twoArg (checkComparison true [ Greater; Equal ])
 
-let condStartsWith: LanguageFunction =
+let condLess: LanguageCondition = twoArg (checkComparison true [ Less ])
+
+let condLessOrEquals: LanguageCondition =
+    twoArg (checkComparison true [ Less; Equal ])
+
+let condStartsWith: LanguageCondition =
     twoArg (fun a b ->
-        let a = ensureString a
-        let b = ensureString b
+        let a = Conversions.ensureString a
+        let b = Conversions.ensureString b
         a.StartsWith(b))
 
-let condEndsWith: LanguageFunction =
+let condEndsWith: LanguageCondition =
     twoArg (fun a b ->
-        let a = ensureString a
-        let b = ensureString b
+        let a = Conversions.ensureString a
+        let b = Conversions.ensureString b
         a.EndsWith(b))
-
-type LanguageCondition = JsonNode list -> JsonNode
 
 let conditions: Map<string, LanguageCondition> =
     Map.ofList

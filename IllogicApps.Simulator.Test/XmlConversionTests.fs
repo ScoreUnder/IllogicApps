@@ -1,12 +1,9 @@
 module IllogicApps.Simulator.Test.XmlConversionTests
 
-open System.Text.Json
-open System.Text.Json.Nodes
 open System.Xml
 open NUnit.Framework
-open Swensen.Unquote
 
-open IllogicApps.Core.JsonUtil
+open IllogicApps.Json
 open TestSimUtil
 
 [<TestCase("@{json(xml('<root>a<!--b-->c<!--d--><e><![CDATA[Testing]]><!-- one big comment --></e>f</root>'))}",
@@ -17,7 +14,7 @@ open TestSimUtil
 [<TestCase("@{json(xml('<?xml version=\"1.0\" encoding=\"ascii\"?><root/>'))}",
            "{\"?xml\":{\"@version\":\"1.0\",\"@encoding\":\"ascii\"},\"root\":null}")>]
 let StringifiedJsonOfXmlTest expr expected =
-    testOrTrace expr <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
+    testOrTrace expr <@ String expected = testExpressionEvaluation expr @>
 
 
 [<TestCase("@json(xml('<root>a<!--b-->c<!--d--><e><![CDATA[Testing]]><!-- one big comment --></e>f</root>'))",
@@ -33,8 +30,7 @@ let StringifiedJsonOfXmlTest expr expected =
 [<TestCase("@json(xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow<break/>wowow</innermost></node2></root>'))",
            "{ \"root\": { \"node1\": { \"@attr\": \"x\" }, \"node2\": { \"@attr2\": \"y\", \"innermost\": { \"@innerattr\": \"o\\\"h\", \"#text\": [ \"wow\", \"wowow\" ], \"break\": null } } } }")>]
 let JsonOfXmlTest expr (expected: string) =
-    let expected = JsonSerializer.Deserialize<JsonNode>(expected)
-    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
 
 [<TestCase("@{xml('<root/>')}", "<root />")>]
 [<TestCase("@{xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow</innermost></node2></root>')}",
@@ -69,7 +65,7 @@ let JsonOfXmlTest expr (expected: string) =
            "<?xml version=\"1.0\" encoding=\"ucs-2le\"?><root />")>]
 [<TestCase("@{xml('<root>&#65;</root>')}", "<root>A</root>")>]
 let StringifiedXmlTest expr expected =
-    testOrTrace expr <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
+    testOrTrace expr <@ String expected = testExpressionEvaluation expr @>
 
 [<TestCase("@{xml(json('{\"ro:ot\": \"text\"}'))}", "<ot>text</ot>")>]
 [<TestCase("@{xml(json('{\"ro>ot\": \"text\"}'))}", "<ro_x003E_ot>text</ro_x003E_ot>")>]
@@ -88,7 +84,7 @@ let StringifiedXmlTest expr expected =
 [<TestCase("@{xml(json('{\"root\": {\"#comment\": [\"-->test\"]}}'))}",
            "<root><_x0023_comment>--&gt;test</_x0023_comment></root>")>]
 let StringifiedXmlOfJsonTest expr expected =
-    testOrTrace expr <@ expected.Equals(testExpressionEvaluation expr) @>
+    testOrTrace expr <@ String expected = testExpressionEvaluation expr @>
 
 [<TestCase("@xml('<root>a<!--b-->c<!--d--><e><![CDATA[Testing]]><!-- one big comment --></e>f</root>')",
            "{ \"$content-type\": \"application/xml;charset=utf-8\", \"$content\": \"PHJvb3Q+YTwhLS1iLS0+YzwhLS1kLS0+PGU+PCFbQ0RBVEFbVGVzdGluZ11dPjwhLS0gb25lIGJpZyBjb21tZW50IC0tPjwvZT5mPC9yb290Pg==\" }")>]
@@ -111,14 +107,12 @@ let StringifiedXmlOfJsonTest expr expected =
 [<TestCase("@xml('<?xml version=\"1.0\" encoding=\"martian\"?><root/>')",
            """{"$content-type":"application/xml;charset=utf-8","$content":"PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0ibWFydGlhbiI/Pjxyb290IC8+"}""")>]
 let ObjectOfXmlTest expr (expected: string) =
-    let expected = JsonSerializer.Deserialize<JsonNode>(expected)
-    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
 
 [<TestCase("@xml(json(xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow<break/>wowow</innermost></node2></root>')))",
            "{ \"$content-type\": \"application/xml;charset=utf-8\", \"$content\": \"PHJvb3Q+PG5vZGUxIGF0dHI9IngiIC8+PG5vZGUyIGF0dHIyPSJ5Ij48aW5uZXJtb3N0IGlubmVyYXR0cj0ibyZxdW90O2giPndvd3dvd293PGJyZWFrIC8+PC9pbm5lcm1vc3Q+PC9ub2RlMj48L3Jvb3Q+\" }")>]
 let XmlJsonRoundTrippingTest expr (expected: string) =
-    let expected = JsonSerializer.Deserialize<JsonNode>(expected)
-    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
 
 [<TestCase("@{xml(json(xml('<root/>')))}", "<root />")>]
 [<TestCase("@{xml(json(xml('<root><node1 attr=\"x\"/><node2 attr2=\"y\"><innermost innerattr=\"o&quot;h\">wow</innermost></node2></root>')))}",
@@ -145,7 +139,7 @@ let XmlJsonRoundTrippingTest expr (expected: string) =
 [<TestCase("@{xml(json(xml('<root><![CDATA[<!--]]>testing<![CDATA[-->]]></root>')))}",
            "<root><![CDATA[<!--]]><![CDATA[-->]]>testing</root>")>]
 let StringifiedXmlJsonRoundTrippingTest expr expected =
-    testOrTrace expr <@ expected.Equals(jsonToObject (testExpressionEvaluation expr)) @>
+    testOrTrace expr <@ String expected = testExpressionEvaluation expr @>
 
 [<Test>]
 let XmlOfXmlTest () =
@@ -154,18 +148,17 @@ let XmlOfXmlTest () =
     testOrTrace
         expr
         <@
-            jsonsEqual
-                (jsonOf
-                    [ "$content-type", jsonOf "application/xml;charset=utf-8"
-                      "$content", jsonOf "PHJvb3QgLz4=" ])
-                (testExpressionEvaluation expr)
+            Object(
+                Map.ofSeq
+                    [ "$content-type", String "application/xml;charset=utf-8"
+                      "$content", String "PHJvb3QgLz4=" ]
+            ) = (testExpressionEvaluation expr)
         @>
 
 [<TestCase("@xml(json('{\"cow\":\"moo\"}'))",
            """{"$content-type":"application/xml;charset=utf-8","$content":"PGNvdz5tb288L2Nvdz4="}""")>]
 let XmlOfJsonTest expr (expected: string) =
-    let expected = JsonSerializer.Deserialize<JsonNode>(expected)
-    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
 
 [<TestCase("@{xml(json('{\"root\": {\"#cdata-section\": \"]]>test\"}}'))}")>]
 let InvalidXmlOfJsonTest expr =
@@ -177,8 +170,7 @@ let InvalidXmlOfJsonTest expr =
 [<TestCase("""@json(xml(json('{"animals":{"cow":"moo","pig":"oink","birds":[{"call":"cheep"},{"call":"tweet"},{"call":"quack"},{"call":"caw"}]}}')))""",
            """{"animals":{"cow":"moo","pig":"oink","birds":[{"call":"cheep"},{"call":"tweet"},{"call":"quack"},{"call":"caw"}]}}""")>]
 let JsonXmlRoundTrippingTest expr (expected: string) =
-    let expected = JsonSerializer.Deserialize<JsonNode>(expected)
-    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
 
 [<Test>]
 let JsonToXmlEmptyObjectIsEmptyDocumentTest () =
@@ -187,11 +179,11 @@ let JsonToXmlEmptyObjectIsEmptyDocumentTest () =
     testOrTrace
         expr
         <@
-            jsonsEqual
-                (jsonOf
-                    [ "$content-type", jsonOf "application/xml;charset=utf-8"
-                      "$content", jsonOf "" ])
-                (testExpressionEvaluation expr)
+            Object(
+                Map.ofSeq
+                    [ "$content-type", String "application/xml;charset=utf-8"
+                      "$content", String "" ]
+            ) = (testExpressionEvaluation expr)
         @>
 
 [<TestCase("""@json(xml(json('{}')))""")>]
@@ -224,8 +216,7 @@ let InvalidXmlEncodingTest expr =
 
 [<TestCase("@xml(binary('<'))", """{"$content-type":"application/xml;charset=utf-8","$content":"PA=="}""")>]
 let AllowInvalidXmlOfBinaryTest expr (expected: string) =
-    let expected = JsonSerializer.Deserialize<JsonNode>(expected)
-    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
 
 [<TestCase("@json(xml(binary('<')))")>]
 let InvalidXmlOfBinaryToJsonTest expr =
@@ -233,11 +224,9 @@ let InvalidXmlOfBinaryToJsonTest expr =
 
 [<TestCase("@binary(xml('<root/>'))", """{"$content-type":"application/octet-stream","$content":"PHJvb3QgLz4="}""")>]
 let BinaryOfXmlTest expr (expected: string) =
-    let expected = JsonSerializer.Deserialize<JsonNode>(expected)
-    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
 
 [<TestCase("@xml(json('{\"$content\":\"dGVzdA==\",\"$content-type\":\"text/plain;charset=ascii\"}'))",
            """{"$content-type":"application/xml;charset=utf-8","$content":"dGVzdA=="}""")>]
 let XmlOfBinaryIgnoresContentTypeTest expr (expected: string) =
-    let expected = JsonSerializer.Deserialize<JsonNode>(expected)
-    testOrTrace expr <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>

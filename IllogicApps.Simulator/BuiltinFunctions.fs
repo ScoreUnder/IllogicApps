@@ -1,22 +1,20 @@
 module IllogicApps.Simulator.BuiltinFunctions
 
 open System
-open System.Collections.Generic
+open System.Collections.Immutable
 open System.Globalization
 open System.IO
 open System.Net
 open System.Runtime.Serialization.Json
 open System.Text
-open System.Text.Json
-open System.Text.Json.Nodes
 open System.Xml
 open System.Xml.Linq
-open IllogicApps.Core
-open Helpers
-open JsonUtil
 
-type LanguageFunction = SimulatorContext -> JsonNode list -> JsonNode
-type Args = JsonNode list
+open IllogicApps.Core
+open IllogicApps.Json
+
+type LanguageFunction = SimulatorContext -> JsonTree list -> JsonTree
+type Args = JsonTree list
 
 module ContentType =
     let Binary = "application/octet-stream"
@@ -74,32 +72,24 @@ let toBase64 (str: string) =
 let fromBase64 (str: string) =
     str |> Convert.FromBase64String |> Encoding.UTF8.GetString
 
-let base64ToBlob (contentType: string) (base64: string) : JsonNode =
-    new JsonObject(
-        [ new KeyValuePair<string, JsonNode>("$content-type", JsonValue.Create(contentType))
-          new KeyValuePair<string, JsonNode>("$content", JsonValue.Create(base64)) ]
-    )
+let base64ToBlob (contentType: string) (base64: string) : JsonTree =
+    Object(Map.ofList [ "$content-type", String contentType; "$content", String base64 ])
 
-let strToBase64Blob (contentType: string) (str: string) : JsonNode =
+let strToBase64Blob (contentType: string) (str: string) : JsonTree =
     str |> toBase64 |> base64ToBlob contentType
 
-let toBinary (str: string) : JsonNode =
+let toBinary (str: string) : JsonTree =
     str |> strToBase64Blob ContentType.Binary
 
-let (|Base64StringBlob|_|) (node: JsonNode) : (string * byte array) option =
-    if node = null then
-        None
-    else
-        match node.GetValueKind() with
-        | JsonValueKind.Object ->
-            let node = node.AsObject()
-
-            if node.ContainsKey("$content-type") && node.ContainsKey("$content") then
-                let content = node["$content"].ToString() |> Convert.FromBase64String
-                Some(node["$content-type"].ToString(), content)
-            else
-                None
-        | _ -> None
+let (|Base64StringBlob|_|) (node: JsonTree) : (string * byte array) option =
+    match node with
+    | Object node ->
+        if node.ContainsKey("$content-type") && node.ContainsKey("$content") then
+            let content = node["$content"] |> Conversions.rawStringOfJson |> Convert.FromBase64String
+            Some(Conversions.rawStringOfJson node["$content-type"], content)
+        else
+            None
+    | _ -> None
 
 let decodeByContentType (contentType: string) (content: byte array) =
     contentType.Split(";")
@@ -112,38 +102,25 @@ let decodeByContentType (contentType: string) (content: byte array) =
     |> Option.defaultValue Encoding.UTF8
     |> _.GetString(content)
 
-let (|StringOrEncodedString|_|) (node: JsonNode) : string option =
+let (|StringOrEncodedString|_|) (node: JsonTree) : string option =
     match node with
-    | null -> None
     | Base64StringBlob(contentType, content) -> Some(decodeByContentType contentType content)
-    | _ ->
-        match node.GetValueKind() with
-        | JsonValueKind.String -> Some(node.GetValue<string>())
-        | _ -> None
+    | String s -> Some s
+    | _ -> None
 
-let objectToString (node: JsonNode) : string =
+let objectToString (node: JsonTree) : string =
     match node with
-    | null -> ""
     | Base64StringBlob(contentType, content) -> decodeByContentType contentType content
-    | n ->
-        match n.GetValueKind() with
-        | JsonValueKind.True -> "True"
-        | JsonValueKind.False -> "False"
-        | JsonValueKind.Null -> ""
-        | JsonValueKind.Array
-        | JsonValueKind.Object -> n.ToJsonString(sensibleSerialiserOptions)
-        | _ -> n.ToString()
+    | Boolean true -> "True"
+    | Boolean false -> "False"
+    | Null -> ""
+    | _ -> Conversions.rawStringOfJson node
 
-let (|ContentTypedAny|_|) (node: JsonNode) =
+let (|ContentTypedAny|_|) (node: JsonTree) =
     match node with
-    | null -> None
     | Base64StringBlob(contentType, content) -> Some(contentType, content)
-    | n when n.GetValueKind() = JsonValueKind.Null -> None
-    | n when n.GetValueKind() = JsonValueKind.String ->
-        Some(
-            ContentType.Charset.set ContentType.Text ContentType.Charset.Utf8,
-            Encoding.UTF8.GetBytes(n.GetValue<string>())
-        )
+    | Null -> None
+    | String s -> Some(ContentType.Charset.set ContentType.Text ContentType.Charset.Utf8, Encoding.UTF8.GetBytes s)
     | n ->
         Some(
             ContentType.Charset.set ContentType.Json ContentType.Charset.Utf8,
@@ -167,7 +144,7 @@ type Arithmetic2Type =
     | Min
     | Max
 
-let inline performArithmeticOp< ^a
+let inline performArithmeticOnNumber< ^a
     when ^a: (static member (+): ^a * ^a -> ^a)
     and ^a: (static member (-): ^a * ^a -> ^a)
     and ^a: (static member (*): ^a * ^a -> ^a)
@@ -188,60 +165,45 @@ let inline performArithmeticOp< ^a
     | Min -> (^a: (static member Min: ^a * ^a -> ^a) (a, b))
     | Max -> (^a: (static member Max: ^a * ^a -> ^a) (a, b))
 
-let arithmetic2 op num1 num2 =
-    promoteNums (jsonNumberToSubtype num1) (jsonNumberToSubtype num2)
-    |> function
-        | Integer2(a, b) -> performArithmeticOp op a b |> JsonValue.Create
-        | Float2(a, b) -> performArithmeticOp op a b |> JsonValue.Create
-        | Decimal2(a, b) -> performArithmeticOp op a b |> JsonValue.Create
+let performArithmeticOnJson op num1 num2 =
+    match num1, num2 with
+    | Conversions.NumbersAsDecimal(a, b) -> Decimal(performArithmeticOnNumber op a b)
+    | Conversions.NumbersAsFloat(a, b) -> Float(performArithmeticOnNumber op a b)
+    | Conversions.NumbersAsInteger(a, b) -> Integer(performArithmeticOnNumber op a b)
+    | _ -> failwithf "Expected numbers, got %A and %A" (JsonTree.getType num1) (JsonTree.getType num2)
 
-let arithmetic2Function (op: Arithmetic2Type) (args: Args) : JsonNode =
+let arithmetic2Function (op: Arithmetic2Type) (args: Args) : JsonTree =
     match args with
-    | [ a; b ] ->
-        match a.GetValueKind(), b.GetValueKind() with
-        | JsonValueKind.Number, JsonValueKind.Number -> arithmetic2 op a b
-        | kindA, kindB -> failwithf "Expected numbers, got %A and %A" kindA kindB
+    | [ a; b ] -> performArithmeticOnJson op a b
     | _ -> failwith "Expected 2 arguments"
 
-let arrayReduceArithmetic2 op (args: Args) : JsonNode =
+let arrayReduceArithmetic2 op (args: Args) : JsonTree =
     let aux (args: Args) =
         match args with
         | [] -> failwith "Max of empty list"
         | [ a ] -> a
-        | first :: rest ->
-            rest
-            |> List.fold
-                (fun acc v ->
-                    match promoteNums acc (jsonNumberToSubtype v) with
-                    | Integer2(a, b) -> Integer(performArithmeticOp op a b)
-                    | Float2(a, b) -> Float(performArithmeticOp op a b)
-                    | Decimal2(a, b) -> Decimal(performArithmeticOp op a b))
-                (jsonNumberToSubtype first)
-            |> numberSubtypeToJson
+        | first :: rest -> List.fold (performArithmeticOnJson op) first rest
 
     match args with
-    | [ a ] when a.GetValueKind() = JsonValueKind.Array -> aux (Seq.toList (a.AsArray()))
+    | [ Array a ] -> aux (Seq.toList a)
     | _ :: _ :: _ -> aux args
     | _ -> failwith "Expected 2 or more arguments, or an array"
 
 let myRand = lazy (Random())
 
-let dateTimeFunc2f (f: DateTimeOffset -> int -> DateTimeOffset) (args: Args) : JsonNode =
-    let dateTimeFunc2f' (a: JsonNode) (b: JsonNode) (fmt: string) =
-        match a.GetValueKind(), b.GetValueKind() with
-        | JsonValueKind.String, JsonValueKind.String ->
-            let ts1 = a.GetValue<string>()
-            let val2 = b.GetValue<int>()
-
+let dateTimeFunc2f (f: DateTimeOffset -> int -> DateTimeOffset) (args: Args) : JsonTree =
+    let dateTimeFunc2f' (a: JsonTree) (b: JsonTree) (fmt: string) =
+        match a, b with
+        | String ts1, Integer val2 ->
             let dt1 = DateTimeOffset.Parse(ts1)
-            let result = f dt1 val2
+            let result = f dt1 (int val2)
 
-            JsonValue.Create(result.ToString(fmt))
-        | kindA, kindB -> failwithf "Expected string and integer, got %A and %A" kindA kindB
+            String(result.ToString(fmt))
+        | _ -> failwithf "Expected string and integer, got %A and %A" (JsonTree.getType a) (JsonTree.getType b)
 
     match args with
     | [ ts1; ts2 ] -> dateTimeFunc2f' ts1 ts2 "o"
-    | [ ts1; ts2; fmt ] -> dateTimeFunc2f' ts1 ts2 (fmt |> ensureString)
+    | [ ts1; ts2; fmt ] -> dateTimeFunc2f' ts1 ts2 (fmt |> Conversions.ensureString)
     | _ -> failwith "Expected 2 or 3 arguments"
 
 let parseDataUri (str: string) isForString =
@@ -281,99 +243,89 @@ let parseDataUri (str: string) isForString =
 
 // String functions
 
-let f_concat _ (args: Args) : JsonNode =
+let f_concat _ (args: Args) : JsonTree =
     expectArgsAtLeast 1 args
 
-    args
-    |> List.map objectToString
-    |> String.concat ""
-    |> fun v -> JsonValue.Create(v)
+    args |> List.map objectToString |> String.concat "" |> String
 
-let f_startsWith _ (args: Args) : JsonNode =
+let f_startsWith _ (args: Args) : JsonTree =
     match args with
     | [ a; b ] ->
-        match a.GetValueKind(), b.GetValueKind() with
-        | JsonValueKind.String, JsonValueKind.String ->
-            let a = a.GetValue<string>()
-            let b = b.GetValue<string>()
-            JsonValue.Create(a.StartsWith(b))
+        match a, b with
+        | String a, String b -> Boolean(a.StartsWith(b))
         | kindA, kindB -> failwithf "Expected strings, got %A and %A" kindA kindB
     | _ -> failwith "Expected 2 arguments"
 
 // Collection functions
 
-let f_item (sim: SimulatorContext) (args: Args) : JsonNode =
+let f_item (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 0 args
 
-    sim.ArrayOperationContext.Current.DeepClone()
+    sim.ArrayOperationContext.Current
 
 // Logical comparison functions
 
-let f_not _ (args: Args) : JsonNode =
+let f_not _ (args: Args) : JsonTree =
     expectArgs 1 args
     let value = List.head args
 
-    match value.GetValueKind() with
-    | JsonValueKind.False -> JsonValue.Create(true)
-    | JsonValueKind.True -> JsonValue.Create(false)
+    match value with
+    | Boolean b -> Boolean(not b)
     | kind -> failwithf "Expected boolean, got %A" kind
 
 // Conversion functions
 
-let f_array _ (args: Args) : JsonNode =
+let f_array _ (args: Args) : JsonTree =
     expectArgs 1 args
 
-    safeClone <| List.head args
+    Array(ImmutableArray.CreateRange(args))
 
-let f_base64 _ (args: Args) : JsonNode =
+let f_base64 _ (args: Args) : JsonTree =
     expectArgs 1 args
-    let str = ensureString <| List.head args
+    let str = Conversions.ensureString <| List.head args
 
-    JsonValue.Create(toBase64 str)
+    String(toBase64 str)
 
-let f_base64ToBinary _ (args: Args) : JsonNode =
+let f_base64ToBinary _ (args: Args) : JsonTree =
     expectArgs 1 args
-    let str = ensureString <| List.head args
+    let str = Conversions.ensureString <| List.head args
 
     // Try decoding the base64 string to ensure it's valid
     Convert.FromBase64String str |> ignore
 
     str |> base64ToBlob ContentType.Binary
 
-let f_base64ToString _ (args: Args) : JsonNode =
+let f_base64ToString _ (args: Args) : JsonTree =
     expectArgs 1 args
-    let str = ensureString <| List.head args
+    let str = Conversions.ensureString <| List.head args
 
-    str |> fromBase64 |> (fun v -> JsonValue.Create(v))
+    str |> fromBase64 |> String
 
-let f_binary _ (args: Args) : JsonNode =
+let f_binary _ (args: Args) : JsonTree =
     match args with
-    | [ a ] ->
-        if a = null || a.GetValueKind() = JsonValueKind.Null then
-            failwith "Expected non-null argument"
-
-        toBinary (objectToString a)
+    | [ Null ] -> failwith "Expected non-null argument"
+    | [ a ] -> toBinary (objectToString a)
     | _ -> failwith "Expected 1 argument"
 
-let f_createArray _ (args: Args) : JsonNode =
+let f_createArray _ (args: Args) : JsonTree =
     expectArgsAtLeast 1 args
 
-    args |> Seq.map safeClone |> Seq.toArray |> JsonArray :> JsonNode
+    args |> ImmutableArray.CreateRange |> Array
 
 
-let f_dataUri _ (args: Args) : JsonNode =
+let f_dataUri _ (args: Args) : JsonTree =
     expectArgs 1 args
 
     match List.head args with
     | ContentTypedAny(contentType, content) ->
         let base64 = Convert.ToBase64String(content)
         let dataUri = $"data:{contentType};base64,{base64}"
-        JsonValue.Create(dataUri)
+        String dataUri
     | _ -> failwith "Cannot convert to data URI"
 
-let f_dataUriToBinary _ (args: Args) : JsonNode =
+let f_dataUriToBinary _ (args: Args) : JsonTree =
     expectArgs 1 args
-    let str = ensureString <| List.head args
+    let str = Conversions.ensureString <| List.head args
     let contentType, text = parseDataUri str false
 
     contentType.Split(";")
@@ -386,55 +338,55 @@ let f_dataUriToBinary _ (args: Args) : JsonNode =
 
     base64ToBlob contentType text
 
-let f_dataUriToString _ (args: Args) : JsonNode =
+let f_dataUriToString _ (args: Args) : JsonTree =
     expectArgs 1 args
-    let str = ensureString <| List.head args
+    let str = Conversions.ensureString <| List.head args
     let contentType, text = parseDataUri str true
 
     if ContentType.Charset.getBuggy contentType |> Option.exists ((<>) Encoding.UTF8) then
         failwith "dataUriToString only supports utf-8 encoded text"
 
-    JsonValue.Create(fromBase64 text)
+    String(fromBase64 text)
 
-let f_decimal _ (args: Args) : JsonNode =
+let f_decimal _ (args: Args) : JsonTree =
     expectArgs 1 args
-    let str = List.head args |> _.ToString()
+    let str = List.head args |> Conversions.rawStringOfJson
 
     match System.Decimal.TryParse(str, NumberStyles.Number, CultureInfo.InvariantCulture) with
-    | true, result -> JsonValue.Create(result)
+    | true, result -> Decimal result
     | _ -> failwithf "Could not parse %s as decimal" str
 
-let f_float _ (args: Args) : JsonNode =
+let f_float _ (args: Args) : JsonTree =
     let str, culture =
         match args with
         | [ s ] -> s, CultureInfo.DefaultThreadCurrentCulture
-        | [ s; c ] -> s, CultureInfo.GetCultureInfo(c.GetValue<string>())
+        | [ s; c ] -> s, CultureInfo.GetCultureInfo(Conversions.ensureString c)
         | _ -> failwithf "Expected 1 or 2 args, got %d" (List.length args)
 
-    let str = str.ToString()
+    let str = Conversions.rawStringOfJson str
 
     match Double.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, culture) with
-    | true, result -> JsonValue.Create(result)
+    | true, result -> Float result
     | _ -> failwithf "Could not parse %s as float" str
 
-let f_int (sim: SimulatorContext) (args: Args) : JsonNode =
+let f_int (sim: SimulatorContext) (args: Args) : JsonTree =
     let str, culture =
         match args with
         | [ s ] -> s, CultureInfo.DefaultThreadCurrentCulture
-        | [ s; c ] -> s, CultureInfo.GetCultureInfo(c.GetValue<string>())
+        | [ s; c ] -> s, CultureInfo.GetCultureInfo(Conversions.ensureString c)
         | _ -> failwithf "Expected 1 or 2 args, got %d" (List.length args)
 
-    let str = str.ToString()
+    let str = Conversions.rawStringOfJson str
 
     if sim.IsBugForBugAccurate then
         match Double.TryParse(str, NumberStyles.Float ||| NumberStyles.AllowThousands, culture) with
         | true, result ->
             if Double.IsNaN result then
-                JsonValue.Create(int64 result)
+                Integer(int64 result)
             elif not (Double.IsInteger result) then
                 failwithf "Could not parse %s as int" str
             else
-                JsonValue.Create(Operators.Checked.int64 result)
+                Integer(Operators.Checked.int64 result)
         | _ -> failwithf "Could not parse %s as int" str
     else
         match
@@ -446,22 +398,22 @@ let f_int (sim: SimulatorContext) (args: Args) : JsonNode =
                 CultureInfo.InvariantCulture
             )
         with
-        | true, result -> JsonValue.Create(result)
+        | true, result -> Integer result
         | _ -> failwithf "Could not parse %s as int" str
 
-let f_isFloat _ (args: Args) : JsonNode =
+let f_isFloat _ (args: Args) : JsonTree =
     let str, culture =
         match args with
         | [ s ] -> s, CultureInfo.InvariantCulture
-        | [ s; c ] -> s, CultureInfo.GetCultureInfo(c.GetValue<string>())
+        | [ s; c ] -> s, CultureInfo.GetCultureInfo(Conversions.ensureString c)
         | _ -> failwithf "Expected 1 or 2 args, got %d" (List.length args)
 
-    let str = ensureString str
+    let str = Conversions.ensureString str
 
     match Double.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, culture) with
-    | v, _ -> JsonValue.Create v
+    | v, _ -> Boolean v
 
-let f_json _ (args: Args) : JsonNode =
+let f_json _ (args: Args) : JsonTree =
     expectArgs 1 args
 
     let str =
@@ -483,20 +435,19 @@ let f_json _ (args: Args) : JsonNode =
                 content |> decodeByContentType contentType
             else
                 failwithf "Unknown content type %s" contentType
-        | arg -> ensureString arg
+        | arg -> Conversions.ensureString arg
 
-    JsonNode.Parse(str)
+    Parser.parse str
 
-let f_string _ (args: Args) : JsonNode =
+let f_string _ (args: Args) : JsonTree =
     expectArgs 1 args
-    JsonValue.Create(args |> List.head |> objectToString)
+    String(args |> List.head |> objectToString)
 
-let f_xml _ (args: Args) : JsonNode =
+let f_xml _ (args: Args) : JsonTree =
     expectArgs 1 args
 
     match List.head args with
-    | v when v.GetValueKind() = JsonValueKind.String ->
-        let str = v.GetValue<string>()
+    | String str ->
         let doc = XmlDocument()
         doc.LoadXml(str)
         doc.OuterXml |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
@@ -504,8 +455,8 @@ let f_xml _ (args: Args) : JsonNode =
         content
         |> Convert.ToBase64String
         |> base64ToBlob $"{ContentType.Xml};charset=utf-8"
-    | v when v.GetValueKind() = JsonValueKind.Object ->
-        let jsonBytes = Encoding.UTF8.GetBytes(v.ToJsonString())
+    | Object _ as v ->
+        let jsonBytes = Encoding.UTF8.GetBytes(Conversions.stringOfJson v)
 
         let reader =
             JsonReaderWriterFactory.CreateJsonReader(jsonBytes, new XmlDictionaryReaderQuotas())
@@ -514,61 +465,51 @@ let f_xml _ (args: Args) : JsonNode =
 
         xml.ToString(SaveOptions.DisableFormatting)
         |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
-    | v -> failwithf "Expected string or object, got %A" (v.GetValueKind())
+    | v -> failwithf "Expected string or object, got %A" (JsonTree.getType v)
 
 // Math functions
 
-let f_add _ (args: Args) : JsonNode = arithmetic2Function Add args
-let f_div _ (args: Args) : JsonNode = arithmetic2Function Divide args
-let f_max _ (args: Args) : JsonNode = arrayReduceArithmetic2 Max args
-let f_min _ (args: Args) : JsonNode = arrayReduceArithmetic2 Min args
-let f_mod _ (args: Args) : JsonNode = arithmetic2Function Modulo args
-let f_mul _ (args: Args) : JsonNode = arithmetic2Function Multiply args
+let f_add _ (args: Args) : JsonTree = arithmetic2Function Add args
+let f_div _ (args: Args) : JsonTree = arithmetic2Function Divide args
+let f_max _ (args: Args) : JsonTree = arrayReduceArithmetic2 Max args
+let f_min _ (args: Args) : JsonTree = arrayReduceArithmetic2 Min args
+let f_mod _ (args: Args) : JsonTree = arithmetic2Function Modulo args
+let f_mul _ (args: Args) : JsonTree = arithmetic2Function Multiply args
 
-let f_rand _ (args: Args) : JsonNode =
+let f_rand _ (args: Args) : JsonTree =
+    expectArgs 2 args
+
     match args with
-    | [ a; b ] ->
-        match a.GetValueKind(), b.GetValueKind() with
-        | JsonValueKind.Number, JsonValueKind.Number ->
-            let a = a.GetValue<int>()
-            let b = b.GetValue<int>()
-
-            let result = a + myRand.Force().Next(b - a)
-            JsonValue.Create(result)
-        | kindA, kindB -> failwithf "Expected numbers, got %A and %A" kindA kindB
+    | [ Integer a; Integer b ] ->
+        let result = a + int64 (myRand.Force().Next(int32 (b - a)))
+        Integer result
+    | [ a; b ] -> failwithf "Expected numbers, got %A and %A" (JsonTree.getType a) (JsonTree.getType b)
     | _ -> failwith "Expected 2 arguments"
 
-let f_range _ (args: Args) : JsonNode =
+let f_range _ (args: Args) : JsonTree =
     match args with
-    | [ a; b ] ->
-        match a.GetValueKind(), b.GetValueKind() with
-        | JsonValueKind.Number, JsonValueKind.Number ->
-            let a = a.GetValue<int>()
-            let b = b.GetValue<int>()
-
-            Array.init b (fun v -> JsonValue.Create(v + a): JsonNode)
-            |> fun a -> new JsonArray(a)
-        | kindA, kindB -> failwithf "Expected numbers, got %A and %A" kindA kindB
+    | [ Integer a; Integer b ] ->
+        Seq.init (int b) (fun v -> Integer(int64 v + a))
+        |> ImmutableArray.CreateRange
+        |> Array
+    | [ a; b ] -> failwithf "Expected numbers, got %A and %A" (JsonTree.getType a) (JsonTree.getType b)
     | _ -> failwith "Expected 2 arguments"
 
-let f_sub _ (args: Args) : JsonNode = arithmetic2Function Subtract args
+let f_sub _ (args: Args) : JsonTree = arithmetic2Function Subtract args
 
 // Date and time functions
 
-let f_addDays _ (args: Args) : JsonNode = dateTimeFunc2f _.AddDays args
-let f_addHours _ (args: Args) : JsonNode = dateTimeFunc2f _.AddHours args
-let f_addMinutes _ (args: Args) : JsonNode = dateTimeFunc2f _.AddMinutes args
-let f_addSeconds _ (args: Args) : JsonNode = dateTimeFunc2f _.AddSeconds args
+let f_addDays _ (args: Args) : JsonTree = dateTimeFunc2f _.AddDays args
+let f_addHours _ (args: Args) : JsonTree = dateTimeFunc2f _.AddHours args
+let f_addMinutes _ (args: Args) : JsonTree = dateTimeFunc2f _.AddMinutes args
+let f_addSeconds _ (args: Args) : JsonTree = dateTimeFunc2f _.AddSeconds args
 
-let f_addToTime _ (args: Args) : JsonNode =
-    let addToTime' (time: JsonNode) (interval: JsonNode) (unit: JsonNode) (format: string) =
-        match time.GetValueKind(), interval.GetValueKind(), unit.GetValueKind() with
-        | JsonValueKind.String, JsonValueKind.Number, JsonValueKind.String ->
-            let datetime = time.GetValue<string>()
-            let interval = interval.GetValue<int>()
-            let unit = unit.GetValue<string>()
-
+let f_addToTime _ (args: Args) : JsonTree =
+    let addToTime' (time: JsonTree) (interval: JsonTree) (unit: JsonTree) (format: string) =
+        match time, interval, unit with
+        | String datetime, Integer interval, String unit ->
             let datetime = DateTimeOffset.Parse(datetime)
+            let interval = int interval
 
             let result =
                 match unit.ToLowerInvariant() with
@@ -581,40 +522,41 @@ let f_addToTime _ (args: Args) : JsonNode =
                 | "year" -> datetime.AddYears(interval)
                 | _ -> failwithf "Unknown unit %s" unit
 
-            JsonValue.Create(result.ToString(format))
+            String(result.ToString(format))
         | kindA, kindB, kindC -> failwithf "Expected string, number, and string, got %A, %A, and %A" kindA kindB kindC
 
     match args with
     | [ ts1; ts2; unit ] -> addToTime' ts1 ts2 unit "o"
-    | [ ts1; ts2; unit; fmt ] -> addToTime' ts1 ts2 unit (fmt |> ensureString)
+    | [ ts1; ts2; unit; fmt ] -> addToTime' ts1 ts2 unit (fmt |> Conversions.ensureString)
     | _ -> failwith "Expected 3 or 4 arguments"
 
 // Workflow functions
 
-let f_outputs (sim: SimulatorContext) (args: Args) : JsonNode =
+let f_outputs (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 1 args
-    let actionName = ensureString <| List.head args
+    let actionName = Conversions.ensureString <| List.head args
 
     match sim.GetActionResult actionName with
-    | Some result -> result.Outputs |> Option.map _.DeepClone() |> optionToNull
+    | Some result -> result.Outputs
     | None -> failwithf "Action %s not found" actionName
 
-let f_trigger (sim: SimulatorContext) (args: Args) : JsonNode =
+let f_trigger (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 0 args
 
-    JsonValue.Create sim.TriggerResult
+    JsonTypeConversions.jsonOfCompletedTrigger sim.TriggerResult
 
-let f_variables (sim: SimulatorContext) (args: Args) : JsonNode =
+let f_variables (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 1 args
-    let variableName = ensureString <| List.head args
+    let variableName = Conversions.ensureString <| List.head args
 
     match sim.Variables.TryGetValue variableName with
-    | true, value -> value
+    | true, value -> JsonUtil.illogicJsonOfSystemTextJson value
     | _ -> failwithf "Variable %s not found" variableName
 
 // End function definitions
 
-let private conditionToFunction (condition: BuiltinCondition.LanguageCondition) : LanguageFunction = fun _ -> condition
+let private conditionToFunction (condition: BuiltinCondition.LanguageCondition) : LanguageFunction =
+    fun _ -> condition >> Boolean
 
 let functions: Map<string, LanguageFunction> =
     let conditions =

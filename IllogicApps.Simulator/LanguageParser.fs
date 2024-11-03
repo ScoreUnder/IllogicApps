@@ -1,10 +1,10 @@
 module IllogicApps.Simulator.LanguageParser
 
 open LanguageLexer
-open System.Text.Json.Nodes
+open IllogicApps.Json
 
 type Ast =
-    | Literal of JsonNode
+    | Literal of JsonTree
     | Call of string * Ast list
     | Member of Ast * Ast
     | ForgivingMember of Ast * Ast
@@ -16,9 +16,9 @@ type private TokenOrAst =
 
 let private (|LiteralIdentifier|_|) =
     function
-    | "null" -> Some(JsonValue.Create(null))
-    | "true" -> Some(JsonValue.Create(true))
-    | "false" -> Some(JsonValue.Create(false))
+    | "null" -> Some(Null)
+    | "true" -> Some(Boolean true)
+    | "false" -> Some(Boolean false)
     | _ -> None
 
 let private collapseCall (origStack: TokenOrAst list) =
@@ -35,10 +35,9 @@ let private collapseCall (origStack: TokenOrAst list) =
 
 let private collapseMemberAccess (stack: TokenOrAst list) =
     match stack with
-    | Token(Identifier mem) :: Token Dot :: Ast parent :: rest ->
-        Ast(Member(parent, Literal(JsonValue.Create(mem)))) :: rest
+    | Token(Identifier mem) :: Token Dot :: Ast parent :: rest -> Ast(Member(parent, Literal(String mem))) :: rest
     | Token(Identifier mem) :: Token Dot :: Token QuestionMark :: Ast parent :: rest ->
-        Ast(ForgivingMember(parent, Literal(JsonValue.Create(mem)))) :: rest
+        Ast(ForgivingMember(parent, Literal(String mem))) :: rest
     | _ -> stack
 
 let private collapseIndexAccess (stack: TokenOrAst list) =
@@ -74,9 +73,9 @@ let parse (items: (int * Token) list list) =
                     Token token :: stack
                     |> tryParse collapseMemberAccess
                     |> Option.defaultValue (Ast(Literal(v)) :: stack)
-                | String str -> Ast(Literal(JsonValue.Create(str))) :: stack
-                | Integer num -> Ast(Literal(JsonValue.Create(num))) :: stack
-                | Number num -> Ast(Literal(JsonValue.Create(num))) :: stack
+                | LanguageLexer.String str -> Ast(Literal(String str)) :: stack
+                | LanguageLexer.Integer num -> Ast(Literal(Integer num)) :: stack
+                | Number num -> Ast(Literal(Float num)) :: stack
                 | CloseParen -> Token token :: stack |> must collapseCall
                 | CloseBracket -> Token token :: stack |> must collapseIndexAccess
                 | _ -> Token token :: stack |> collapseMemberAccess
@@ -89,6 +88,7 @@ let parse (items: (int * Token) list list) =
             |> parse' rest
 
     let result = items |> List.map (fun items -> parse' items [])
+
     match result with
     | [ a ] -> a
     | l -> BuiltinConcat l

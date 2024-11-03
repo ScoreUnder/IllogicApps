@@ -85,5 +85,5 @@ let completedTriggerOfWorkflowRequest (req: WorkflowRequest) =
         status = Succeeded,
         startTime = stringOfDateTime DateTime.UtcNow,
         EndTime = stringOfDateTime DateTime.UtcNow,
-        Outputs = (if req.Body.GetValueKind() = JsonValueKind.Null then None else Some(req.Body.DeepClone()))
+        Outputs = JsonUtil.illogicJsonOfSystemTextJson req.Body
     )

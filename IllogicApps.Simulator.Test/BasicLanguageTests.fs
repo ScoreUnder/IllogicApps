@@ -1,12 +1,10 @@
 module IllogicApps.Simulator.Test.BasicLanguageTests
 
 open System
-open System.Text.Json
-open System.Text.Json.Nodes
 open NUnit.Framework
 open Swensen.Unquote
 
-open IllogicApps.Core.JsonUtil
+open IllogicApps.Json
 open TestSimUtil
 
 [<TestCase("str")>]
@@ -19,24 +17,19 @@ open TestSimUtil
 [<TestCase(" @,,}")>]
 [<TestCase("@")>]
 let StringPassthroughTest (str: string) =
-    test <@ jsonsEqual (jsonOf str) (testExpressionEvaluation str) @>
+    test <@ String str = testExpressionEvaluation str @>
 
 [<TestCase("@@unparsed!")>]
 [<TestCase("@@{still unparsed}")>]
 [<TestCase("@@,,}")>]
 let StringAtSignPassthroughTest (str: string) =
-    test <@ jsonsEqual (jsonOf str.[1..]) (testExpressionEvaluation str) @>
+    test <@ String str.[1..] = testExpressionEvaluation str @>
 
 [<TestCase("@null")>]
 [<TestCase("@true")>]
 [<TestCase("@false")>]
 let LiteralParsingTest (expr: string) =
-    let expected =
-        match JsonSerializer.Deserialize<JsonNode>(expr.[1..]) with
-        | null -> jsonNull
-        | v -> v
-
-    test <@ jsonsEqual expected (testExpressionEvaluation expr) @>
+    test <@ Parser.parse expr.[1..] = testExpressionEvaluation expr @>
 
 [<TestCase("@1", 1L)>]
 [<TestCase("@-51", -51L)>]
@@ -44,7 +37,7 @@ let LiteralParsingTest (expr: string) =
 [<TestCase("@3e1", 30L)>]
 [<TestCase("@+1.", 1L)>]
 let NumericIntegerParsingTest (expr: string) (expected: int64) =
-    test <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
+    test <@ Integer expected = testExpressionEvaluation expr @>
 
 [<TestCase("@0.5", 0.5)>]
 [<TestCase("@+.5", 0.5)>]
@@ -54,7 +47,7 @@ let NumericIntegerParsingTest (expr: string) (expected: int64) =
 [<TestCase("@0.9e+1", 9.0)>]
 [<TestCase("@3.2e-1", 0.32)>]
 let NumericDoubleParsingTest (expr: string) (expected: float) =
-    test <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
+    test <@ Float expected = testExpressionEvaluation expr @>
 
 
 [<TestCase("@{1}", "1")>]
@@ -63,7 +56,7 @@ let NumericDoubleParsingTest (expr: string) (expected: float) =
 [<TestCase("@{3e1}", "30")>]
 [<TestCase("@{+1.}", "1")>]
 let NumericIntegerInterpolationTest (expr: string) (expected: string) =
-    test <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
+    test <@ String expected = testExpressionEvaluation expr @>
 
 [<TestCase("@{0.5}", "0.5")>]
 [<TestCase("@{+.5}", "0.5")>]
@@ -73,12 +66,12 @@ let NumericIntegerInterpolationTest (expr: string) (expected: string) =
 [<TestCase("@{0.9e+1}", "9")>]
 [<TestCase("@{3.2e-1}", "0.32")>]
 let NumericDoubleInterpolationTest (expr: string) (expected: string) =
-    test <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
+    test <@ String expected = testExpressionEvaluation expr @>
 
 [<TestCase("@'test'", "test")>]
 [<TestCase("@'don''t worry'", "don't worry")>]
 let StringParsingTest (expr: string) (expected: string) =
-    test <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
+    test <@ String expected = testExpressionEvaluation expr @>
 
 [<TestCase("@{'test'}", "test")>]
 [<TestCase("@{'don''t worry'}", "don't worry")>]
@@ -86,7 +79,7 @@ let StringParsingTest (expr: string) (expected: string) =
 [<TestCase("@{'h'}@{'e'}@{'l'}@{'l'}@{'o'}", "hello")>]
 [<TestCase("@{'hello'} @{'world'}", "hello world")>]
 let InterpolatedStringParsingTest (expr: string) (expected: string) =
-    test <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
+    test <@ String expected = testExpressionEvaluation expr @>
 
 [<TestCase("@'a','b','c'")>]
 [<TestCase("@{'a','b','c'}")>]
@@ -122,4 +115,4 @@ let UnparseableTest (expr: string) =
 [<TestCase("@{false}", "False")>]
 [<TestCase("@{null}", "")>]
 let ConstantsInterpolationTest (expr: string) (expected: string) =
-    test <@ jsonsEqual (jsonOf expected) (testExpressionEvaluation expr) @>
+    test <@ String expected = testExpressionEvaluation expr @>

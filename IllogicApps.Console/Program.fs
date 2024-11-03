@@ -1,6 +1,6 @@
 module IllogicApps.Core.Program
 
-open System.Text.Json.Nodes
+open IllogicApps.Json
 open ReadLogicApp
 open IllogicApps.Simulator
 
@@ -19,7 +19,7 @@ let logicApp = readLogicApp <| examplePath.Replace("Stateful1", "SkippingTest")
 // |> LogicAppBaseAction.getAllChildren
 // |> printfn "%A"
 
-let sim = Simulator.TriggerSimple logicApp (Some (JsonValue.Create("FAKE INPUT")))
+let sim = Simulator.TriggerSimple logicApp (String "FAKE INPUT")
 
 let opts = makeJsonSerializerOptions()
 opts.WriteIndented <- true
