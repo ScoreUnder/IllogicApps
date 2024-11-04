@@ -1,16 +1,16 @@
 module IllogicApps.Simulator.Test.BinaryConversionTests
 
 open System
-open System.Collections.Immutable
 open NUnit.Framework
 open Swensen.Unquote
 
 open IllogicApps.Json
+open IllogicApps.Json.Conversions
 open TestSimUtil
 
 [<Test>]
 let JsonOfBinaryTest () =
-    let expected = Array(ImmutableArray.Create(Integer 1L, Integer 2L, Integer 3L))
+    let expected = createArray [| Integer 1L; Integer 2L; Integer 3L |]
     test <@ expected = testExpressionEvaluation "@json(binary('[1,2,3]'))" @>
 
 [<TestCase("@binary(json('{\"hello\": \"world\"}'))", "eyJoZWxsbyI6IndvcmxkIn0=")>]
@@ -22,11 +22,9 @@ let JsonOfBinaryTest () =
 [<TestCase("@binary(false)", "RmFsc2U=")>]
 let BinaryOfTest (expr: string) (expected: string) =
     let expected =
-        Object(
-            Map.ofSeq
-                [ "$content-type", String "application/octet-stream"
-                  "$content", String expected ]
-        )
+        createObject
+            [ "$content-type", String "application/octet-stream"
+              "$content", String expected ]
 
     test <@ expected = testExpressionEvaluation expr @>
 
@@ -44,11 +42,9 @@ let Base64RoundTripTest () =
 [<TestCase("@base64ToBinary('aGVsbG8gd29ybGQ=')", "aGVsbG8gd29ybGQ=")>]
 let Base64ToBinaryTest expr (expectedBase64: string) =
     let expected =
-        Object(
-            Map.ofSeq
-                [ "$content-type", String "application/octet-stream"
-                  "$content", String expectedBase64 ]
-        )
+        createObject
+            [ "$content-type", String "application/octet-stream"
+              "$content", String expectedBase64 ]
 
     test <@ expected = testExpressionEvaluation expr @>
 

@@ -3,7 +3,6 @@ namespace IllogicApps.Simulator
 open System
 open System.Collections.Generic
 
-open System.Collections.Immutable
 open System.Text.Json.Nodes
 open IllogicApps.Core
 open IllogicApps.Core.LogicAppBaseAction
@@ -118,7 +117,7 @@ module private SimulatorHelper =
             o
             |> Map.fold (fun acc k v -> Map.add (f k |> Conversions.ensureString) (jsonMapStrs f v) acc) Map.empty
             |> Object
-        | Array a -> a |> Seq.map (jsonMapStrs f) |> ImmutableArray.CreateRange |> Array
+        | Array a -> a |> Seq.map (jsonMapStrs f) |> Conversions.createArray
         | String s -> f s
         | _ -> node
 

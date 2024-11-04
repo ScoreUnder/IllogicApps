@@ -1,7 +1,6 @@
 module IllogicApps.Core.JsonUtil
 
 open System.Collections.Generic
-open System.Collections.Immutable
 open System.Text.Encodings.Web
 open System.Text.Json
 open System.Text.Json.Nodes
@@ -75,13 +74,11 @@ let rec illogicJsonOfSystemTextJson (node: JsonNode) : JsonTree =
         | JsonValueKind.Object ->
             node.AsObject()
             |> Seq.map (fun kvp -> kvp.Key, illogicJsonOfSystemTextJson kvp.Value)
-            |> Map.ofSeq
-            |> Object
+            |> Conversions.createObject
         | JsonValueKind.Array ->
             node.AsArray()
             |> Seq.map illogicJsonOfSystemTextJson
-            |> ImmutableArray.CreateRange
-            |> Array
+            |> Conversions.createArray
         | JsonValueKind.Number ->
             let node = node.AsValue()
 

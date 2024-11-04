@@ -1,23 +1,21 @@
 module IllogicApps.Json.Test.BasicTests
 
-open System.Collections.Immutable
 open BenchmarkDotNet.Attributes
 open BenchmarkDotNet.Running
 open NUnit.Framework
 open Swensen.Unquote
 open IllogicApps.Json
+open IllogicApps.Json.Conversions
 open IllogicApps.Json.Parser
 
 [<Test>]
 let ``Parse empty string`` () = test <@ parse "\"\"" = String "" @>
 
 [<Test>]
-let ``Parse empty object`` () =
-    test <@ parse "{}" = Object Map.empty @>
+let ``Parse empty object`` () = test <@ parse "{}" = emptyObject @>
 
 [<Test>]
-let ``Parse empty array`` () =
-    test <@ parse "[]" = Array ImmutableArray.Empty @>
+let ``Parse empty array`` () = test <@ parse "[]" = emptyArray @>
 
 [<Test>]
 let ``Parse null`` () = test <@ parse "null" = Null @>
@@ -93,102 +91,76 @@ let ``Parse string with escaped unicode`` () =
 
 [<Test>]
 let ``Parse object with one key-value pair`` () =
-    test <@ parse "{\"key\":\"value\"}" = Object(Map.ofList [ "key", (String "value") ]) @>
+    test <@ parse "{\"key\":\"value\"}" = createObject [ "key", String "value" ] @>
 
 [<Test>]
 let ``Parse object with multiple key-value pairs`` () =
     test
         <@
-            parse "{\"key1\":\"value1\",\"key2\":\"value2\"}" = Object(
-                Map.ofList [ "key1", (String "value1"); "key2", (String "value2") ]
-            )
+            parse "{\"key1\":\"value1\",\"key2\":\"value2\"}" = createObject
+                [ "key1", String "value1"; "key2", String "value2" ]
         @>
 
 [<Test>]
 let ``Parse object with nested object`` () =
     test
         <@
-            parse "{\"key\":{\"nestedKey\":\"nestedValue\"}}" = Object(
-                Map.ofList [ "key", Object(Map.ofList [ "nestedKey", (String "nestedValue") ]) ]
-            )
+            parse "{\"key\":{\"nestedKey\":\"nestedValue\"}}" = createObject
+                [ "key", createObject [ "nestedKey", (String "nestedValue") ] ]
         @>
 
 [<Test>]
 let ``Parse object with nested array`` () =
     test
         <@
-            parse "{\"key\":[\"value1\",\"value2\"]}" = Object(
-                Map.ofList [ "key", Array(ImmutableArray.Create(String "value1", String "value2")) ]
-            )
+            parse "{\"key\":[\"value1\",\"value2\"]}" = createObject
+                [ "key", createArray [| String "value1"; String "value2" |] ]
         @>
 
 [<Test>]
 let ``Parse array with one element`` () =
-    test <@ parse "[\"value\"]" = Array(ImmutableArray.Create(String "value")) @>
+    test <@ parse "[\"value\"]" = createArray [ String "value" ] @>
 
 [<Test>]
 let ``Parse array with multiple elements`` () =
-    test <@ parse "[\"value1\",\"value2\"]" = Array(ImmutableArray.Create(String "value1", String "value2")) @>
+    test <@ parse "[\"value1\",\"value2\"]" = createArray [ String "value1"; String "value2" ] @>
 
 [<Test>]
 let ``Parse array with nested object`` () =
-    test
-        <@ parse "[{\"key\":\"value\"}]" = Array(ImmutableArray.Create(Object(Map.ofList [ "key", (String "value") ]))) @>
+    test <@ parse "[{\"key\":\"value\"}]" = createArray [ createObject [ "key", (String "value") ] ] @>
 
 [<Test>]
 let ``Parse array with nested array`` () =
-    test
-        <@
-            parse "[[\"value1\",\"value2\"]]" = Array(
-                ImmutableArray.Create(Array(ImmutableArray.Create(String "value1", String "value2")))
-            )
-        @>
+    test <@ parse "[[\"value1\",\"value2\"]]" = createArray [ createArray [ String "value1"; String "value2" ] ] @>
 
 [<Test>]
 let ``Parse array with two nested arrays`` () =
     test
         <@
-            parse "[[\"value1\",\"value2\"],[\"value3\",\"value4\"]]" = Array(
-                ImmutableArray.Create(
-                    Array(ImmutableArray.Create(String "value1", String "value2")),
-                    Array(ImmutableArray.Create(String "value3", String "value4"))
-                )
-            )
+            parse "[[\"value1\",\"value2\"],[\"value3\",\"value4\"]]" = createArray
+                [ createArray [ String "value1"; String "value2" ]
+                  createArray [ String "value3"; String "value4" ] ]
         @>
 
 [<Test>]
 let ``Parse array with two nested objects`` () =
     test
         <@
-            parse "[{\"key1\":\"value1\"},{\"key2\":\"value2\"}]" = Array(
-                ImmutableArray.Create(
-                    Object(Map.ofList [ "key1", (String "value1") ]),
-                    Object(Map.ofList [ "key2", (String "value2") ])
-                )
-            )
+            parse "[{\"key1\":\"value1\"},{\"key2\":\"value2\"}]" = createArray
+                [ createObject [ "key1", String "value1" ]
+                  createObject [ "key2", String "value2" ] ]
         @>
 
 [<Test>]
 let ``Parse deeply nested structure`` () =
     test
         <@
-            parse "{\"key1\":[{\"key2\":[{\"key3\":\"value3\"}],\"key4\":{\"arr\":[],\"obj\":{}}}]}" = Object(
-                Map.ofList
-                    [ "key1",
-                      Array(
-                          ImmutableArray.Create(
-                              Object(
-                                  Map.ofList
-                                      [ "key2",
-                                        Array(ImmutableArray.Create(Object(Map.ofList [ "key3", (String "value3") ])))
-                                        "key4",
-                                        Object(
-                                            Map.ofList [ "arr", Array ImmutableArray.Empty; "obj", Object Map.empty ]
-                                        ) ]
-                              )
-                          )
-                      ) ]
-            )
+            parse "{\"key1\":[{\"key2\":[{\"key3\":\"value3\"}],\"key4\":{\"arr\":[],\"obj\":{}}}]}" = createObject
+                [ "key1",
+                  createArray
+                      [ createObject
+                            [ "key2", createArray [ createObject [ "key3", (String "value3") ] ]
+                              "key4", createObject [ "arr", emptyArray; "obj", emptyObject ] ] ] ]
         @>
 
 [<Test>]

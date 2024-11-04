@@ -1,6 +1,5 @@
 module IllogicApps.Json.Test.RoundTripTests
 
-open System.Collections.Immutable
 open NUnit.Framework
 open Swensen.Unquote
 
@@ -20,22 +19,22 @@ let ``Round-tripping a string with special characters`` () =
 
 [<Test>]
 let ``Round-tripping an empty array`` () =
-    let s = Array ImmutableArray.Empty
+    let s = createArray []
     test <@ parse (stringOfJson s) = s @>
 
 [<Test>]
 let ``Round-tripping an array with a single element`` () =
-    let s = Array(ImmutableArray.Create(String "Hello"))
+    let s = createArray [ String "Hello" ]
     test <@ parse (stringOfJson s) = s @>
 
 [<Test>]
 let ``Round-tripping an empty object`` () =
-    let s = Object Map.empty
+    let s = createObject []
     test <@ parse (stringOfJson s) = s @>
 
 [<Test>]
 let ``Round-tripping an object with a single key-value pair`` () =
-    let s = Object(Map.ofList [ ("key", String "value") ])
+    let s = createObject [ "key", String "value" ]
     test <@ parse (stringOfJson s) = s @>
 
 [<TestCase(true)>]

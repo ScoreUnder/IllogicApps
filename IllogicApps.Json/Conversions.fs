@@ -1,5 +1,7 @@
 module IllogicApps.Json.Conversions
 
+open System.Collections.Immutable
+
 let escapeStringForJson str =
     let sb = System.Text.StringBuilder()
 
@@ -48,6 +50,11 @@ let stringOfJsonType json =
     | JsonType.Float -> "float"
     | JsonType.Decimal -> "decimal"
     | JsonType.Boolean -> "boolean"
+
+let createArray seq = Array(ImmutableArray.CreateRange(seq))
+let createObject seq = Object(Map.ofSeq seq)
+let emptyArray = Array(ImmutableArray.Empty)
+let emptyObject = Object(Map.empty)
 
 let numberAsDecimal json =
     match json with

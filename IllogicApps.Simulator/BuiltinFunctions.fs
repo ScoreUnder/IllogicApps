@@ -1,7 +1,6 @@
 module IllogicApps.Simulator.BuiltinFunctions
 
 open System
-open System.Collections.Immutable
 open System.Globalization
 open System.IO
 open System.Net
@@ -73,7 +72,7 @@ let fromBase64 (str: string) =
     str |> Convert.FromBase64String |> Encoding.UTF8.GetString
 
 let base64ToBlob (contentType: string) (base64: string) : JsonTree =
-    Object(Map.ofList [ "$content-type", String contentType; "$content", String base64 ])
+    Conversions.createObject [ "$content-type", String contentType; "$content", String base64 ]
 
 let strToBase64Blob (contentType: string) (str: string) : JsonTree =
     str |> toBase64 |> base64ToBlob contentType
@@ -278,7 +277,7 @@ let f_not _ (args: Args) : JsonTree =
 let f_array _ (args: Args) : JsonTree =
     expectArgs 1 args
 
-    Array(ImmutableArray.CreateRange(args))
+    Conversions.createArray args
 
 let f_base64 _ (args: Args) : JsonTree =
     expectArgs 1 args
@@ -310,7 +309,7 @@ let f_binary _ (args: Args) : JsonTree =
 let f_createArray _ (args: Args) : JsonTree =
     expectArgsAtLeast 1 args
 
-    args |> ImmutableArray.CreateRange |> Array
+    Conversions.createArray args
 
 
 let f_dataUri _ (args: Args) : JsonTree =
@@ -493,8 +492,7 @@ let f_range _ (args: Args) : JsonTree =
     match args with
     | [ Integer a; Integer b ] ->
         Seq.init (int b) (fun v -> Integer(int64 v + a))
-        |> ImmutableArray.CreateRange
-        |> Array
+        |> Conversions.createArray
     | [ a; b ] -> failwithf "Expected numbers, got %A and %A" (JsonTree.getType a) (JsonTree.getType b)
     | _ -> failwith "Expected 2 arguments"
 
