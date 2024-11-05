@@ -426,9 +426,19 @@ let f_json _ (args: Args) : JsonTree =
                 let stringWriter = new MemoryStream()
 
                 try
-                    XDocument
-                        .Parse(xmlStr)
-                        .WriteTo(JsonReaderWriterFactory.CreateJsonWriter(stringWriter))
+                    let doc = XmlDocument()
+                    doc.LoadXml(xmlStr)
+
+                    // Trigger an exception if the encoding is not supported
+                    match doc.FirstChild with
+                    | :? XmlDeclaration as decl ->
+                        match decl.Encoding with
+                        | "" -> ()
+                        | e -> Encoding.GetEncoding e |> ignore
+                    | _ -> ()
+
+                    use writer = new JsonXmlWriter(stringWriter)
+                    doc.WriteTo(writer)
                 with ex ->
                     failwithf "Could not parse XML: %s\nDocument: %s\nOriginal: %s" ex.Message xmlStr (ex.ToString())
 

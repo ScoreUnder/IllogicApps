@@ -160,3 +160,15 @@ type MutableOrderedMap<'K, 'V> when 'K: equality() =
     member this.Clear() =
         backingList.Clear()
         backingMap.Clear()
+
+    static member chooseValues f (map: IDictionary<'K, 'V>) =
+        let next = MutableOrderedMap()
+
+        Seq.iter
+            (fun k ->
+                match f k map.[k] with
+                | Some v -> next.[k] <- v
+                | None -> ())
+            map.Keys
+
+        next

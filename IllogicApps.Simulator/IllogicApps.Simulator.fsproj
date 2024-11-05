@@ -7,6 +7,7 @@
     <ItemGroup>
         <Compile Include="LanguageLexer.fs"/>
         <Compile Include="LanguageParser.fs"/>
+        <Compile Include="JsonXmlWriter.fs"/>
         <Compile Include="BuiltinCondition.fs"/>
         <Compile Include="BuiltinFunctions.fs"/>
         <Compile Include="LanguageEvaluator.fs"/>
