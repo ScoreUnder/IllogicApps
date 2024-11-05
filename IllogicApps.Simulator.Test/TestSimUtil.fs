@@ -134,7 +134,7 @@ let traceEvaluationParsed expr =
 
 let traceEvaluation expr =
     if LanguageLexer.isLiteralStringWithAtSign expr then
-        [ JsonValue.Create(expr.[1..]).ToJsonString(sensibleSerialiserOptions) ]
+        [ JsonValue.Create(expr.[1..]).ToJsonString(sensibleSerialiserOptions ()) ]
     else if LanguageLexer.requiresInterpolation expr then
         expr
         |> LanguageLexer.lex
@@ -142,7 +142,7 @@ let traceEvaluation expr =
         |> traceEvaluationParsed
         |> List.map stringOfAstResult
     else
-        [ JsonValue.Create(expr).ToJsonString(sensibleSerialiserOptions) ]
+        [ JsonValue.Create(expr).ToJsonString(sensibleSerialiserOptions ()) ]
 
 let traceEvaluationTo f expr = traceEvaluation expr |> List.iter f
 

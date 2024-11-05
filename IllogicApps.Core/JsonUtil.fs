@@ -141,15 +141,24 @@ type IllogicToSystemTextSerializerAdapter() =
         let value = systemTextJsonOfIllogicJsonIgnoringNulls value
         JsonSerializer.Serialize(writer, value, options)
 
-let sensibleSerialiserOptions =
+let sensibleSerialiserOptions () =
     let options =
         JsonSerializerOptions(
             defaults = JsonSerializerDefaults.General,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             WriteIndented = false,
-            NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
+            NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
+            PropertyNameCaseInsensitive = false
         )
 
     options.Converters.Add(IllogicToSystemTextSerializerAdapter())
+
+    JsonFSharpOptions
+        .Default()
+        .WithUnionUnwrapFieldlessTags(true)
+        .WithSkippableOptionFields(true)
+        .WithUnionTagCaseInsensitive(true)
+        .AddToJsonSerializerOptions(options)
+
     options

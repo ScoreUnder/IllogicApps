@@ -45,16 +45,7 @@ type ActionResolver(actionsNamespace: string) =
 let actionResolver = ActionResolver("IllogicApps.Core.LogicAppActions")
 
 let makeJsonSerializerOptions () =
-    let options = new JsonSerializerOptions() in
-
-    JsonFSharpOptions
-        .Default()
-        .WithUnionUnwrapFieldlessTags(true)
-        .WithSkippableOptionFields(true)
-        .WithUnionTagCaseInsensitive(true)
-        .AddToJsonSerializerOptions(options)
-
-    options.PropertyNameCaseInsensitive <- true
+    let options = JsonUtil.sensibleSerialiserOptions () in
     options.Converters.Add(actionResolver)
     options
 

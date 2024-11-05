@@ -6,5 +6,6 @@ open IllogicApps.Json
 open JsonUtil
 
 let jsonOfCompletedTrigger (ct: CompletedTrigger) =
-    let serialized = JsonSerializer.Serialize(ct, sensibleSerialiserOptions)
-    JsonSerializer.Deserialize<JsonTree>(serialized, sensibleSerialiserOptions)
+    let options = sensibleSerialiserOptions ()
+    let serialized = JsonSerializer.Serialize(ct, options)
+    JsonSerializer.Deserialize<JsonTree>(serialized, options)
