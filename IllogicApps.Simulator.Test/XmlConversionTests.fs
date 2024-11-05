@@ -155,7 +155,7 @@ let StringifiedXmlTest expr expected = stringTest expr expected
 [<TestCase("@{xml(json('{\"ro\\\"ot\": \"text\"}'))}", "<ro_x0022_ot>text</ro_x0022_ot>")>]
 [<TestCase("@{xml(json('{\"ro/ot\": \"text\"}'))}", "<ro_x002F_ot>text</ro_x002F_ot>")>]
 [<TestCase("@{xml(json('{\"root\": \"te\\\"xt\"}'))}", "<root>te\"xt</root>")>]
-[<TestCase("@{xml(json('{\"root\": \"te\nxt\"}'))}", "<root>te\nxt</root>")>]
+[<TestCase("@{xml(json('{\"root\": \"te\\nxt\"}'))}", "<root>te\nxt</root>")>]
 [<TestCase("@{xml(json('{\"root\": \"te<xt\"}'))}", "<root>te&lt;xt</root>")>]
 [<TestCase("@{xml(json('{\"root\": \"te&xt\"}'))}", "<root>te&amp;xt</root>")>]
 [<TestCase("@{xml(json('{\"root\": {\"@attr\": \"te\\\"xt\"}}'))}", "<root attr=\"te&quot;xt\" />")>]
@@ -258,9 +258,14 @@ let JsonToXmlEmptyObjectIsEmptyDocumentTest () =
         @>
 
 [<TestCase("""@json(xml(json('{}')))""")>]
+let ``Cannot round-trip JSON via XML: no root element`` expr =
+    raisesWithOrTrace<System.Exception> expr <@ testExpressionEvaluation expr @> (fun e ->
+        let message = e.Message in <@ message.Contains("Root element is missing") @>)
+
 [<TestCase("""@json(xml(json('{"hello":"world","oh no":"another root"}')))""")>]
-let JsonInvalidXmlRoundTripTest expr =
-    raisesOrTrace<XmlException> expr <@ testExpressionEvaluation expr @>
+let ``Cannot round-trip JSON via XML: multiple root elements`` expr =
+    raisesWithOrTrace<System.Exception> expr <@ testExpressionEvaluation expr @> (fun e ->
+        let message = e.Message in <@ message.Contains("More than one root element") @>)
 
 [<TestCase("@{xml('<?xml version=\"1.0\" encoding=\"utf-8\"?>')}")>]
 [<TestCase("@{xml('<!-- comment -->')}")>]
