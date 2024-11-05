@@ -199,3 +199,9 @@ let raisesWithOrTraceParsed<'e when 'e :> exn> expr quote f =
     | :? AssertionFailedException ->
         traceEvaluationParsedTo System.Console.WriteLine expr
         reraise ()
+
+let stringTest expr expected =
+    testOrTrace expr <@ String expected = testExpressionEvaluation expr @>
+
+let objTest expr expected =
+    testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
