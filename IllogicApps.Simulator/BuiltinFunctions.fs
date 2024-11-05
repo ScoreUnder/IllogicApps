@@ -367,6 +367,12 @@ let f_float _ (args: Args) : JsonTree =
     | _ ->
         let str = Conversions.rawStringOfJson convertFrom
 
+        if
+            args.Length = 1
+            && str.AsSpan().TrimEnd().EndsWith("infinity", StringComparison.OrdinalIgnoreCase)
+        then
+            failwithf "Could not parse %s as float (float('infinity') needs a locale)" str
+
         match Double.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, culture) with
         | true, result -> Float result
         | _ -> failwithf "Could not parse %s as float" str
