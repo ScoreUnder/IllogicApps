@@ -26,8 +26,8 @@ let stringOfJson json =
         | Null -> "null" :: acc
         | Array a when a.IsEmpty -> "[]" :: acc
         | Array a -> "[" :: List.tail (Seq.foldBack (fun el acc -> "," :: aux acc el) a ("]" :: acc))
-        | Object o when Map.isEmpty o -> "{}" :: acc
-        | Object o -> "{" :: List.tail (Map.foldBack (fun k v acc -> "," :: "\"" :: k :: "\":" :: aux acc v) o ("}" :: acc))
+        | Object o when OrderedMap.isEmpty o -> "{}" :: acc
+        | Object o -> "{" :: List.tail (OrderedMap.foldBack (fun k v acc -> "," :: "\"" :: k :: "\":" :: aux acc v) o ("}" :: acc))
         | String s -> "\"" :: (escapeStringForJson s) :: "\"" :: acc
         | Integer i -> string i :: acc
         | Float f when System.Double.IsNaN f -> "\"NaN\"" :: acc
@@ -52,9 +52,9 @@ let stringOfJsonType json =
     | JsonType.Boolean -> "boolean"
 
 let createArray seq = Array(ImmutableArray.CreateRange(seq))
-let createObject seq = Object(Map.ofSeq seq)
+let createObject seq = Object(OrderedMap.ofSeq seq)
 let emptyArray = Array(ImmutableArray.Empty)
-let emptyObject = Object(Map.empty)
+let emptyObject = Object(OrderedMap.empty)
 
 let numberAsDecimal json =
     match json with

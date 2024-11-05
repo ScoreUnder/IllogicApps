@@ -102,7 +102,7 @@ let rec systemTextJsonOfIllogicJson (tree: JsonTree) : JsonNode =
     | Null -> null
     | Object o ->
         o
-        |> Map.toSeq
+        |> OrderedMap.toSeq
         |> Seq.map (fun (k, v) -> KVP(k, systemTextJsonOfIllogicJson v))
         |> JsonObject
         :> JsonNode
@@ -118,7 +118,7 @@ let rec systemTextJsonOfIllogicJsonIgnoringNulls (tree: JsonTree) : JsonNode =
     | Null -> null
     | Object o ->
         o
-        |> Map.toSeq
+        |> OrderedMap.toSeq
         |> Seq.filter (fun (_, v) -> v <> Null)
         |> Seq.map (fun (k, v) -> KVP(k, systemTextJsonOfIllogicJson v))
         |> JsonObject

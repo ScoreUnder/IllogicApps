@@ -5,7 +5,7 @@ open System.Collections.Immutable
 
 type JsonTree =
     | Null
-    | Object of Map<string, JsonTree>
+    | Object of OrderedMap<string, JsonTree>
     | Array of JsonTree ImmutableArray
     | String of string
     | Integer of int64
@@ -27,7 +27,7 @@ type JsonType =
 module JsonTree =
     let inline tryGetKey (key: string) (json: JsonTree) =
         match json with
-        | Object o -> o.TryFind key
+        | Object o -> OrderedMap.tryFind key o
         | _ -> None
 
     let inline tryGetIndex (index: int) (json: JsonTree) =

@@ -98,7 +98,7 @@ module private SimulatorHelper =
 
     let unpackObject (node: JsonTree) =
         match node with
-        | Object o -> o |> Map.toSeq
+        | Object o -> o |> OrderedMap.toSeq
         | _ -> failwithf "Expected object, got %O" (JsonTree.getType node)
 
     let unpackArray (node: JsonTree) =
@@ -115,7 +115,8 @@ module private SimulatorHelper =
         match node with
         | Object o ->
             o
-            |> Map.fold (fun acc k v -> Map.add (f k |> Conversions.ensureString) (jsonMapStrs f v) acc) Map.empty
+            // TODO: what is the actual LogicApps behaviour for duplicate keys?
+            |> OrderedMap.map (fun k v -> (f k |> Conversions.ensureString), jsonMapStrs f v)
             |> Object
         | Array a -> a |> Seq.map (jsonMapStrs f) |> Conversions.createArray
         | String s -> f s

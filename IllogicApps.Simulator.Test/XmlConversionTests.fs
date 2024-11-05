@@ -157,11 +157,9 @@ let XmlOfXmlTest () =
     testOrTrace
         expr
         <@
-            Object(
-                Map.ofSeq
-                    [ "$content-type", String "application/xml;charset=utf-8"
-                      "$content", String "PHJvb3QgLz4=" ]
-            ) = (testExpressionEvaluation expr)
+            Conversions.createObject
+                [ "$content-type", String "application/xml;charset=utf-8"
+                  "$content", String "PHJvb3QgLz4=" ] = (testExpressionEvaluation expr)
         @>
 
 [<TestCase("@xml(json('{\"cow\":\"moo\"}'))",
@@ -188,11 +186,9 @@ let JsonToXmlEmptyObjectIsEmptyDocumentTest () =
     testOrTrace
         expr
         <@
-            Object(
-                Map.ofSeq
-                    [ "$content-type", String "application/xml;charset=utf-8"
-                      "$content", String "" ]
-            ) = (testExpressionEvaluation expr)
+            Conversions.createObject
+                [ "$content-type", String "application/xml;charset=utf-8"
+                  "$content", String "" ] = (testExpressionEvaluation expr)
         @>
 
 [<TestCase("""@json(xml(json('{}')))""")>]

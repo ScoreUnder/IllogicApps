@@ -22,8 +22,8 @@ type MemberAccessResult =
 let accessMember (parent: JsonTree) (mem: JsonTree) =
     match parent, mem with
     | Object parent, String propName ->
-        match parent.TryGetValue(propName) with
-        | true, value -> AccessOk value
+        match OrderedMap.tryFind propName parent with
+        | Some value -> AccessOk value
         | _ -> ForgivableError(sprintf "Property %s not found" propName)
     | Object _, other -> SeriousError(sprintf "Cannot access property of object using %A" (JsonTree.getType other))
     | Array arr, Integer index ->

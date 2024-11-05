@@ -199,7 +199,7 @@ let parse (str: string) =
                     | '}' as c ->
                         match stack with
                         | ConstructingObjectValue(k, o) :: stack' ->
-                            parse' (index + 1) (ValueEnd(JsonTree.Object(Map.ofList ((k, v) :: o)))) stack'
+                            parse' (index + 1) (ValueEnd(JsonTree.Object(OrderedMap.ofList(List.rev ((k, v) :: o))))) stack'
                         | _ -> fail c index state stack
                     | c -> fail c index state stack
             | StringLiteral sb ->
@@ -319,7 +319,7 @@ let parse (str: string) =
                     | '\n'
                     | '\r' -> parse' (index + 1) ObjectStart stack
                     | '"' -> parse' (index + 1) (StringLiteral(StringBuilder())) (ConstructingObject [] :: stack)
-                    | '}' -> parse' (index + 1) (ValueEnd(JsonTree.Object(Map.empty))) stack
+                    | '}' -> parse' (index + 1) (ValueEnd(JsonTree.Object(OrderedMap.empty))) stack
                     | c -> fail c index state stack
             | ArrayStart ->
                 let index =
