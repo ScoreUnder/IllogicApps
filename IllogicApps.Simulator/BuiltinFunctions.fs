@@ -84,7 +84,9 @@ let (|Base64StringBlob|_|) (node: JsonTree) : (string * byte array) option =
     match node with
     | Object node ->
         if node.ContainsKey("$content-type") && node.ContainsKey("$content") then
-            let content = node["$content"] |> Conversions.rawStringOfJson |> Convert.FromBase64String
+            let content =
+                node["$content"] |> Conversions.rawStringOfJson |> Convert.FromBase64String
+
             Some(Conversions.rawStringOfJson node["$content-type"], content)
         else
             None
@@ -506,9 +508,7 @@ let f_rand _ (args: Args) : JsonTree =
 
 let f_range _ (args: Args) : JsonTree =
     match args with
-    | [ Integer a; Integer b ] ->
-        Seq.init (int b) (fun v -> Integer(int64 v + a))
-        |> Conversions.createArray
+    | [ Integer a; Integer b ] -> Seq.init (int b) (fun v -> Integer(int64 v + a)) |> Conversions.createArray
     | [ a; b ] -> failwithf "Expected numbers, got %A and %A" (JsonTree.getType a) (JsonTree.getType b)
     | _ -> failwith "Expected 2 arguments"
 
