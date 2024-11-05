@@ -423,7 +423,7 @@ let f_isFloat _ (args: Args) : JsonTree =
     match Double.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, culture) with
     | v, _ -> Boolean v
 
-let f_json _ (args: Args) : JsonTree =
+let f_json (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 1 args
 
     let str =
@@ -442,10 +442,19 @@ let f_json _ (args: Args) : JsonTree =
                     | :? XmlDeclaration as decl ->
                         match decl.Encoding with
                         | "" -> ()
-                        | e -> Encoding.GetEncoding e |> ignore
+                        | e ->
+                            if sim.IsBugForBugAccurate then
+                                let encoding = Encoding.GetEncoding e
+
+                                if
+                                    encoding = Encoding.UTF32
+                                    || encoding = Encoding.Unicode
+                                    || encoding = Encoding.BigEndianUnicode
+                                then
+                                    failwithf "%s is not a supported encoding for no good reason lol" e
                     | _ -> ()
 
-                    use writer = new JsonXmlWriter(stringWriter)
+                    use writer = new JsonXmlWriter(stringWriter, sim.IsBugForBugAccurate)
                     doc.WriteTo(writer)
                 with ex ->
                     failwithf "Could not parse XML: %s\nDocument: %s\nOriginal: %s" ex.Message xmlStr (ex.ToString())
@@ -463,28 +472,21 @@ let f_string _ (args: Args) : JsonTree =
     expectArgs 1 args
     String(args |> List.head |> objectToString)
 
-let f_xml _ (args: Args) : JsonTree =
+let f_xml (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 1 args
 
-    match List.head args with
-    | String str ->
+    let makeXmlWith f =
         let doc = XmlDocument()
-        doc.LoadXml(str)
+        f doc
         doc.OuterXml |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
+
+    match List.head args with
+    | String str -> makeXmlWith _.LoadXml(str)
     | Base64StringBlob(_, content) ->
         content
         |> Convert.ToBase64String
         |> base64ToBlob $"{ContentType.Xml};charset=utf-8"
-    | Object _ as v ->
-        let jsonBytes = Encoding.UTF8.GetBytes(Conversions.stringOfJson v)
-
-        let reader =
-            JsonReaderWriterFactory.CreateJsonReader(jsonBytes, new XmlDictionaryReaderQuotas())
-
-        let xml = XDocument.Load(reader)
-
-        xml.ToString(SaveOptions.DisableFormatting)
-        |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
+    | Object _ as v -> makeXmlWith (JsonToXmlConversion.writeJsonToXml sim.IsBugForBugAccurate v)
     | v -> failwithf "Expected string or object, got %A" (JsonTree.getType v)
 
 // Math functions

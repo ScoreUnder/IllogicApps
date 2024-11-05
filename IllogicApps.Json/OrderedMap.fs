@@ -235,4 +235,8 @@ module OrderedMap =
         Seq.filter (fun (KeyValue(k, v)) -> f k v) m |> OrderedMap
 
     let partition (f: 'K -> 'V -> bool) (m: OrderedMap<'K, 'V>) =
-        fold (fun (yes, no) k v -> if f k v then ((k, v) :: yes), no else yes, ((k, v) :: no)) ([], []) m
+        let yes, no = fold (fun (yes, no) k v -> if f k v then ((k, v) :: yes), no else yes, ((k, v) :: no)) ([], []) m
+        ofList(List.rev yes), ofList(List.rev no)
+
+    let iter (f: 'K -> 'V -> unit) (m: OrderedMap<'K, 'V>) =
+        Seq.iter (fun (KeyValue(k, v)) -> f k v) m

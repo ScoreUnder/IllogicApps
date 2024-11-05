@@ -17,19 +17,34 @@ module private JsonXmlWriter =
     [<Literal>]
     let TEXT_KEY = "#text"
 
+    [<Literal>]
     let CDATA_KEY = "#cdata-section"
+
+    [<Literal>]
     let COMMENT_KEY = "#comment"
+
+    [<Literal>]
     let DOCTYPE_KEY = "!DOCTYPE"
+
+    [<Literal>]
     let DOCTYPE_NAME_KEY = "@name"
+
+    [<Literal>]
     let DOCTYPE_PUBLIC_KEY = "@public"
+
+    [<Literal>]
     let DOCTYPE_SYSTEM_KEY = "@system"
+
+    [<Literal>]
     let DOCTYPE_SUBSET_KEY = "@internalSubset"
 
     let inline makeAttributeKey attrName = $"@{attrName}"
+    let inline isAttributeKey (key: string) = key.StartsWith("@")
+    let inline getAttributeName (key: string) = key.[1..]
 
 open JsonXmlWriter
 
-type JsonXmlWriter(stream: Stream) =
+type JsonXmlWriter(stream: Stream, bugForBugAccurate: bool) =
     inherit XmlWriter()
 
     let mutable writeState = WriteState.Start
@@ -77,14 +92,14 @@ type JsonXmlWriter(stream: Stream) =
             else
                 obj
                 |> MutableOrderedMap.chooseValues (fun k ->
-                    if k = COMMENT_KEY then
+                    if k = COMMENT_KEY && bugForBugAccurate then
                         // Really silly special case for comments
                         function
                         | l when l.Count >= 2 -> Some Conversions.emptyArray
                         | _ -> None
                     else
                         function
-                        | l when l.Count = 1 -> Some (cook l.[0])
+                        | l when l.Count = 1 -> Some(cook l.[0])
                         | l -> Seq.map cook l |> Conversions.createArray |> Some)
                 |> Seq.map (fun (KeyValue(k, v)) -> k, v)
                 |> Conversions.createObject
@@ -94,6 +109,7 @@ type JsonXmlWriter(stream: Stream) =
     member private this.Current =
         match stack.Peek() with
         | _, BuildingObject map -> map
+        | _ -> raiseError "Invalid state: not in an element"
 
     override this.WriteState = writeState
 
@@ -113,8 +129,7 @@ type JsonXmlWriter(stream: Stream) =
 
         base.Dispose(disposing)
 
-    override this.DisposeAsyncCore() : ValueTask =
-        stream.DisposeAsync()
+    override this.DisposeAsyncCore() : ValueTask = stream.DisposeAsync()
 
     override this.Flush() : unit =
         match writeState with
@@ -133,8 +148,7 @@ type JsonXmlWriter(stream: Stream) =
 
                 stream.Flush()
 
-    override this.FlushAsync() : Task =
-        stream.FlushAsync()
+    override this.FlushAsync() : Task = stream.FlushAsync()
 
     override this.LookupPrefix(ns: string) : string =
         raiseError $"LookupPrefix({ns}): Note Implemented"
@@ -142,8 +156,7 @@ type JsonXmlWriter(stream: Stream) =
     override this.WriteAttributes(reader: XmlReader, defattr: bool) : unit = raiseError "Not Implemented"
     // override this.WriteAttributesAsync(reader: XmlReader, defattr: bool): Task =
     //     raiseError "Not Implemented"
-    override this.WriteBase64(buffer: byte array, index: int, count: int) : unit =
-        raiseError "Not Implemented"
+    override this.WriteBase64(buffer: byte array, index: int, count: int) : unit = raiseError "Not Implemented"
     // override this.WriteBase64Async(buffer: byte array, index: int, count: int): Task =
     //     raiseError "Not Implemented"
     // override this.WriteBinHex(buffer: byte array, index: int, count: int): unit =
@@ -156,46 +169,52 @@ type JsonXmlWriter(stream: Stream) =
         this.Current.EnsureKey (fun _ -> List()) CDATA_KEY |> _.Add(Text text)
     // override this.WriteCDataAsync(text: string): System.Threading.Tasks.Task =
     //     raiseError "Not Implemented"
-    override this.WriteCharEntity(ch: char) : unit =
-        raiseError "Not Implemented"
+    override this.WriteCharEntity(ch: char) : unit = raiseError "Not Implemented"
     // override this.WriteCharEntityAsync(ch: char): System.Threading.Tasks.Task =
     //     raiseError "Not Implemented"
-    override this.WriteChars(buffer: char array, index: int, count: int) : unit =
-        raiseError "Not Implemented"
+    override this.WriteChars(buffer: char array, index: int, count: int) : unit = raiseError "Not Implemented"
     // override this.WriteCharsAsync(buffer: char array, index: int, count: int): System.Threading.Tasks.Task =
     //     raiseError "Not Implemented"
     override this.WriteComment(text: string) : unit =
-        requireState [| WriteState.Start; WriteState.Prolog; WriteState.Element; WriteState.Content |]
-        
+        requireState
+            [| WriteState.Start
+               WriteState.Prolog
+               WriteState.Element
+               WriteState.Content |]
+
         if writeState = WriteState.Element then
             writeState <- WriteState.Content
-         
+
         this.Current.EnsureKey (fun _ -> List()) COMMENT_KEY |> _.Add(Text text)
     // override this.WriteCommentAsync(text: string): System.Threading.Tasks.Task =
     //     raiseError "Not Implemented"
     override this.WriteDocType(name: string, pubid: string, sysid: string, subset: string) : unit =
         if name = null then
             raiseError "null name"
+
         if subset = null then
             raiseError "null subset"
-        
+
         requireState [| WriteState.Start; WriteState.Prolog |]
-        
+
         this.WriteStartElement("", DOCTYPE_KEY, "")
-        
+
         let map = this.Current
 
         if name <> "" && name <> null then
             map.[DOCTYPE_NAME_KEY] <- singletonList (Text name)
+
         if pubid <> "" && pubid <> null then
             map.[DOCTYPE_PUBLIC_KEY] <- singletonList (Text pubid)
+
         if sysid <> "" && sysid <> null then
             map.[DOCTYPE_SYSTEM_KEY] <- singletonList (Text sysid)
+
         if subset <> "" && subset <> null then
             map.[DOCTYPE_SUBSET_KEY] <- singletonList (Text subset)
-        
+
         this.WriteEndElement(true)
-        
+
         writeState <- WriteState.Prolog
     // override this.WriteDocTypeAsync(name: string, pubid: string, sysid: string, subset: string): System.Threading.Tasks.Task =
     //     raiseError "Not Implemented"
@@ -225,14 +244,17 @@ type JsonXmlWriter(stream: Stream) =
     // override this.WriteEndDocumentAsync(): System.Threading.Tasks.Task =
     //     raiseError "Not Implemented"
     override this.WriteEndElement() : unit = this.WriteEndElement(false)
+
     member this.WriteEndElement(full: bool) : unit =
         requireState [| WriteState.Element; WriteState.Attribute; WriteState.Content |]
 
         let name, building = stack.Pop()
+
         let tree =
             match cook building with
             | Null when full -> String ""
             | other -> other
+
         let ind = this.Current.[name].IndexOf(building)
 
         if ind = -1 then
@@ -299,7 +321,8 @@ type JsonXmlWriter(stream: Stream) =
     override this.WriteRaw(buffer: char array, index: int, count: int) : unit =
         raiseError $"WriteRaw({buffer}, {index}, {count}): Not Implemented"
 
-    override this.WriteRaw(data: string) : unit = failwith $"WriteRaw({data}): Not Implemented"
+    override this.WriteRaw(data: string) : unit =
+        failwith $"WriteRaw({data}): Not Implemented"
     // override this.WriteRawAsync(buffer: char array, index: int, count: int): System.Threading.Tasks.Task =
     //     raiseError "Not Implemented"
     // override this.WriteRawAsync(data: string): System.Threading.Tasks.Task =
@@ -397,3 +420,111 @@ type JsonXmlWriter(stream: Stream) =
         raiseError $"WriteWhitespace({ws}): Not Implemented"
     // override this.WriteWhitespaceAsync(ws: string): System.Threading.Tasks.Task =
     //     raiseError "Not Implemented"
+
+module JsonToXmlConversion =
+    type private ConversionState =
+        | Element of string * JsonTree
+        | EndElement
+
+    let writeJsonToXml bugForBugAccurate (json: JsonTree) (xmlDoc: XmlDocument) =
+        let getStringOrDefault k def (o: OrderedMap<string, JsonTree>) =
+            match OrderedMap.tryFind k o with
+            | Some(String s) -> s
+            | Some _ -> failwithf "Expected string for key '%s'" k
+            | _ -> def
+
+        let sanitizeElementName name =
+            String.collect
+                (fun c ->
+                    if XmlConvert.IsNCNameChar c || c = ':' then
+                        new string (Array.singleton c)
+                    else
+                        let hex = (uint16 c).ToString("X4") in $"_x{hex}_")
+                name
+
+        let rec aux (xml: XmlNode) acc =
+            match acc with
+            | [] -> ()
+            | [ Element(_, Object o) ] -> // root elem
+                o
+                |> OrderedMap.fold
+                    (fun acc k v ->
+                        match k, v with
+                        | "?xml", Object o ->
+                            let xmlDeclaration =
+                                xmlDoc.CreateXmlDeclaration(
+                                    o |> getStringOrDefault (makeAttributeKey "version") "1.0",
+                                    o |> getStringOrDefault (makeAttributeKey "encoding") null,
+                                    o |> getStringOrDefault (makeAttributeKey "standalone") null
+                                )
+
+                            xmlDoc.AppendChild(xmlDeclaration) |> ignore
+                            acc
+                        | "?xml", _ -> failwith "Invalid XML declaration"
+                        | DOCTYPE_KEY, Object o ->
+                            let doctype =
+                                xmlDoc.CreateDocumentType(
+                                    o |> getStringOrDefault DOCTYPE_NAME_KEY "",
+                                    o |> getStringOrDefault DOCTYPE_PUBLIC_KEY null,
+                                    o |> getStringOrDefault DOCTYPE_SYSTEM_KEY null,
+                                    o |> getStringOrDefault DOCTYPE_SUBSET_KEY null
+                                )
+
+                            xmlDoc.AppendChild(doctype) |> ignore
+                            acc
+                        | DOCTYPE_KEY, _ -> failwith "Invalid DOCTYPE declaration"
+                        | _ -> Element(k, v) :: acc)
+                    []
+                |> function
+                    | [] -> ()
+                    | [ el ] -> aux xml [ el; EndElement ]
+                    | _ -> failwith "More than one root element specified"
+            | Element(COMMENT_KEY, String text) :: rest ->
+                if bugForBugAccurate then
+                    aux xml (Element(sanitizeElementName COMMENT_KEY, String text) :: rest)
+                else
+                    let comment = xmlDoc.CreateComment(text)
+                    xml.AppendChild(comment) |> ignore
+                    aux xml rest
+            | Element(CDATA_KEY, String text) :: rest ->
+                let cdata = xmlDoc.CreateCDataSection(text)
+                xml.AppendChild(cdata) |> ignore
+                aux xml rest
+            | Element(TEXT_KEY, String text) :: rest ->
+                let textNode = xmlDoc.CreateTextNode(text)
+                xml.AppendChild(textNode) |> ignore
+                aux xml rest
+            | Element(s, Object o) :: rest ->
+                let attributes, elements = OrderedMap.partition (fun k _ -> isAttributeKey k) o
+
+                let elem = xmlDoc.CreateElement(sanitizeElementName s)
+                xml.AppendChild(elem) |> ignore
+
+                attributes
+                |> OrderedMap.iter (fun k v -> elem.SetAttribute(getAttributeName k, Conversions.ensureString v))
+
+                let next =
+                    OrderedMap.foldBack
+                        (fun k v acc ->
+                            match v with
+                            | Array a -> (Seq.foldBack (fun v acc -> Element(k, v) :: acc) a acc)
+                            | _ -> Element(k, v) :: acc)
+                        elements
+                        (EndElement :: rest)
+
+                aux elem next
+            | Element(s, String text) :: rest ->
+                let elem = xmlDoc.CreateElement(sanitizeElementName s)
+                let textNode = xmlDoc.CreateTextNode(text)
+                elem.AppendChild(textNode) |> ignore
+                xml.AppendChild(elem) |> ignore
+                aux xml rest
+            | Element(s, Null) :: rest ->
+                let elem = xmlDoc.CreateElement(sanitizeElementName s)
+                xml.AppendChild(elem) |> ignore
+                aux xml rest
+            | Element(s, json) :: _ ->
+                failwithf "Building XML element from JSON: invalid element (%s: %A)" s (JsonTree.getType json)
+            | EndElement :: rest -> aux xml.ParentNode rest
+
+        aux xmlDoc [ Element("", json) ]
