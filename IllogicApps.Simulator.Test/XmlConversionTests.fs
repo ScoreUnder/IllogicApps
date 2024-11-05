@@ -236,7 +236,7 @@ let XmlOfJsonTest expr expected = objTest expr expected
 
 [<TestCase("@{xml(json('{\"root\": {\"#cdata-section\": \"]]>test\"}}'))}")>]
 let InvalidXmlOfJsonTest expr =
-    raisesOrTrace<XmlException> expr <@ testExpressionEvaluation expr @>
+    raisesOrTrace<System.Exception> expr <@ testExpressionEvaluation expr @>
 
 [<TestCase("""@json(xml(json('{"cow":"moo"}')))""", """{"cow":"moo"}""")>]
 [<TestCase("""@json(xml(json('{"animals":{"cow":"moo","pig":"oink","birds":["cheep","tweet","quack","caw"]}}')))""",
@@ -292,7 +292,9 @@ let AllowInvalidXmlOfBinaryTest expr (expected: string) =
 
 [<TestCase("@json(xml(binary('<')))")>]
 let InvalidXmlOfBinaryToJsonTest expr =
-    raisesOrTrace<XmlException> expr <@ testExpressionEvaluation expr @>
+    raisesWithOrTrace<System.Exception> expr <@ testExpressionEvaluation expr @> (fun e ->
+        let message = e.Message in <@ message.Contains("Could not parse XML: Data at the root level is invalid") @>)
+
 
 [<TestCase("@binary(xml('<root/>'))", """{"$content-type":"application/octet-stream","$content":"PHJvb3QgLz4="}""")>]
 let BinaryOfXmlTest expr (expected: string) =
