@@ -200,7 +200,7 @@ let parse (str: string) =
                     | '}' as c ->
                         match stack with
                         | ConstructingObjectValue(k, o) :: stack' ->
-                            parse' (index + 1) (ValueEnd(JsonTree.Object(OrderedMap(List.rev (KeyValuePair(k, v) :: o))))) stack'
+                            parse' (index + 1) (ValueEnd(JsonTree.Object(OrderedMap.CreateRange(List.rev (KeyValuePair(k, v) :: o))))) stack'
                         | _ -> fail c index state stack
                     | c -> fail c index state stack
             | StringLiteral sb ->

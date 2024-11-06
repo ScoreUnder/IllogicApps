@@ -7,18 +7,23 @@ open System.Collections.Immutable
 open Microsoft.FSharp.Collections
 
 type OrderedMap<[<ComparisonConditionalOn>] 'K, [<ComparisonConditionalOn>] 'V> when 'K: equality and 'V: equality
-    (copyOf: KeyValuePair<'K, 'V> seq) =
-    let backingMap, backingArray =
-        let cachedSeq = Seq.toArray copyOf
-        let asArray = cachedSeq |> Array.map _.Key |> ImmutableArray.CreateRange
-        let asMap = ImmutableDictionary.CreateRange(cachedSeq)
-        asMap, asArray
-
+    private (backingMap: ImmutableDictionary<'K, 'V>, backingArray: ImmutableArray<'K>) =
     let values: 'V ImmutableArray Lazy =
         lazy
             backingArray
             |> Seq.map (fun key -> backingMap.[key])
             |> ImmutableArray.CreateRange
+
+    static member CreateRange(keyValuePairs: KeyValuePair<'K, 'V> seq) =
+        let backingMap, backingArray =
+            let cachedSeq = Seq.toArray keyValuePairs
+            let asArray = cachedSeq |> Array.map _.Key |> ImmutableArray.CreateRange
+            let asMap = ImmutableDictionary.CreateRange(cachedSeq)
+            asMap, asArray
+
+        OrderedMap(backingMap, backingArray)
+
+    static member internal CreateUnsafe(backingMap, backingArray) = OrderedMap(backingMap, backingArray)
 
     member public this.Keys = backingArray
     member inline public this.Count = this.Keys.Length
@@ -137,15 +142,32 @@ type OrderedMap<[<ComparisonConditionalOn>] 'K, [<ComparisonConditionalOn>] 'V> 
             |> Option.defaultValue 0
 
 module OrderedMap =
-    let empty<'K, 'V when 'K: equality and 'V: equality> = OrderedMap<'K, 'V>([])
+    type Builder<'K, 'V when 'K: equality and 'V: equality>() =
+        let mutable backingMap = ImmutableDictionary.CreateBuilder<'K, 'V>()
+        let mutable backingArray = ImmutableArray.CreateBuilder<'K>()
+
+        member this.Add(key: 'K, value: 'V) =
+            if backingMap.TryAdd(key, value) then
+                backingArray.Add key
+            else
+                failwithf "Duplicate key %s" (key.ToString())
+
+            this
+
+        member this.Build() =
+            OrderedMap.CreateUnsafe<'K, 'V>(backingMap.ToImmutable(), backingArray.DrainToImmutable())
+
+    let empty<'K, 'V when 'K: equality and 'V: equality> =
+        OrderedMap<'K, 'V>.CreateRange([])
+
     let inline isEmpty (m: OrderedMap<'a, 'b>) = m.Count = 0
 
     let ofSeq seq =
-        seq |> Seq.map (fun (k, v) -> KeyValuePair(k, v)) |> OrderedMap
+        seq |> Seq.map (fun (k, v) -> KeyValuePair(k, v)) |> OrderedMap.CreateRange
 
     let inline ofList list = ofSeq list
     let inline ofArray array = ofSeq array
-    let inline ofMap (map: Map<'K, 'V>) = OrderedMap(map)
+    let inline ofMap (map: Map<'K, 'V>) = OrderedMap.CreateRange(map)
 
 
     let fold (f: 'State -> 'K -> 'V -> 'State) (state: 'State) (m: OrderedMap<'K, 'V>) : 'State =
@@ -156,12 +178,12 @@ module OrderedMap =
 
     let set (key: 'K) (value: 'V) (m: OrderedMap<'K, 'V>) =
         if m.ContainsKey key then
-            OrderedMap(
+            OrderedMap.CreateRange(
                 m
                 |> Seq.map (fun (KeyValue(k, v)) -> KeyValuePair(k, (if k = key then value else v)))
             )
         else
-            OrderedMap(m |> Seq.append [ KeyValuePair(key, value) ])
+            OrderedMap.CreateRange(m |> Seq.append [ KeyValuePair(key, value) ])
 
     let toSeq (m: OrderedMap<'K, 'V>) =
         m |> Seq.map (fun (KeyValue(k, v)) -> k, v)
@@ -194,7 +216,7 @@ module OrderedMap =
 
     let map (f: 'K -> 'V -> 'K * 'V) (m: OrderedMap<'K, 'V>) =
         Seq.map (fun (KeyValue(k, v)) -> let k', v' = f k v in KeyValuePair(k', v')) m
-        |> OrderedMap
+        |> OrderedMap.CreateRange
 
     let forgivingMap (f: 'K -> 'V -> ('K * 'V) option) (m: OrderedMap<'K, 'V>) =
         foldBack
@@ -209,12 +231,12 @@ module OrderedMap =
             m
             ([], Set.empty)
         |> fst
-        |> OrderedMap
+        |> OrderedMap.CreateRange
 
     let collect (f: 'K -> 'V -> ('K * 'V) seq) (m: OrderedMap<'K, 'V>) =
         m
         |> Seq.collect (fun (KeyValue(k, v)) -> f k v |> Seq.map (fun (k', v') -> KeyValuePair(k', v')))
-        |> OrderedMap
+        |> OrderedMap.CreateRange
 
     let forgivingCollect (f: 'K -> 'V -> ('K * 'V) seq) (m: OrderedMap<'K, 'V>) =
         m
@@ -229,14 +251,16 @@ module OrderedMap =
                 state
                 ([], Set.empty))
         |> fst
-        |> OrderedMap
+        |> OrderedMap.CreateRange
 
     let filter (f: 'K -> 'V -> bool) (m: OrderedMap<'K, 'V>) =
-        Seq.filter (fun (KeyValue(k, v)) -> f k v) m |> OrderedMap
+        Seq.filter (fun (KeyValue(k, v)) -> f k v) m |> OrderedMap.CreateRange
 
     let partition (f: 'K -> 'V -> bool) (m: OrderedMap<'K, 'V>) =
-        let yes, no = fold (fun (yes, no) k v -> if f k v then ((k, v) :: yes), no else yes, ((k, v) :: no)) ([], []) m
-        ofList(List.rev yes), ofList(List.rev no)
+        let yes, no =
+            fold (fun (yes, no) k v -> if f k v then ((k, v) :: yes), no else yes, ((k, v) :: no)) ([], []) m
+
+        ofList (List.rev yes), ofList (List.rev no)
 
     let iter (f: 'K -> 'V -> unit) (m: OrderedMap<'K, 'V>) =
         Seq.iter (fun (KeyValue(k, v)) -> f k v) m
