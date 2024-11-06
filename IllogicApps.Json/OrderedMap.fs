@@ -147,11 +147,8 @@ module OrderedMap =
         let mutable backingArray = ImmutableArray.CreateBuilder<'K>()
 
         member this.Add(key: 'K, value: 'V) =
-            if backingMap.TryAdd(key, value) then
-                backingArray.Add key
-            else
-                failwithf "Duplicate key %s" (key.ToString())
-
+            backingMap.Add(key, value)
+            backingArray.Add key
             this
 
         member this.Build() =
