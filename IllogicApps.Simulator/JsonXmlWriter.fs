@@ -44,13 +44,14 @@ module private JsonXmlWriter =
 
 open JsonXmlWriter
 
-type JsonXmlWriter(stream: Stream, bugForBugAccurate: bool) =
+type JsonXmlWriter(bugForBugAccurate: bool) =
     inherit XmlWriter()
 
     let mutable writeState = WriteState.Start
     let stack = Stack<string * BuildingObject>()
     let mutable attributeKey: String option = None
     let mutable attributeValue: String option = None
+    let mutable result: JsonTree option = None
 
     let raiseError msg =
         writeState <- WriteState.Error
@@ -111,25 +112,28 @@ type JsonXmlWriter(stream: Stream, bugForBugAccurate: bool) =
         | _, BuildingObject map -> map
         | _ -> raiseError "Invalid state: not in an element"
 
+    member public this.Result =
+        match result with
+        | Some r -> r
+        | None -> raiseError "Not finished writing"
+
     override this.WriteState = writeState
 
     override this.Close() : unit =
-        if stack.Count <> 1 && writeState <> WriteState.Error then
+        if stack.Count <> 1 && writeState <> WriteState.Error && result = None then
             raiseError "Not all elements have been closed"
 
         if writeState <> WriteState.Closed then
             this.Flush()
-            stream.Close()
             writeState <- WriteState.Closed
 
     override this.Dispose(disposing: bool) : unit =
         if disposing then
             this.Close()
-            stream.Dispose()
 
         base.Dispose(disposing)
 
-    override this.DisposeAsyncCore() : ValueTask = stream.DisposeAsync()
+    override this.DisposeAsyncCore() : ValueTask = base.DisposeAsyncCore()
 
     override this.Flush() : unit =
         match writeState with
@@ -142,13 +146,9 @@ type JsonXmlWriter(stream: Stream, bugForBugAccurate: bool) =
                 let _, building = stack.Pop()
                 let tree = cook building
 
-                Conversions.stringOfJson tree
-                |> System.Text.Encoding.UTF8.GetBytes
-                |> stream.Write
+                result <- Some tree
 
-                stream.Flush()
-
-    override this.FlushAsync() : Task = stream.FlushAsync()
+    override this.FlushAsync() : Task = raiseError "Not Implemented"
 
     override this.LookupPrefix(ns: string) : string =
         raiseError $"LookupPrefix({ns}): Note Implemented"

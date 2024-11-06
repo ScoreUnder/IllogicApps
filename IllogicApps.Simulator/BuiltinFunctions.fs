@@ -426,47 +426,44 @@ let f_isFloat _ (args: Args) : JsonTree =
 let f_json (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 1 args
 
-    let str =
-        match args |> List.head with
-        | Base64StringBlob(contentType, content) ->
-            if isXmlContentType contentType then
-                let xmlStr = decodeByContentType contentType content
-                let stringWriter = new MemoryStream()
+    match args |> List.head with
+    | Base64StringBlob(contentType, content) ->
+        if isXmlContentType contentType then
+            let xmlStr = decodeByContentType contentType content
+            use writer = new JsonXmlWriter(sim.IsBugForBugAccurate)
 
-                try
-                    let doc = XmlDocument()
-                    doc.LoadXml(xmlStr)
+            try
+                let doc = XmlDocument()
+                doc.LoadXml(xmlStr)
 
-                    // Trigger an exception if the encoding is not supported
-                    match doc.FirstChild with
-                    | :? XmlDeclaration as decl ->
-                        match decl.Encoding with
-                        | "" -> ()
-                        | e ->
-                            if sim.IsBugForBugAccurate then
-                                let encoding = Encoding.GetEncoding e
+                // Trigger an exception if the encoding is not supported
+                match doc.FirstChild with
+                | :? XmlDeclaration as decl ->
+                    match decl.Encoding with
+                    | "" -> ()
+                    | e ->
+                        if sim.IsBugForBugAccurate then
+                            let encoding = Encoding.GetEncoding e
 
-                                if
-                                    encoding = Encoding.UTF32
-                                    || encoding = Encoding.Unicode
-                                    || encoding = Encoding.BigEndianUnicode
-                                then
-                                    failwithf "%s is not a supported encoding for no good reason lol" e
-                    | _ -> ()
+                            if
+                                encoding = Encoding.UTF32
+                                || encoding = Encoding.Unicode
+                                || encoding = Encoding.BigEndianUnicode
+                            then
+                                failwithf "%s is not a supported encoding for no good reason lol" e
+                | _ -> ()
 
-                    use writer = new JsonXmlWriter(stringWriter, sim.IsBugForBugAccurate)
-                    doc.WriteTo(writer)
-                with ex ->
-                    failwithf "Could not parse XML: %s\nDocument: %s\nOriginal: %s" ex.Message xmlStr (ex.ToString())
+                doc.WriteTo(writer)
+            with ex ->
+                failwithf "Could not parse XML: %s\nDocument: %s\nOriginal: %s" ex.Message xmlStr (ex.ToString())
 
-                stringWriter.ToArray() |> Encoding.UTF8.GetString
-            else if isBinaryContentType contentType then
-                content |> decodeByContentType contentType
-            else
-                failwithf "Unknown content type %s" contentType
-        | arg -> Conversions.ensureString arg
-
-    Parser.parse str
+            writer.Close()
+            writer.Result
+        else if isBinaryContentType contentType then
+            content |> decodeByContentType contentType |> Parser.parse
+        else
+            failwithf "Unknown content type %s" contentType
+    | arg -> Conversions.ensureString arg |> Parser.parse
 
 let f_string _ (args: Args) : JsonTree =
     expectArgs 1 args
