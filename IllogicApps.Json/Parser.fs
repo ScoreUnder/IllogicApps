@@ -27,8 +27,8 @@ type private ParserState =
     | LiteralIdentifier of StringBuilder
 
 type private ConstructingState =
-    | ConstructingObject of KeyValuePair<string, JsonTree> list
-    | ConstructingObjectValue of string * KeyValuePair<string, JsonTree> list
+    | ConstructingObject of OrderedMap.Builder<string, JsonTree>
+    | ConstructingObjectValue of string * OrderedMap.Builder<string, JsonTree>
     | ConstructingArray of JsonTree list
 
 type JsonFormatException(message) =
@@ -180,7 +180,7 @@ let parse (str: string) =
                     | ',' as c ->
                         match stack with
                         | ConstructingObjectValue(k, o) :: stack' ->
-                            parse' (index + 1) ValueStart (ConstructingObject(KeyValuePair(k, v) :: o) :: stack')
+                            parse' (index + 1) ValueStart (ConstructingObject(o.Add(k, v)) :: stack')
                         | ConstructingArray a :: stack' ->
                             parse' (index + 1) ValueStart (ConstructingArray(v :: a) :: stack')
                         | _ -> fail c index state stack
@@ -200,7 +200,7 @@ let parse (str: string) =
                     | '}' as c ->
                         match stack with
                         | ConstructingObjectValue(k, o) :: stack' ->
-                            parse' (index + 1) (ValueEnd(JsonTree.Object(OrderedMap.CreateRange(List.rev (KeyValuePair(k, v) :: o))))) stack'
+                            parse' (index + 1) (ValueEnd(JsonTree.Object(o.Add(k, v).Build()))) stack'
                         | _ -> fail c index state stack
                     | c -> fail c index state stack
             | StringLiteral sb ->
@@ -319,7 +319,7 @@ let parse (str: string) =
                     | '\t'
                     | '\n'
                     | '\r' -> parse' (index + 1) ObjectStart stack
-                    | '"' -> parse' (index + 1) (StringLiteral(StringBuilder())) (ConstructingObject [] :: stack)
+                    | '"' -> parse' (index + 1) (StringLiteral(StringBuilder())) (ConstructingObject (OrderedMap.Builder()) :: stack)
                     | '}' -> parse' (index + 1) (ValueEnd(JsonTree.Object(OrderedMap.empty))) stack
                     | c -> fail c index state stack
             | ArrayStart ->
