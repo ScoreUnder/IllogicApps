@@ -79,10 +79,6 @@ let netHttpRequestMessageOfWorkflowRequest (req: WorkflowRequest) =
     netReq
 
 let completedTriggerOfWorkflowRequest (req: WorkflowRequest) =
-    CompletedTrigger(
-        name = req.Host.Workflow.Id,
-        status = Succeeded,
-        startTime = stringOfDateTime DateTime.UtcNow,
-        EndTime = stringOfDateTime DateTime.UtcNow,
-        Outputs = JsonUtil.illogicJsonOfSystemTextJson req.Body
-    )
+    CompletedTrigger.create
+    <| { CompletedAction.create req.Host.Workflow.Id (stringOfDateTime DateTime.UtcNow) with
+           outputs = JsonUtil.illogicJsonOfSystemTextJson req.Body }

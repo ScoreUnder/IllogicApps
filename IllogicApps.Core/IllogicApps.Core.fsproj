@@ -8,7 +8,6 @@
         <Compile Include="CompletedStepTypes.fs"/>
         <Compile Include="ExternalServiceTypes.fs"/>
         <Compile Include="JsonUtil.fs"/>
-        <Compile Include="JsonTypeConversions.fs" />
         <Compile Include="ExternalServiceTypeConversions.fs"/>
         <Compile Include="SimulatorContext.fs"/>
         <Compile Include="LogicAppBaseAction.fs"/>

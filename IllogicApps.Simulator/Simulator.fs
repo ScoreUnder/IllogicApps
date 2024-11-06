@@ -43,7 +43,7 @@ module private SimulatorHelper =
         let calcSingleDependency dep requiredStatuses =
             match actionResults.TryGetValue(dep) with
             | true, actionResult ->
-                if Seq.contains actionResult.Status requiredStatuses then
+                if Seq.contains actionResult.status requiredStatuses then
                     Satisfied
                 else
                     Completed
@@ -70,7 +70,7 @@ module private SimulatorHelper =
                     (fun (chg, acc) name ->
                         let result = actionResults.[name]
 
-                        match result.Status with
+                        match result.status with
                         | Skipped ->
                             let higherActions =
                                 actions.[name].RunAfter
@@ -150,19 +150,16 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
 
     let isBugForBugAccurate = defaultArg isBugForBugAccurate true
 
-    let recordResultOf name f =
+    let recordResultOf name (f: unit -> ActionResult) =
         let startTime = DateTime.UtcNow
         let result = f ()
 
         let result =
-            CompletedAction(
-                name = name,
-                status = result.status,
-                startTime = stringOfDateTime startTime,
-                Inputs = JsonUtil.illogicJsonOfSystemTextJson (Option.toObj result.inputs),
-                Outputs = JsonUtil.illogicJsonOfSystemTextJson (Option.toObj result.outputs),
-                workflowRunId = this.TriggerResult.ClientTrackingId
-            )
+            { CompletedAction.create name (stringOfDateTime startTime) with
+                status = result.status
+                inputs = result.inputs |> Option.toObj |> JsonUtil.illogicJsonOfSystemTextJson
+                outputs = result.outputs |> Option.toObj |> JsonUtil.illogicJsonOfSystemTextJson
+                clientTrackingId = triggerResult.action.clientTrackingId }
 
         this.RecordActionResult name result
 
@@ -177,12 +174,11 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
 
     static member TriggerSimple (logicApp: LogicAppSpec.Root) triggerOutputs =
         let triggerResult =
-            CompletedTrigger(
-                name = (logicApp.definition.triggers.Keys |> Seq.head),
-                status = Succeeded,
-                startTime = stringOfDateTime DateTime.UtcNow,
-                Outputs = triggerOutputs
-            )
+            CompletedTrigger.create
+                { CompletedAction.create
+                      (logicApp.definition.triggers.Keys |> Seq.head)
+                      (stringOfDateTime DateTime.UtcNow) with
+                    outputs = triggerOutputs }
 
         Simulator.Trigger logicApp triggerResult
 
@@ -255,7 +251,7 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
             |> Set.difference (actions.Keys |> Set.ofSeq)
             |> Set.toList
             |> trimLeaves actions this.ActionResults
-            |> Seq.map (fun name -> this.ActionResults.[name].Status)
+            |> Seq.map (fun name -> this.ActionResults.[name].status)
             |> Seq.fold mergeStatus Succeeded
 
     override this.EvaluateCondition expr =

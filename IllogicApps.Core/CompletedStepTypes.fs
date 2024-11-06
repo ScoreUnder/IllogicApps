@@ -2,7 +2,6 @@ module IllogicApps.Core.CompletedStepTypes
 
 open System
 open System.Globalization
-open System.Text.Json.Serialization
 open IllogicApps.Json
 
 type Status =
@@ -11,6 +10,14 @@ type Status =
     | Skipped
     | TimedOut
     | Cancelled
+
+let stringOfStatus =
+    function
+    | Succeeded -> "Succeeded"
+    | Failed -> "Failed"
+    | Skipped -> "Skipped"
+    | TimedOut -> "TimedOut"
+    | Cancelled -> "Cancelled"
 
 let makeNewWorkflowRunId () =
     // This isn't a GUID but oh well
@@ -21,41 +28,60 @@ let makeNewTrackingId () = Guid.NewGuid().ToString()
 let stringOfDateTime (dt: DateTime) =
     dt.ToString("o", CultureInfo.InvariantCulture)
 
-type CompletedAction(name: string, status: Status, startTime: string, ?workflowRunId: string) =
-    let workflowRunId = defaultArg workflowRunId (makeNewWorkflowRunId ())
+type CompletedAction =
+    { name: string
+      inputs: JsonTree
+      outputs: JsonTree
+      startTime: string
+      endTime: string
+      trackingId: string
+      clientTrackingId: string
+      status: Status }
 
-    [<JsonPropertyName("name")>]
-    member val Name = name with get, set
+module CompletedAction =
+    let inline create name startTime =
+        { name = name
+          inputs = Null
+          outputs = Null
+          startTime = startTime
+          endTime = stringOfDateTime DateTime.UtcNow
+          trackingId = makeNewTrackingId ()
+          clientTrackingId = makeNewWorkflowRunId ()
+          status = Succeeded }
 
-    [<JsonPropertyName("inputs")>]
-    member val Inputs: JsonTree = Null with get, set
+let orderedMapBuilderOfCompletedAction (ca: CompletedAction) =
+    OrderedMap
+        .Builder()
+        .Add("name", String ca.name)
+        .MaybeAdd("inputs", ca.inputs)
+        .MaybeAdd("outputs", ca.outputs)
+        .Add("startTime", String ca.startTime)
+        .Add("endTime", String ca.endTime)
+        .Add("trackingId", String ca.trackingId)
+        .Add("clientTrackingId", String ca.clientTrackingId)
+        .Add("status", String(ca.status |> stringOfStatus))
 
-    [<JsonPropertyName("outputs")>]
-    member val Outputs: JsonTree = Null with get, set
+let jsonOfCompletedAction (ca: CompletedAction) =
+    Object((orderedMapBuilderOfCompletedAction ca).Build())
 
-    [<JsonPropertyName("startTime")>]
-    member val StartTime = startTime with get, set
+type CompletedTrigger =
+    { action: CompletedAction
+      scheduledTime: string option
+      originHistoryName: string
+      code: string option }
 
-    [<JsonPropertyName("endTime")>]
-    member val EndTime = stringOfDateTime DateTime.UtcNow with get, set
+let orderedMapBuilderOfCompletedTrigger (ct: CompletedTrigger) =
+    (orderedMapBuilderOfCompletedAction ct.action)
+        .MaybeAdd("scheduledTime", ct.scheduledTime)
+        .Add("originHistoryName", String ct.originHistoryName)
+        .MaybeAdd("code", ct.code)
 
-    [<JsonPropertyName("trackingId")>]
-    member val TrackingId = makeNewTrackingId () with get, set
+let jsonOfCompletedTrigger (ct: CompletedTrigger) =
+    Object((orderedMapBuilderOfCompletedTrigger ct).Build())
 
-    [<JsonPropertyName("clientTrackingId")>]
-    member val ClientTrackingId = workflowRunId with get, set
-
-    [<JsonPropertyName("status")>]
-    member val Status = status with get, set
-
-type CompletedTrigger(name: string, status: Status, startTime: string, ?workflowRunId: string) as this =
-    inherit CompletedAction(name, status, startTime, ?workflowRunId = workflowRunId)
-
-    [<JsonPropertyName("scheduledTime")>]
-    member val ScheduledTime: string option = None with get, set
-
-    [<JsonPropertyName("originHistoryName")>]
-    member val OriginHistoryName = this.ClientTrackingId with get, set
-
-    [<JsonPropertyName("code")>]
-    member val Code: string option = None with get, set
+module CompletedTrigger =
+    let inline create completedAction =
+        { action = completedAction
+          scheduledTime = None
+          originHistoryName = completedAction.clientTrackingId
+          code = None }

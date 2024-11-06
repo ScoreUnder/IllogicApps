@@ -26,9 +26,9 @@ type Request() =
 
         let triggerResult = context.TriggerResult
 
-        { status = triggerResult.Status
-          inputs = Option.ofObj (systemTextJsonOfIllogicJson triggerResult.Inputs)
-          outputs = Option.ofObj (systemTextJsonOfIllogicJson triggerResult.Outputs) }
+        { status = triggerResult.action.status
+          inputs = Option.ofObj (systemTextJsonOfIllogicJson triggerResult.action.inputs)
+          outputs = Option.ofObj (systemTextJsonOfIllogicJson triggerResult.action.outputs) }
 
 // Actions
 

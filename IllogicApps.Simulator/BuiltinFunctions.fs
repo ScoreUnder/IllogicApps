@@ -553,13 +553,13 @@ let f_outputs (sim: SimulatorContext) (args: Args) : JsonTree =
     let actionName = Conversions.ensureString <| List.head args
 
     match sim.GetActionResult actionName with
-    | Some result -> result.Outputs
+    | Some result -> result.outputs
     | None -> failwithf "Action %s not found" actionName
 
 let f_trigger (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 0 args
 
-    JsonTypeConversions.jsonOfCompletedTrigger sim.TriggerResult
+    CompletedStepTypes.jsonOfCompletedTrigger sim.TriggerResult
 
 let f_variables (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 1 args
