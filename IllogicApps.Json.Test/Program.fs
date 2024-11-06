@@ -1,22 +1,13 @@
 module IllogicApps.Json.Test.Program
 
-open IllogicApps.Json
-
-type Dummy() = inherit obj()
-
-let bigJson ()=
-    use stream =
-        new System.IO.StreamReader(
-            typeof<Dummy>.Assembly
-                .GetManifestResourceStream("IllogicApps.Json.Test.TestData.SkippingTestWorkflow.json")
-        )
-
-    stream.ReadToEnd()
+open System.Reflection
+open BenchmarkDotNet.Reports
+open BenchmarkDotNet.Running
 
 [<EntryPoint>]
 let main args =
-    let bigJson = bigJson()
-    for i in 1..100000 do
-        Parser.parse bigJson |> ignore
-    Parser.parse bigJson |> Conversions.stringOfJson |> printfn "%s"
-    0
+    let anyErrors =
+        BenchmarkSwitcher.FromAssembly(Assembly.GetCallingAssembly()).Run(args)
+        |> Seq.exists (fun (result: Summary) -> result.HasCriticalValidationErrors)
+
+    if anyErrors then 1 else 0
