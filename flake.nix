@@ -66,7 +66,6 @@
           version = "0.0.1";
           src = ./.;
           nugetDeps = ./deps.nix;
-          projectFile = "IllogicApps.Test/IllogicApps.Test.fsproj";
           dotnet-sdk = myDotnetSdk;
           dotnet-runtime = myDotnetRuntime;
         };
