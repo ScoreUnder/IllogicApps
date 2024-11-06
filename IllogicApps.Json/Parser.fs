@@ -1,6 +1,7 @@
 module IllogicApps.Json.Parser
 
 open System
+open System.Collections.Generic
 open System.Collections.Immutable
 open System.Globalization
 open System.Runtime.CompilerServices
@@ -26,8 +27,8 @@ type private ParserState =
     | LiteralIdentifier of StringBuilder
 
 type private ConstructingState =
-    | ConstructingObject of (string * JsonTree) list
-    | ConstructingObjectValue of string * (string * JsonTree) list
+    | ConstructingObject of KeyValuePair<string, JsonTree> list
+    | ConstructingObjectValue of string * KeyValuePair<string, JsonTree> list
     | ConstructingArray of JsonTree list
 
 type JsonFormatException(message) =
@@ -179,7 +180,7 @@ let parse (str: string) =
                     | ',' as c ->
                         match stack with
                         | ConstructingObjectValue(k, o) :: stack' ->
-                            parse' (index + 1) ValueStart (ConstructingObject((k, v) :: o) :: stack')
+                            parse' (index + 1) ValueStart (ConstructingObject(KeyValuePair(k, v) :: o) :: stack')
                         | ConstructingArray a :: stack' ->
                             parse' (index + 1) ValueStart (ConstructingArray(v :: a) :: stack')
                         | _ -> fail c index state stack
@@ -199,7 +200,7 @@ let parse (str: string) =
                     | '}' as c ->
                         match stack with
                         | ConstructingObjectValue(k, o) :: stack' ->
-                            parse' (index + 1) (ValueEnd(JsonTree.Object(OrderedMap.ofList(List.rev ((k, v) :: o))))) stack'
+                            parse' (index + 1) (ValueEnd(JsonTree.Object(OrderedMap(List.rev (KeyValuePair(k, v) :: o))))) stack'
                         | _ -> fail c index state stack
                     | c -> fail c index state stack
             | StringLiteral sb ->

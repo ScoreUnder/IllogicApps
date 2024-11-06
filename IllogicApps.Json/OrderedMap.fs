@@ -9,8 +9,8 @@ open Microsoft.FSharp.Collections
 type OrderedMap<[<ComparisonConditionalOn>] 'K, [<ComparisonConditionalOn>] 'V> when 'K: equality and 'V: equality
     (copyOf: KeyValuePair<'K, 'V> seq) =
     let backingMap, backingArray =
-        let cachedSeq = Seq.cache copyOf
-        let asArray = cachedSeq |> Seq.map _.Key |> ImmutableArray.CreateRange
+        let cachedSeq = Seq.toArray copyOf
+        let asArray = cachedSeq |> Array.map _.Key |> ImmutableArray.CreateRange
         let asMap = ImmutableDictionary.CreateRange(cachedSeq)
         asMap, asArray
 
