@@ -188,7 +188,8 @@ module OrderedMap =
     let toList (m: OrderedMap<'K, 'V>) =
         foldBack (fun k v acc -> (k, v) :: acc) m []
 
-    let toArray (m: OrderedMap<'K, 'V>) = Seq.toArray m
+    let toArray (m: OrderedMap<'K, 'V>) =
+        Array.init m.Count (fun i -> let key = m.Keys.[i] in key, m.[key])
 
     let toMap (m: OrderedMap<'K, 'V>) = toSeq m |> Map.ofSeq
 
