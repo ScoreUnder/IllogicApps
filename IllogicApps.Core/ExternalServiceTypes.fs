@@ -1,63 +1,76 @@
 module IllogicApps.Core.ExternalServiceTypes
 
-open System.Text.Json
-open System.Text.Json.Nodes
-open System.Text.Json.Serialization
+open System.Collections.Generic
+open IllogicApps.Json
 
-type HttpRequest() =
-    override this.ToString() = JsonSerializer.Serialize(this)
-    member val Method = "" with get, set
-    member val Uri = "" with get, set
-    member val Headers = Map.empty<string, string> with get, set
-    member val QueryParameters = Map.empty<string, string> with get, set
-    member val Body: string option = None with get, set
-    member val Cookie: string option = None with get, set
-    member val Authentication: JsonObject option = None with get, set
+type HttpRequest =
+    { method: string
+      uri: string
+      headers: Map<string, string>
+      queryParameters: Map<string, string>
+      body: string option
+      cookie: string option
+      authentication: JsonTree }
 
-type HttpRequestReply() =
-    override this.ToString() = JsonSerializer.Serialize(this)
-    [<JsonPropertyName("statusCode")>]
-    member val StatusCode = 0 with get, set
-    [<JsonPropertyName("headers")>]
-    member val Headers = Map.empty<string, string> with get, set
-    [<JsonPropertyName("body")>]
-    member val Body: JsonNode = JsonValue.Create(null) with get, set
+type HttpRequestReply =
+    { statusCode: int
+      headers: Map<string, string>
+      body: JsonTree }
+    
+    static member Default =
+        { statusCode = 0
+          headers = Map.empty
+          body = Null }
 
-type WorkflowRequestHostWorkflow() =
-    [<JsonPropertyName("id")>]
-    member val Id = "" with get, set
+type WorkflowRequestRetryPolicy =
+    { type_: string
+      count: int
+      interval: string
+      minimumInterval: string
+      maximumInterval: string }
 
-type WorkflowRequestHost() =
-    [<JsonPropertyName("workflow")>]
-    member val Workflow = new WorkflowRequestHostWorkflow() with get, set
+    static member Default =
+        { type_ = ""
+          count = 0
+          interval = ""
+          minimumInterval = ""
+          maximumInterval = "" }
 
-type WorkflowRequestRetryPolicy() =
-    [<JsonPropertyName("type")>]
-    member val Type = "" with get, set // Todo: this is an enum
+let jsonOfWorkflowRequestRetryPolicy policy =
+    OrderedMap
+        .Builder()
+        .Add("type", String policy.type_)
+        .Add("count", Integer policy.count)
+        .Add("interval", String policy.interval)
+        .Add("minimumInterval", String policy.minimumInterval)
+        .Add("maximumInterval", String policy.maximumInterval)
+        .Build()
+    |> Object
 
-    [<JsonPropertyName("count")>]
-    member val Count = 0 with get, set
+type WorkflowRequest =
+    { workflowId: string
+      headers: Map<string, string>
+      body: JsonTree
+      retryPolicy: WorkflowRequestRetryPolicy }
 
-    [<JsonPropertyName("interval")>]
-    member val Interval = "" with get, set
+let jsonOfWorkflowRequest req =
+    OrderedMap
+        .Builder()
+        .Add("host", Conversions.createObject [ "workflow", Conversions.createObject [ "id", String req.workflowId ] ])
+        .Add(
+            "headers",
+            req.headers
+            |> Seq.map (fun (KeyValue(k, v)) -> KeyValuePair(k, String v))
+            |> OrderedMap.CreateRange
+            |> Object
+        )
+        .Add("body", req.body)
+        .Add("retryPolicy", jsonOfWorkflowRequestRetryPolicy req.retryPolicy)
+        .Build()
+    |> Object
 
-    [<JsonPropertyName("minimumInterval")>]
-    member val MinimumInterval = "" with get, set
-
-    [<JsonPropertyName("maximumInterval")>]
-    member val MaximumInterval = "" with get, set
-
-type WorkflowRequest() =
-    [<JsonPropertyName("host")>]
-    member val Host = new WorkflowRequestHost() with get, set
-    [<JsonPropertyName("headers")>]
-    member val Headers = Map.empty<string, string> with get, set
-    [<JsonPropertyName("body")>]
-    member val Body: JsonNode = JsonValue.Create(null) with get, set
-    [<JsonPropertyName("retryPolicy")>]
-    member val RetryPolicy = new WorkflowRequestRetryPolicy() with get, set
 
 type ExternalServiceRequestType =
-    | HttpRequest of HttpRequest * (HttpRequestReply ref)
+    | HttpRequest of HttpRequest * HttpRequestReply ref
     | HttpResponse of HttpRequestReply
-    | Workflow of WorkflowRequest * (HttpRequestReply ref)
+    | Workflow of WorkflowRequest * HttpRequestReply ref

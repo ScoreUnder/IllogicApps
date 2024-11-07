@@ -2,13 +2,12 @@ module IllogicApps.Core.ExternalServiceTypeConversions
 
 open System
 open System.Net
-open System.Text.Json
-open System.Text.Json.Nodes
 open CompletedStepTypes
 open ExternalServiceTypes
+open IllogicApps.Json
 
 let formUri (str: string) (query: Map<string, string>) =
-    let uriBuilder = new UriBuilder(str)
+    let uriBuilder = UriBuilder(str)
 
     let query =
         query
@@ -24,22 +23,25 @@ let formUri (str: string) (query: Map<string, string>) =
 
 let decodeBodyByContentType (contentType: string) (body: string) =
     if contentType.Equals("application/json", StringComparison.OrdinalIgnoreCase) then
-        JsonNode.Parse body
+        Parser.parse body
     else
-        JsonValue.Create body
+        String body
 
 let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
     let netReq =
         new Http.HttpRequestMessage(
-            method = new Http.HttpMethod(req.Method),
-            requestUri = formUri req.Uri req.QueryParameters,
-            Content = new Http.StringContent(req.Body.Value)
+            method = Http.HttpMethod(req.method),
+            requestUri = formUri req.uri req.queryParameters
         )
 
-    req.Cookie |> Option.iter (fun v -> netReq.Headers.Add("Cookie", v))
-    req.Headers |> Map.iter (fun k v -> netReq.Headers.Add(k, v))
+    match req.body with
+    | Some content -> netReq.Content <- new Http.StringContent(content)
+    | None -> ()
 
-    // Not implemented, probably shouldn't be handled here: Authentication
+    req.cookie |> Option.iter (fun v -> netReq.Headers.Add("Cookie", v))
+    req.headers |> Map.iter (fun k v -> netReq.Headers.Add(k, v))
+
+    // Not implemented, probably shouldn't be handled here: authentication
 
     netReq
 
@@ -53,32 +55,36 @@ let httpRequestReplyOfNetHttpResponseMessage (resp: Http.HttpResponseMessage) =
 
     let body =
         resp.Content.ReadAsStringAsync().Result
-        |> decodeBodyByContentType (resp.Content.Headers.ContentType.MediaType)
+        |> decodeBodyByContentType resp.Content.Headers.ContentType.MediaType
 
-    // Not implemented, probably shouldn't be handled here: RetryPolicy
-
-    new HttpRequestReply(StatusCode = (int) resp.StatusCode, Headers = headers, Body = body)
+    { statusCode = int resp.StatusCode
+      headers = headers
+      body = body }
 
 let netHttpRequestMessageOfWorkflowRequest (req: WorkflowRequest) =
     let netReq =
         new Http.HttpRequestMessage(
-            method = new Http.HttpMethod("POST"),
-            requestUri = new Uri($"https://dummyWorkflowInvoker/{req.Host.Workflow.Id}"),
-            Content = new Http.StringContent(req.Body.ToString())
+            method = Http.HttpMethod("POST"),
+            requestUri = Uri($"https://dummyWorkflowInvoker/{req.workflowId}")
         )
 
-    if req.Body.GetValueKind() = JsonValueKind.Object then
-        netReq.Headers.Add("Content-Type", "application/json")
-    else
+    match req.body with
+    | Null -> ()
+    | String s ->
         netReq.Headers.Add("Content-Type", "text/plain")
+        netReq.Content <- new Http.StringContent(s)
+    // TODO: do array/number/etc get handled here?
+    | _ ->
+        netReq.Headers.Add("Content-Type", "application/json")
+        netReq.Content <- new Http.StringContent(req.body |> Conversions.stringOfJson)
 
-    req.Headers |> Map.iter (fun k v -> netReq.Headers.Add(k, v))
+    req.headers |> Map.iter (fun k v -> netReq.Headers.Add(k, v))
 
-    // Not implemented, probably shouldn't be handled here: Host, RetryPolicy
+    // Not implemented, probably shouldn't be handled here: retryPolicy
 
     netReq
 
 let completedTriggerOfWorkflowRequest (req: WorkflowRequest) =
     CompletedTrigger.create
-    <| { CompletedAction.create req.Host.Workflow.Id (stringOfDateTime DateTime.UtcNow) with
-           outputs = JsonUtil.illogicJsonOfSystemTextJson req.Body }
+    <| { CompletedAction.create req.workflowId (stringOfDateTime DateTime.UtcNow) with
+           outputs = req.body }

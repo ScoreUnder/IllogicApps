@@ -10,6 +10,7 @@ open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Core.LogicAppActionSupport
 open CompletedStepTypes
 open ExternalServiceTypes
+open IllogicApps.Json
 open JsonUtil
 
 // Triggers
@@ -414,7 +415,7 @@ type Response() =
     inherit Action()
 
     member val Inputs =
-        { body = None
+        { HttpResponseInputs.body = None
           headers = None
           statusCode = JsonValue.Create(0) } with get, set
 
@@ -448,11 +449,9 @@ type Response() =
 
         context.ExternalServiceRequest
         <| HttpResponse(
-            new HttpRequestReply(
-                StatusCode = processedStatusCode.GetValue<int>(),
-                Headers = (processedHeaders |> Option.map Map.ofSeq |> Option.defaultValue Map.empty),
-                Body = (processedBody |> Option.map _.DeepClone() |> Option.defaultValue jsonNull)
-            )
+            { HttpRequestReply.statusCode = processedStatusCode.GetValue<int>()
+              headers = (processedHeaders |> Option.map Map.ofSeq |> Option.defaultValue Map.empty)
+              body = (processedBody |> Option.toObj |> illogicJsonOfSystemTextJson) }
         )
 
         { status = Succeeded
@@ -476,19 +475,17 @@ type Http() =
     override this.Execute(context: SimulatorContext) =
         printfn "HTTP: %A" this.Inputs
 
-        let result = ref <| new HttpRequestReply() in
+        let result = ref HttpRequestReply.Default in
 
         context.ExternalServiceRequest
         <| HttpRequest(
-            new HttpRequest(
-                Method = this.Inputs.method,
-                Uri = this.Inputs.uri,
-                Headers = (this.Inputs.headers |> Option.defaultValue Map.empty),
-                Body = (this.Inputs.body |> Option.map _.ToString()),
-                QueryParameters = (this.Inputs.queries |> Option.defaultValue Map.empty),
-                Cookie = this.Inputs.cookie,
-                Authentication = this.Inputs.authentication
-            ),
+            { method = this.Inputs.method
+              uri = this.Inputs.uri
+              headers = (this.Inputs.headers |> Option.defaultValue Map.empty)
+              body = (this.Inputs.body |> Option.map _.ToString())
+              queryParameters = (this.Inputs.queries |> Option.defaultValue Map.empty)
+              cookie = this.Inputs.cookie
+              authentication = this.Inputs.authentication |> Option.toObj |> illogicJsonOfSystemTextJson },
             result
         )
 
@@ -501,29 +498,35 @@ type Http() =
 type Workflow() =
     inherit Action()
 
-    member val Inputs = new WorkflowRequest() with get, set
+    member val Inputs =
+        { workflowId = ""
+          headers = Map.empty
+          body = Null
+          retryPolicy = WorkflowRequestRetryPolicy.Default } with get, set
 
     override this.Execute(context: SimulatorContext) =
         printfn "Workflow: %s" (JsonSerializer.Serialize(this))
 
         let headers =
-            this.Inputs.Headers
+            this.Inputs.headers
             |> Map.map (fun _ v -> context.EvaluateLanguage v |> _.GetValue<string>())
 
-        let body = this.Inputs.Body |> context.EvaluateLanguage
+        let body =
+            this.Inputs.body
+            |> systemTextJsonOfIllogicJson
+            |> context.EvaluateLanguage
+            |> illogicJsonOfSystemTextJson
 
-        let result = ref <| new HttpRequestReply() in
+        let result = ref HttpRequestReply.Default in
 
         let inline jsonClone (o: 'a) : 'a =
             JsonSerializer.Deserialize<'a>(JsonSerializer.Serialize(o))
 
         let request =
-            new WorkflowRequest(
-                Host = (this.Inputs.Host |> jsonClone),
-                Headers = headers,
-                Body = body.DeepClone(),
-                RetryPolicy = (this.Inputs.RetryPolicy |> jsonClone)
-            )
+            { workflowId = this.Inputs.workflowId
+              headers = headers
+              body = body
+              retryPolicy = this.Inputs.retryPolicy }
 
         context.ExternalServiceRequest
         <| ExternalServiceTypes.Workflow((jsonClone request), result)
