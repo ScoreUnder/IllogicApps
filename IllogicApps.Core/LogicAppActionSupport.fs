@@ -64,6 +64,11 @@ let queryInputsOfJson json =
     { from = JsonTree.getKey "from" json
       where = JsonTree.getKey "where" json }
 
+type JavaScriptCodeInputs = { code: string }
+
+let javaScriptCodeInputsOfJson json =
+    { code = JsonTree.getKey "code" json |> Conversions.ensureString }
+
 type HttpResponseInputs =
     { body: JsonTree
       headers: OrderedMap<string, string> option

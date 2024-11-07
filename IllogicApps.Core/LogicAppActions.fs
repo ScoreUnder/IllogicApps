@@ -499,8 +499,7 @@ type Query() =
 type JavaScriptCode() =
     inherit BaseAction()
 
-    // TODO: correct inputs
-    member val Inputs: JsonTree = Null with get, set
+    member val Inputs: JavaScriptCodeInputs = { code = "" } with get, set
 
     override this.Execute(context: SimulatorContext) =
         printfn "NOT IMPLEMENTED JavaScriptCode: %O" this.Inputs
@@ -511,7 +510,7 @@ type JavaScriptCode() =
 
     static member OfJson json =
         let r = JavaScriptCode()
-        r.Inputs <- JsonTree.getKey "inputs" json
+        r.Inputs <- JsonTree.getKey "inputs" json |> javaScriptCodeInputsOfJson
         r.AugmentWithJson json
         r
 
