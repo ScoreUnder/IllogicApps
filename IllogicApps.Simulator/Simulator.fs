@@ -3,7 +3,6 @@ namespace IllogicApps.Simulator
 open System
 open System.Collections.Generic
 
-open System.Text.Json.Nodes
 open IllogicApps.Core
 open IllogicApps.Core.LogicAppBaseAction
 open IllogicApps.Json
@@ -11,15 +10,15 @@ open IllogicApps.Simulator.BuiltinCondition
 open CompletedStepTypes
 
 module private SimulatorHelper =
-    let private emptyDependencyList = Map.ofList [ ("", []) ]
+    let private emptyDependencyList = OrderedMap.ofList [ ("", []) ]
 
-    let createDependencyGraph (actions: IDictionary<string, #IGraphExecutable>) =
+    let createDependencyGraph (actions: IReadOnlyDictionary<string, #IGraphExecutable>) =
         actions
         |> Seq.collect (fun kv ->
             let name = kv.Key
 
             kv.Value.RunAfter
-            |> Option.defaultValue Map.empty
+            |> Option.defaultValue OrderedMap.empty
             |> (fun m -> if m.Count <> 0 then m else emptyDependencyList)
             |> Seq.map (fun dep -> (dep.Key, name)))
         |> Seq.groupBy fst
@@ -50,7 +49,7 @@ module private SimulatorHelper =
             | _ -> Incomplete
 
         action.RunAfter
-        |> Option.defaultValue Map.empty
+        |> Option.defaultValue OrderedMap.empty
         |> Seq.fold
             (fun acc kv ->
                 let requiredStatuses = kv.Value
@@ -59,7 +58,7 @@ module private SimulatorHelper =
             Satisfied
 
     let trimLeaves
-        (actions: Map<string, #IGraphExecutable>)
+        (actions: IReadOnlyDictionary<string, #IGraphExecutable>)
         (actionResults: IDictionary<string, CompletedAction>)
         (leafActions: string list)
         =
@@ -74,8 +73,8 @@ module private SimulatorHelper =
                         | Skipped ->
                             let higherActions =
                                 actions.[name].RunAfter
-                                |> Option.defaultValue Map.empty
-                                |> Map.keys
+                                |> Option.defaultValue OrderedMap.empty
+                                |> OrderedMap.keys
                                 |> List.ofSeq
 
                             true, (higherActions @ acc)
@@ -157,8 +156,8 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
         let result =
             { CompletedAction.create name (stringOfDateTime startTime) with
                 status = result.status
-                inputs = result.inputs |> Option.toObj |> JsonUtil.illogicJsonOfSystemTextJson
-                outputs = result.outputs |> Option.toObj |> JsonUtil.illogicJsonOfSystemTextJson
+                inputs = result.inputs
+                outputs = result.outputs
                 clientTrackingId = triggerResult.action.clientTrackingId }
 
         this.RecordActionResult name result
@@ -200,7 +199,7 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
 
     member private this.RecordActionResult name result = this.ActionResults.[name] <- result
 
-    override this.ExecuteGraph(actions: Map<string, 'a> when 'a :> IGraphExecutable) =
+    override this.ExecuteGraph(actions: OrderedMap<string, 'a> when 'a :> IGraphExecutable) =
         let dependencyGraph = createDependencyGraph actions
         let remainingActions = new Dictionary<string, 'a>(actions)
 
@@ -266,13 +265,10 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
             | LanguageCondition fn -> value |> unpackArray |> List.ofSeq |> fn
             | _ -> failwithf "Unexpected expression %A" expr
 
-        expr |> JsonUtil.illogicJsonOfSystemTextJson |> unpackObject |> eval
+        expr |> unpackObject |> eval
 
     override this.EvaluateLanguage expr =
-        expr
-        |> JsonUtil.illogicJsonOfSystemTextJson
-        |> jsonMapStrs (LanguageEvaluator.evaluateIfNecessary this)
-        |> JsonUtil.systemTextJsonOfIllogicJson
+        expr |> jsonMapStrs (LanguageEvaluator.evaluateIfNecessary this)
 
     override this.StopExecuting status = this.TerminationStatus <- Some status
 
@@ -280,11 +276,11 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
         printfn "External service request: %A" request
         ()
 
-    override this.PushLoopContext(arg1: JsonNode seq) : LoopContext =
-        this.PushLoopContext(this.LoopContextStack, Seq.map JsonUtil.illogicJsonOfSystemTextJson arg1)
+    override this.PushLoopContext(arg1: JsonTree seq) : LoopContext =
+        this.PushLoopContext(this.LoopContextStack, arg1)
 
-    override this.PushArrayOperationContext(arg1: JsonNode seq) : LoopContext =
-        this.PushLoopContext(this.ArrayOperationContextStack, Seq.map JsonUtil.illogicJsonOfSystemTextJson arg1)
+    override this.PushArrayOperationContext(arg1: JsonTree seq) : LoopContext =
+        this.PushLoopContext(this.ArrayOperationContextStack, arg1)
 
     member this.PushLoopContext(stack: Stack<LoopContextImpl>, values: JsonTree seq) =
         let loopContext =

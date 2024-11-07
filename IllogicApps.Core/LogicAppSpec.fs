@@ -1,21 +1,26 @@
-namespace IllogicApps.Core.LogicAppSpec
-
-open System.Collections.Generic
-open System.Text.Json.Nodes
+module IllogicApps.Core.LogicAppSpec
 
 open IllogicApps.Core.LogicAppBaseAction
+open IllogicApps.Json
 
-[<AbstractClass>]
-type Action() =
-    inherit BaseAction()
-    member val TrackedProperties: IDictionary<string, JsonNode option> option = None with get, set
+type ActionGraph = OrderedMap<string, BaseAction>
 
-type ActionGraph = Map<string, BaseAction>
+let actionGraphOfJson resolveAction json =
+    json |> Conversions.ensureObject |> OrderedMap.mapValuesOnly resolveAction
 
 type Definition =
     { actions: ActionGraph
-      outputs: Map<string, JsonObject>
+      outputs: OrderedMap<string, JsonTree>
       triggers: ActionGraph }
+
+let definitionOfJson resolveAction json =
+    { actions = JsonTree.getKey "actions" json |> actionGraphOfJson resolveAction
+      outputs = JsonTree.getKey "outputs" json |> Conversions.ensureObject
+      triggers = JsonTree.getKey "triggers" json |> actionGraphOfJson resolveAction }
 
 type Root =
     { definition: Definition; kind: string }
+
+let rootOfJson resolveAction json =
+    { definition = JsonTree.getKey "definition" json |> definitionOfJson resolveAction
+      kind = JsonTree.getKey "kind" json |> Conversions.ensureString }

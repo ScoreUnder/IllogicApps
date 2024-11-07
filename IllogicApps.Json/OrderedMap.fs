@@ -27,7 +27,7 @@ type OrderedMap<[<ComparisonConditionalOn>] 'K, [<ComparisonConditionalOn>] 'V> 
 
     member public this.Keys = backingArray
     member inline public this.Count = this.Keys.Length
-    member private this.BackingMap = backingMap
+    member internal this.BackingMap = backingMap
     member this.Values = values.Value
 
     member this.Item
@@ -173,6 +173,12 @@ module OrderedMap =
     let foldBack (f: 'K -> 'V -> 'State -> 'State) (m: OrderedMap<'K, 'V>) (state: 'State) : 'State =
         Seq.foldBack (fun (KeyValue(k, v)) -> f k v) m state
 
+    let internal unsafeAdd (key: 'K) (value: 'V) (m: OrderedMap<'K, 'V>) =
+        let keys = m.Keys
+        let map = m.BackingMap
+
+        OrderedMap.CreateUnsafe<'K, 'V>(map.Add(key, value), keys.Add(key))
+
     let set (key: 'K) (value: 'V) (m: OrderedMap<'K, 'V>) =
         if m.ContainsKey key then
             OrderedMap.CreateRange(
@@ -180,7 +186,13 @@ module OrderedMap =
                 |> Seq.map (fun (KeyValue(k, v)) -> KeyValuePair(k, (if k = key then value else v)))
             )
         else
-            OrderedMap.CreateRange(m |> Seq.append [ KeyValuePair(key, value) ])
+            unsafeAdd key value m
+
+    let tryAdd (key: 'K) (value: 'V) (m: OrderedMap<'K, 'V>) =
+        if m.ContainsKey key then
+            m
+        else
+            unsafeAdd key value m
 
     let toSeq (m: OrderedMap<'K, 'V>) =
         m |> Seq.map (fun (KeyValue(k, v)) -> k, v)
@@ -231,6 +243,12 @@ module OrderedMap =
         |> fst
         |> OrderedMap.CreateRange
 
+    let mapValuesOnly (f: 'V -> 'W) (m: OrderedMap<'K, 'V>) =
+        let map = ImmutableDictionary.CreateBuilder<'K, 'W>()
+        let array = m.Keys
+        array |> Seq.iter (fun key -> map.Add(key, f m.[key]))
+        OrderedMap.CreateUnsafe<'K, 'W>(map.ToImmutable(), array)
+
     let collect (f: 'K -> 'V -> ('K * 'V) seq) (m: OrderedMap<'K, 'V>) =
         m
         |> Seq.collect (fun (KeyValue(k, v)) -> f k v |> Seq.map (fun (k', v') -> KeyValuePair(k', v')))
@@ -262,3 +280,5 @@ module OrderedMap =
 
     let iter (f: 'K -> 'V -> unit) (m: OrderedMap<'K, 'V>) =
         Seq.iter (fun (KeyValue(k, v)) -> f k v) m
+
+    let inline keys (m: OrderedMap<'K, 'V>) = m.Keys

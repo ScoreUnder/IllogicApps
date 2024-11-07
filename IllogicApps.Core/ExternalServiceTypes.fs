@@ -6,25 +6,34 @@ open IllogicApps.Json
 type HttpRequest =
     { method: string
       uri: string
-      headers: Map<string, string>
-      queryParameters: Map<string, string>
+      headers: OrderedMap<string, string>
+      queryParameters: OrderedMap<string, string>
       body: string option
       cookie: string option
       authentication: JsonTree }
 
 type HttpRequestReply =
     { statusCode: int
-      headers: Map<string, string>
+      headers: OrderedMap<string, string>
       body: JsonTree }
-    
+
     static member Default =
         { statusCode = 0
-          headers = Map.empty
+          headers = OrderedMap.empty
           body = Null }
+
+let jsonOfHttpRequestReply reply =
+    OrderedMap
+        .Builder()
+        .Add("statusCode", Integer reply.statusCode)
+        .Add("headers", reply.headers |> Conversions.jsonOfStringsMap)
+        .MaybeAdd("body", reply.body)
+        .Build()
+    |> Object
 
 type WorkflowRequestRetryPolicy =
     { type_: string
-      count: int
+      count: int64
       interval: string
       minimumInterval: string
       maximumInterval: string }
@@ -47,9 +56,16 @@ let jsonOfWorkflowRequestRetryPolicy policy =
         .Build()
     |> Object
 
+let workflowRequestRetryPolicyOfJson json =
+    { type_ = JsonTree.getKey "type" json |> Conversions.ensureString
+      count = JsonTree.getKey "count" json |> Conversions.ensureInteger
+      interval = JsonTree.getKey "interval" json |> Conversions.ensureString
+      minimumInterval = JsonTree.getKey "minimumInterval" json |> Conversions.ensureString
+      maximumInterval = JsonTree.getKey "maximumInterval" json |> Conversions.ensureString }
+
 type WorkflowRequest =
     { workflowId: string
-      headers: Map<string, string>
+      headers: OrderedMap<string, string>
       body: JsonTree
       retryPolicy: WorkflowRequestRetryPolicy }
 
@@ -69,6 +85,18 @@ let jsonOfWorkflowRequest req =
         .Build()
     |> Object
 
+let workflowRequestOfJson json =
+    { workflowId =
+        JsonTree.getKey "host" json
+        |> JsonTree.getKey "workflow"
+        |> JsonTree.getKey "id"
+        |> Conversions.ensureString
+      headers =
+        JsonTree.getKey "headers" json
+        |> Conversions.ensureObject
+        |> OrderedMap.mapValuesOnly Conversions.ensureString
+      body = JsonTree.getKey "body" json
+      retryPolicy = JsonTree.getKey "retryPolicy" json |> workflowRequestRetryPolicyOfJson }
 
 type ExternalServiceRequestType =
     | HttpRequest of HttpRequest * HttpRequestReply ref

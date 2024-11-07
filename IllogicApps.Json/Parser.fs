@@ -1,7 +1,6 @@
 module IllogicApps.Json.Parser
 
 open System
-open System.Collections.Generic
 open System.Collections.Immutable
 open System.Globalization
 open System.Runtime.CompilerServices

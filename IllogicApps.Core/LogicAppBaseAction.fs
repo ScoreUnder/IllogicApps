@@ -1,9 +1,7 @@
 module IllogicApps.Core.LogicAppBaseAction
 
-open System.Text.Json.Nodes
-open System.Text.Json.Serialization
-
 open CompletedStepTypes
+open IllogicApps.Json
 
 [<AbstractClass>]
 type BaseAction() =
@@ -12,14 +10,24 @@ type BaseAction() =
         member this.GetChildren() = this.GetChildren()
         member this.RunAfter = this.RunAfter
 
-    [<JsonPropertyName("type")>]
     member val ActionType = "" with get, set
-
-    member val RunAfter: Map<string, Status list> option = None with get, set
+    member val RunAfter: OrderedMap<string, Status list> option = None with get, set
+    member val TrackedProperties: OrderedMap<string, JsonTree> = OrderedMap.empty with get, set
 
     abstract member Execute: SimulatorContext -> ActionResult
     abstract member GetChildren: unit -> (string * IGraphExecutable) list
     default this.GetChildren() = []
+
+    member internal this.AugmentWithJson json =
+        this.ActionType <- JsonTree.getKey "type" json |> Conversions.ensureString
+
+        this.RunAfter <-
+            JsonTree.tryGetKey "runAfter" json
+            |> Option.map (fun v ->
+                v
+                |> Conversions.ensureObject
+                |> OrderedMap.mapValuesOnly (fun v ->
+                    v |> Conversions.ensureArray |> Seq.map statusOfJson |> List.ofSeq))
 
 let getAllChildren start =
     let rec aux (from: (string * IGraphExecutable) list) acc =
@@ -33,7 +41,7 @@ let getAllChildren start =
 
 type UnknownAction() =
     inherit BaseAction()
-    member val Original = JsonObject() with get, set
+    member val Original = Conversions.emptyObject with get, set
 
     override this.Execute(context: SimulatorContext) =
         printfn "Unknown action: %A" this.Original
@@ -41,3 +49,9 @@ type UnknownAction() =
         { status = Skipped
           inputs = None
           outputs = None }
+
+    static member OfJson json =
+        let r = UnknownAction()
+        r.Original <- json
+        r.AugmentWithJson json
+        r

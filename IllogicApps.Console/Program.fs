@@ -19,19 +19,20 @@ let logicApp = readLogicApp <| examplePath.Replace("Stateful1", "SkippingTest")
 // |> LogicAppBaseAction.getAllChildren
 // |> printfn "%A"
 
-let sim = Simulator.TriggerSimple logicApp (String "FAKE INPUT")
-
-let opts = makeJsonSerializerOptions()
-opts.WriteIndented <- true
+let sim = Simulator.TriggerSimple logicApp (Some (String "FAKE INPUT"))
 
 printfn "\nAction results:\n---------------\n"
 sim.ActionResults
-|> fun c -> System.Text.Json.JsonSerializer.Serialize(c, opts)
+|> Seq.map (fun (KeyValue(k, v)) -> k, CompletedStepTypes.jsonOfCompletedAction v)
+|> Conversions.createObject
+|> Conversions.stringOfJson
 |> printfn "%s"
 
 printfn "\nVariable results:\n-----------------\n"
 sim.Variables
-|> fun c -> System.Text.Json.JsonSerializer.Serialize(c, opts)
+|> Seq.map (fun (KeyValue(k, v)) -> k, v)
+|> Conversions.createObject
+|> Conversions.stringOfJson
 |> printfn "%s"
 
 if sim.LoopContextStack.Count <> 0 then failwith "Loop context stack not empty"

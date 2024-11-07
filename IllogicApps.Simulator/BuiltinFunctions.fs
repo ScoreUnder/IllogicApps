@@ -2,12 +2,9 @@ module IllogicApps.Simulator.BuiltinFunctions
 
 open System
 open System.Globalization
-open System.IO
 open System.Net
-open System.Runtime.Serialization.Json
 open System.Text
 open System.Xml
-open System.Xml.Linq
 
 open IllogicApps.Core
 open IllogicApps.Json
@@ -553,7 +550,7 @@ let f_outputs (sim: SimulatorContext) (args: Args) : JsonTree =
     let actionName = Conversions.ensureString <| List.head args
 
     match sim.GetActionResult actionName with
-    | Some result -> result.outputs
+    | Some result -> result.outputs |> Conversions.jsonOfOption
     | None -> failwithf "Action %s not found" actionName
 
 let f_trigger (sim: SimulatorContext) (args: Args) : JsonTree =
@@ -566,7 +563,7 @@ let f_variables (sim: SimulatorContext) (args: Args) : JsonTree =
     let variableName = Conversions.ensureString <| List.head args
 
     match sim.Variables.TryGetValue variableName with
-    | true, value -> JsonUtil.illogicJsonOfSystemTextJson value
+    | true, value -> value
     | _ -> failwithf "Variable %s not found" variableName
 
 // End function definitions

@@ -49,6 +49,19 @@ module JsonTree =
         | Array a -> a.[index]
         | _ -> failwithf "Expected array, got %A" json
 
+    let inline getKeyOrNull (key: string) (json: JsonTree) =
+        match json with
+        | Object o ->
+            match OrderedMap.tryFind key o with
+            | Some v -> v
+            | None -> Null
+        | _ -> Null
+
+    let inline getIndexOrNull (index: int) (json: JsonTree) =
+        match json with
+        | Array a -> if index >= 0 && index < a.Length then a.[index] else Null
+        | _ -> Null
+
     let inline getType (json: JsonTree) =
         match json with
         | Null -> JsonType.Null

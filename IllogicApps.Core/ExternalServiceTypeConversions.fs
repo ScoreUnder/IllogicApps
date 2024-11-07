@@ -2,16 +2,17 @@ module IllogicApps.Core.ExternalServiceTypeConversions
 
 open System
 open System.Net
+open System.Text
 open CompletedStepTypes
 open ExternalServiceTypes
 open IllogicApps.Json
 
-let formUri (str: string) (query: Map<string, string>) =
+let formUri (str: string) (query: OrderedMap<string, string>) =
     let uriBuilder = UriBuilder(str)
 
     let query =
         query
-        |> Map.fold (fun acc k v -> "&" :: WebUtility.UrlEncode(k) :: "=" :: WebUtility.UrlEncode(v) :: acc) []
+        |> OrderedMap.fold (fun acc k v -> "&" :: WebUtility.UrlEncode(k) :: "=" :: WebUtility.UrlEncode(v) :: acc) []
 
     let query =
         match query with
@@ -27,6 +28,12 @@ let decodeBodyByContentType (contentType: string) (body: string) =
     else
         String body
 
+let contentTypeOfJsonType (json: JsonType) =
+    match json with
+    | JsonType.Null -> None
+    | JsonType.String -> Some "text/plain"
+    | _ -> Some "application/json"
+
 let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
     let netReq =
         new Http.HttpRequestMessage(
@@ -39,7 +46,7 @@ let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
     | None -> ()
 
     req.cookie |> Option.iter (fun v -> netReq.Headers.Add("Cookie", v))
-    req.headers |> Map.iter (fun k v -> netReq.Headers.Add(k, v))
+    req.headers |> OrderedMap.iter (fun k v -> netReq.Headers.Add(k, v))
 
     // Not implemented, probably shouldn't be handled here: authentication
 
@@ -51,7 +58,7 @@ let httpRequestReplyOfNetHttpResponseMessage (resp: Http.HttpResponseMessage) =
         // TODO: this doesn't handle multiple headers with the same key
         // (and nor do my types in ExternalServiceTypes)
         |> Seq.collect (fun kvp -> kvp.Value |> Seq.map (fun v -> (kvp.Key, v)))
-        |> Map.ofSeq
+        |> OrderedMap.ofSeq
 
     let body =
         resp.Content.ReadAsStringAsync().Result
@@ -68,17 +75,12 @@ let netHttpRequestMessageOfWorkflowRequest (req: WorkflowRequest) =
             requestUri = Uri($"https://dummyWorkflowInvoker/{req.workflowId}")
         )
 
-    match req.body with
-    | Null -> ()
-    | String s ->
-        netReq.Headers.Add("Content-Type", "text/plain")
-        netReq.Content <- new Http.StringContent(s)
-    // TODO: do array/number/etc get handled here?
-    | _ ->
-        netReq.Headers.Add("Content-Type", "application/json")
-        netReq.Content <- new Http.StringContent(req.body |> Conversions.stringOfJson)
+    match req.body |> JsonTree.getType |> contentTypeOfJsonType with
+    | None -> ()
+    | Some typ -> netReq.Content <- new Http.StringContent(req.body |> Conversions.stringOfJson, Encoding.UTF8, typ)
 
-    req.headers |> Map.iter (fun k v -> netReq.Headers.Add(k, v))
+    req.headers
+    |> OrderedMap.iter (fun k v -> netReq.Headers.TryAddWithoutValidation(k, v) |> ignore)
 
     // Not implemented, probably shouldn't be handled here: retryPolicy
 
@@ -87,4 +89,4 @@ let netHttpRequestMessageOfWorkflowRequest (req: WorkflowRequest) =
 let completedTriggerOfWorkflowRequest (req: WorkflowRequest) =
     CompletedTrigger.create
     <| { CompletedAction.create req.workflowId (stringOfDateTime DateTime.UtcNow) with
-           outputs = req.body }
+           outputs = Conversions.optionOfJson req.body }

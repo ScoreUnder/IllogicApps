@@ -27,7 +27,9 @@ let stringOfJson json =
         | Array a when a.IsEmpty -> "[]" :: acc
         | Array a -> "[" :: List.tail (Seq.foldBack (fun el acc -> "," :: aux acc el) a ("]" :: acc))
         | Object o when OrderedMap.isEmpty o -> "{}" :: acc
-        | Object o -> "{" :: List.tail (OrderedMap.foldBack (fun k v acc -> "," :: "\"" :: k :: "\":" :: aux acc v) o ("}" :: acc))
+        | Object o ->
+            "{"
+            :: List.tail (OrderedMap.foldBack (fun k v acc -> "," :: "\"" :: k :: "\":" :: aux acc v) o ("}" :: acc))
         | String s -> "\"" :: (escapeStringForJson s) :: "\"" :: acc
         | Integer i -> string i :: acc
         | Float f when System.Double.IsNaN f -> "\"NaN\"" :: acc
@@ -79,10 +81,30 @@ let (|NumbersAsDecimal|NumbersAsFloat|NumbersAsInteger|NotNumbers|) tuple =
     | Integer a, Integer b -> NumbersAsInteger(a, b)
     | _ -> NotNumbers(tuple)
 
+let ensureArray =
+    function
+    | Array a -> a
+    | v -> failwithf "Expected array, got %A" (JsonTree.getType v)
+
+let ensureObject =
+    function
+    | Object o -> o
+    | v -> failwithf "Expected object, got %A" (JsonTree.getType v)
+
 let ensureString =
     function
     | String s -> s
     | v -> failwithf "Expected string, got %A" (JsonTree.getType v)
+
+let ensureInteger =
+    function
+    | Integer i -> i
+    | v -> failwithf "Expected integer, got %A" (JsonTree.getType v)
+
+let ensureBoolean =
+    function
+    | Boolean b -> b
+    | v -> failwithf "Expected boolean, got %A" (JsonTree.getType v)
 
 let rawStringOfJson json =
     match json with
@@ -91,3 +113,19 @@ let rawStringOfJson json =
     | Float f when System.Double.IsNegativeInfinity f -> "-Infinity"
     | Float f when System.Double.IsPositiveInfinity f -> "Infinity"
     | _ -> stringOfJson json
+
+let optionOfJson json =
+    match json with
+    | Null -> None
+    | json -> Some json
+
+let jsonOfOption opt =
+    match opt with
+    | None -> Null
+    | Some json -> json
+
+let jsonOfStringsMap (map: OrderedMap<string, string>) =
+    OrderedMap.mapValuesOnly JsonTree.String map |> JsonTree.Object
+
+let stringsMapOfJson json =
+    json |> ensureObject |> OrderedMap.mapValuesOnly ensureString

@@ -1,12 +1,10 @@
 module IllogicApps.Simulator.Test.TestSimUtil
 
-open System.Text.Json.Nodes
 open IllogicApps.Json
 open NUnit.Framework
 open Swensen.Unquote
 open IllogicApps.Core
 open IllogicApps.Simulator
-open JsonUtil
 
 let makeSimulator () =
     Foq.Mock<SimulatorContext>()
@@ -134,7 +132,7 @@ let traceEvaluationParsed expr =
 
 let traceEvaluation expr =
     if LanguageLexer.isLiteralStringWithAtSign expr then
-        [ JsonValue.Create(expr.[1..]).ToJsonString(sensibleSerialiserOptions ()) ]
+        [ String expr.[1..] |> Conversions.stringOfJson ]
     else if LanguageLexer.requiresInterpolation expr then
         expr
         |> LanguageLexer.lex
@@ -142,7 +140,7 @@ let traceEvaluation expr =
         |> traceEvaluationParsed
         |> List.map stringOfAstResult
     else
-        [ JsonValue.Create(expr).ToJsonString(sensibleSerialiserOptions ()) ]
+        [ String expr |> Conversions.stringOfJson ]
 
 let traceEvaluationTo f expr = traceEvaluation expr |> List.iter f
 

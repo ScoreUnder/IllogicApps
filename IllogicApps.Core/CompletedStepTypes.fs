@@ -19,6 +19,18 @@ let stringOfStatus =
     | TimedOut -> "TimedOut"
     | Cancelled -> "Cancelled"
 
+let statusOfString (s: string) =
+    match s.ToLowerInvariant() with
+    | "succeeded" -> Succeeded
+    | "failed" -> Failed
+    | "skipped" -> Skipped
+    | "timedout" -> TimedOut
+    | "cancelled" -> Cancelled
+    | s -> failwithf "Invalid status '%s'" s
+
+let statusOfJson (json: JsonTree) =
+    json |> Conversions.ensureString |> statusOfString
+
 let makeNewWorkflowRunId () =
     // This isn't a GUID but oh well
     Guid.NewGuid().ToString()
@@ -30,8 +42,8 @@ let stringOfDateTime (dt: DateTime) =
 
 type CompletedAction =
     { name: string
-      inputs: JsonTree
-      outputs: JsonTree
+      inputs: JsonTree option
+      outputs: JsonTree option
       startTime: string
       endTime: string
       trackingId: string
@@ -41,8 +53,8 @@ type CompletedAction =
 module CompletedAction =
     let inline create name startTime =
         { name = name
-          inputs = Null
-          outputs = Null
+          inputs = None
+          outputs = None
           startTime = startTime
           endTime = stringOfDateTime DateTime.UtcNow
           trackingId = makeNewTrackingId ()

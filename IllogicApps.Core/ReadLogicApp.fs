@@ -1,57 +1,43 @@
 module IllogicApps.Core.ReadLogicApp
 
-open System.Text.Json
-open System.Text.Json.Nodes
-open System.Text.Json.Serialization
-
+open IllogicApps.Core.LogicAppActions
 open IllogicApps.Core.LogicAppBaseAction
+open IllogicApps.Json
 
-type ActionResolver(actionsNamespace: string) =
-    inherit JsonConverter<BaseAction>()
+let actionMap =
+    Map.ofList<string, (JsonTree -> BaseAction) -> JsonTree -> BaseAction>
+        [ "Request", (fun _ v -> Request.OfJson v)
+          "Scope", (fun a v -> Scope.OfJson a v)
+          "If", (fun a v -> If.OfJson a v)
+          "Switch", (fun a v -> Switch.OfJson a v)
+          "Until", (fun a v -> Until.OfJson a v)
+          "Terminate", (fun _ v -> Terminate.OfJson v)
+          "InitializeVariable", (fun _ v -> InitializeVariable.OfJson v)
+          "SetVariable", (fun _ v -> SetVariable.OfJson v)
+          "AppendToStringVariable", (fun _ v -> AppendToStringVariable.OfJson v)
+          "AppendToArrayVariable", (fun _ v -> AppendToArrayVariable.OfJson v)
+          "IncrementVariable", (fun _ v -> IncrementVariable.OfJson v)
+          "DecrementVariable", (fun _ v -> DecrementVariable.OfJson v)
+          "Compose", (fun _ v -> Compose.OfJson v)
+          "ParseJson", (fun _ v -> ParseJson.OfJson v)
+          "Query", (fun _ v -> Query.OfJson v)
+          "JavaScriptCode", (fun _ v -> JavaScriptCode.OfJson v)
+          "Response", (fun _ v -> Response.OfJson v)
+          "Http", (fun _ v -> Http.OfJson v)
+          "Workflow", (fun _ v -> Workflow.OfJson v) ]
 
-    override this.Read(reader: Utf8JsonReader byref, typeToConvert: System.Type, options: JsonSerializerOptions) =
-        let jsonObj = JsonSerializer.Deserialize<JsonObject>(&reader, options) in
+let rec resolveAction (json: JsonTree) =
+    let type_ = JsonTree.getKey "type" json |> Conversions.ensureString
 
-        if jsonObj = null then
-            raise <| new JsonException("Action is null")
+    let parseAction =
+        actionMap
+        |> Map.tryFind type_
+        |> Option.defaultValue (fun _ v -> UnknownAction.OfJson v)
 
-        let actionType =
-            match jsonObj.TryGetPropertyValue "type" with
-            | true, v -> v
-            | _ -> raise <| new JsonException("Missing 'type' property in action object")
-
-        let actionTypeStr = actionType.ToString() in
-
-        try
-            $"{actionsNamespace}.{actionTypeStr}"
-            |> this.GetType().Assembly.GetType
-            |> Option.ofObj
-            |> function
-                | Some ty -> JsonSerializer.Deserialize(jsonObj, ty, options) :?> BaseAction
-                | None ->
-                    let act = JsonSerializer.Deserialize<UnknownAction>(jsonObj, options)
-
-                    act.Original <- jsonObj
-                    act
-                    : BaseAction
-        with ex ->
-            raise (
-                new JsonException($"Failed to deserialize action of type '{actionTypeStr}', as object {jsonObj}", ex)
-            )
-
-    override this.Write(writer: Utf8JsonWriter, value: BaseAction, options: JsonSerializerOptions) =
-        raise (new System.NotImplementedException())
-
-let actionResolver = ActionResolver("IllogicApps.Core.LogicAppActions")
-
-let makeJsonSerializerOptions () =
-    let options = JsonUtil.sensibleSerialiserOptions () in
-    options.Converters.Add(actionResolver)
-    options
-
-let readLogicApp path =
-    use f = System.IO.File.OpenRead path
-    JsonSerializer.Deserialize<LogicAppSpec.Root>(f, makeJsonSerializerOptions ())
+    parseAction resolveAction json
 
 let decodeLogicApp (json: string) =
-    JsonSerializer.Deserialize<LogicAppSpec.Root>(json, makeJsonSerializerOptions ())
+    Parser.parse json |> LogicAppSpec.rootOfJson resolveAction
+
+let readLogicApp path =
+    System.IO.File.ReadAllText path |> decodeLogicApp

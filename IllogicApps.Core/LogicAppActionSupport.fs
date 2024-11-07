@@ -1,25 +1,16 @@
 module IllogicApps.Core.LogicAppActionSupport
 
-open System
-open System.Collections.Generic
-open System.Text.Json
-open System.Text.Json.Nodes
-open System.Text.Json.Serialization
 open IllogicApps.Core.LogicAppSpec
+open IllogicApps.Json
 
-let toKvp (k: 'a, v: 'b) = new KeyValuePair<'a, 'b>(k, v)
-let fromKvp (kvp: KeyValuePair<'a, 'b>) = kvp.Key, kvp.Value
-let toKvps seq = Seq.map toKvp seq
-let fromKvps seq = Seq.map fromKvp seq
+let fromKvps seq =
+    Seq.map (fun (KeyValue(k, v)) -> k, v) seq
 
-let optionalAddKey (key: string) (value: JsonNode option) (pairs: (string * JsonNode) list) =
-    match value with
-    | Some v -> (key, v.DeepClone()) :: pairs
-    | None -> pairs
+type SetVariableSingle = { name: string; value: JsonTree }
 
-type SetVariableSingle() =
-    member val Name: string = "" with get, set
-    member val Value: JsonNode = JsonValue.Create(null) with get, set
+let setVariableSingleOfJson json =
+    { name = JsonTree.getKey "name" json |> Conversions.ensureString
+      value = JsonTree.getKey "value" json }
 
 type VariableType =
     | String
@@ -29,107 +20,182 @@ type VariableType =
     | Object
     | Array
 
-type InitializeVariableSingle() =
-    [<JsonPropertyName("name")>]
-    member val Name: string = "" with get, set
+let variableTypeOfString (s: string) =
+    match s.ToLowerInvariant() with
+    | "string" -> VariableType.String
+    | "integer" -> VariableType.Integer
+    | "float" -> VariableType.Float
+    | "boolean" -> VariableType.Boolean
+    | "object" -> VariableType.Object
+    | "array" -> VariableType.Array
+    | _ -> failwithf "Unknown variable type: %s" s
 
-    [<JsonPropertyName("value")>]
-    member val Value: JsonNode option = None with get, set
+let variableTypeOfJson (json: JsonTree) =
+    json |> Conversions.ensureString |> variableTypeOfString
 
-    [<JsonPropertyName("type")>]
-    member val VariableType: VariableType = Object with get, set
+type InitializeVariableSingle =
+    { name: string
+      value: JsonTree
+      type_: VariableType }
+
+let initializeVariableSingleOfJson json =
+    { name = JsonTree.getKey "name" json |> Conversions.ensureString
+      value = JsonTree.getKeyOrNull "value" json
+      type_ = JsonTree.getKey "type" json |> variableTypeOfJson }
 
 type 'a VariablesInputs = { variables: 'a list }
 
-type ParseJsonInputs = { content: JsonNode; schema: JsonNode }
+let variablesInputsOfJson elOfJson json =
+    { variables =
+        JsonTree.getKey "variables" json
+        |> Conversions.ensureArray
+        |> Seq.map elOfJson
+        |> List.ofSeq }
 
-type QueryInputs = { from: JsonNode; where: JsonNode }
+type ParseJsonInputs = { content: JsonTree; schema: JsonTree }
+
+let parseJsonInputsOfJson json =
+    { content = JsonTree.getKey "content" json
+      schema = JsonTree.getKey "schema" json }
+
+type QueryInputs = { from: JsonTree; where: JsonTree }
+
+let queryInputsOfJson json =
+    { from = JsonTree.getKey "from" json
+      where = JsonTree.getKey "where" json }
 
 type HttpResponseInputs =
-    { body: JsonNode option
-      headers: IDictionary<string, string> option
-      statusCode: JsonNode }
+    { body: JsonTree
+      headers: OrderedMap<string, string> option
+      statusCode: JsonTree }
 
-type ActionGraphContainer() =
-    member val Actions: ActionGraph = Map.empty with get, set
+let jsonOfHttpResponseInputs (inputs: HttpResponseInputs) =
+    OrderedMap
+        .Builder()
+        .Add("statusCode", inputs.statusCode)
+        .MaybeAdd("headers", inputs.headers)
+        .MaybeAdd("body", inputs.body)
+        .Build()
+    |> JsonTree.Object
 
-type SwitchCase() =
-    inherit ActionGraphContainer()
+let httpResponseInputsOfJson json =
+    { body = JsonTree.getKeyOrNull "body" json
+      headers = JsonTree.tryGetKey "headers" json |> Option.map Conversions.stringsMapOfJson
+      statusCode = JsonTree.getKey "statusCode" json }
 
-    member val Case: JsonNode = JsonValue.Create(null) with get, set
+type ActionGraphContainer =
+    { actions: ActionGraph }
 
-type UntilLimit = { count: int; timeout: string }
+    static member Default = { actions = OrderedMap.empty }
+
+let actionGraphContainerOfJson resolveAction json =
+    { actions = JsonTree.getKey "actions" json |> actionGraphOfJson resolveAction }
+
+type SwitchCase =
+    { actions: ActionGraph; case: JsonTree }
+
+let switchCaseOfJson resolveAction json =
+    { actions = JsonTree.getKey "actions" json |> actionGraphOfJson resolveAction
+      case = JsonTree.getKey "case" json }
+
+type UntilLimit = { count: int64; timeout: string }
+
+let untilLimitOfJson json =
+    { count = JsonTree.getKey "count" json |> Conversions.ensureInteger
+      timeout = JsonTree.getKey "timeout" json |> Conversions.ensureString }
 
 type TerminateRunError =
     { code: string option
       message: string option }
 
+let jsonOfTerminateRunError (error: TerminateRunError) =
+    OrderedMap
+        .Builder()
+        .MaybeAdd("code", error.code)
+        .MaybeAdd("message", error.message)
+        .Build()
+    |> JsonTree.Object
+
+let terminateRunErrorOfJson json =
+    { code = JsonTree.tryGetKey "code" json |> Option.map Conversions.ensureString
+      message = JsonTree.tryGetKey "message" json |> Option.map Conversions.ensureString }
+
 type TerminateInputs =
     { runStatus: string
       runError: TerminateRunError option }
 
+let terminateInputsOfJson json =
+    { runStatus = JsonTree.getKey "runStatus" json |> Conversions.ensureString
+      runError = JsonTree.tryGetKey "runError" json |> Option.map terminateRunErrorOfJson }
+
+let jsonOfTerminateInputs (inputs: TerminateInputs) =
+    OrderedMap
+        .Builder()
+        .Add("runStatus", JsonTree.String inputs.runStatus)
+        .MaybeAdd("runError", inputs.runError |> Option.map jsonOfTerminateRunError)
+        .Build()
+    |> JsonTree.Object
+
 type HttpInputs =
     { method: string
       uri: string
-      headers: Map<string, string> option
-      queries: Map<string, string> option
-      body: JsonNode option
+      headers: OrderedMap<string, string> option
+      queries: OrderedMap<string, string> option
+      body: JsonTree
       cookie: string option
-      authentication: JsonObject option }
+      authentication: JsonTree }
 
-let defaultExpression () : Expression = new JsonObject()
+let jsonOfHttpInputs inputs =
+    OrderedMap
+        .Builder()
+        .Add("method", JsonTree.String inputs.method)
+        .Add("uri", JsonTree.String inputs.uri)
+        .MaybeAdd("headers", inputs.headers)
+        .MaybeAdd("queries", inputs.queries)
+        .MaybeAdd("body", inputs.body)
+        .MaybeAdd("cookie", inputs.cookie)
+        .MaybeAdd("authentication", inputs.authentication)
+        .Build()
+    |> JsonTree.Object
 
-let defaultForType typ : JsonNode =
-    match typ with
-    | String -> JsonValue.Create("")
-    | Integer -> JsonValue.Create(0) // TODO verify
-    | Float -> JsonValue.Create(0.0) // TODO verify
-    | Boolean -> JsonValue.Create(false) // TODO verify
-    | Object -> JsonValue.Create(null) // TODO verify
-    | Array -> new JsonArray() // TODO verify
+let httpInputsOfJson json =
+    { method = JsonTree.getKey "method" json |> Conversions.ensureString
+      uri = JsonTree.getKey "uri" json |> Conversions.ensureString
+      headers = JsonTree.tryGetKey "headers" json |> Option.map Conversions.stringsMapOfJson
+      queries = JsonTree.tryGetKey "queries" json |> Option.map Conversions.stringsMapOfJson
+      body = JsonTree.getKeyOrNull "body" json
+      cookie = JsonTree.tryGetKey "cookie" json |> Option.map Conversions.ensureString
+      authentication = JsonTree.getKeyOrNull "authentication" json }
 
-let getVarType (value: JsonNode) : VariableType =
-    match value with
-    | null -> Object
-    | value ->
-        match value.GetValueKind() with
-        | JsonValueKind.String -> String
-        | JsonValueKind.Number ->
-            match value.AsValue().TryGetValue<int64>() with
-            | true, _ -> Integer
-            | _ -> Float
-        | JsonValueKind.True
-        | JsonValueKind.False -> Boolean
-        | JsonValueKind.Object -> Object
-        | JsonValueKind.Array -> Array
-        | _ -> failwithf "Unsupported value kind %A" (value.GetValueKind())
+let defaultExpression () : Expression = Conversions.emptyObject
 
-let coerce (typ: VariableType) (value: JsonNode) : JsonNode =
-    try
-        match typ with
-        | String -> JsonValue.Create(value.ToString())
-        | Integer -> JsonValue.Create(value.GetValue<int64>())
-        | Float -> JsonValue.Create(value.GetValue<float>())
-        | Boolean -> JsonValue.Create(value.GetValue<bool>())
-        | Object ->
-            begin
-                match value with
-                | null -> null
-                | v when v.GetValueKind() = JsonValueKind.Object -> value
-                | v when v.GetValueKind() = JsonValueKind.Null -> value
-                | _ -> raise <| new InvalidOperationException()
-            end
-        | Array ->
-            if value.GetValueKind() = JsonValueKind.Array then
-                value
-            else
-                raise <| new InvalidOperationException()
-    with
-    | :? NullReferenceException
-    | :? InvalidOperationException
-    | :? FormatException ->
-        raise
-        <| new InvalidOperationException($"Failed to coerce value {value} to type {typ}")
+let getVarType (value: JsonTree) : VariableType =
+    match JsonTree.getType value with
+    | JsonType.Null
+    | JsonType.Object -> VariableType.Object
+    | JsonType.Array -> VariableType.Array
+    | JsonType.String -> VariableType.String
+    | JsonType.Integer -> VariableType.Integer
+    | JsonType.Float
+    | JsonType.Decimal -> VariableType.Float
+    | JsonType.Boolean -> VariableType.Boolean
+
+let coerce (typ: VariableType) (value: JsonTree) : JsonTree =
+    match typ, value with
+    | VariableType.String, JsonTree.String _ -> value
+    | VariableType.String, Null -> JsonTree.String ""
+    | VariableType.Integer, JsonTree.Integer _ -> value
+    | VariableType.Integer, JsonTree.Null -> JsonTree.Integer 0
+    | VariableType.Float, (JsonTree.Float _ | JsonTree.Decimal _) -> value
+    | VariableType.Float, JsonTree.Integer i -> JsonTree.Float(float i)
+    | VariableType.Float, JsonTree.Null -> JsonTree.Float 0.0
+    | VariableType.Boolean, JsonTree.Boolean _ -> value
+    | VariableType.Boolean, JsonTree.Null -> JsonTree.Boolean false
+    | VariableType.Object, JsonTree.Object _ -> value
+    | VariableType.Object, JsonTree.Null -> Null
+    | VariableType.Array, JsonTree.Array _ -> value
+    | VariableType.Array, JsonTree.Null -> Conversions.emptyArray
+    | typ, value -> failwithf "Expected %A, got %A" typ (JsonTree.getType value)
 
 let getVarTypechecked (context: SimulatorContext) var typs =
     match context.Variables.TryGetValue var with
@@ -137,7 +203,7 @@ let getVarTypechecked (context: SimulatorContext) var typs =
     | true, originalValue ->
         let variableType = getVarType originalValue
 
-        if Seq.contains variableType typs then
+        if not (Seq.contains variableType typs) then
             failwithf "Variable is of type %A, expected one of %A" variableType typs
 
         originalValue
