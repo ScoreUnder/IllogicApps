@@ -4,6 +4,7 @@ open System
 open System.Collections.Generic
 
 open IllogicApps.Core
+open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.LogicAppBaseAction
 open IllogicApps.Json
 open IllogicApps.Simulator.BuiltinCondition
@@ -144,10 +145,10 @@ type LoopContextImpl(values: JsonTree list, disposeHook: LoopContext -> unit) as
 
     override this.Current = this.values.Head
 
-type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: bool) as this =
+type Simulator private (workflowName: string, triggerResult: CompletedTrigger, isBugForBugAccurate: bool) as this =
     inherit SimulatorContext()
 
-    let isBugForBugAccurate = defaultArg isBugForBugAccurate true
+    let isBugForBugAccurate = isBugForBugAccurate
 
     let recordResultOf name (f: unit -> ActionResult) =
         let startTime = DateTime.UtcNow
@@ -162,8 +163,8 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
 
         this.RecordActionResult name result
 
-    static member Trigger (logicApp: LogicAppSpec.Root) triggerResult =
-        let sim = new Simulator(triggerResult)
+    static member Trigger name (logicApp: LogicAppSpec.Root) triggerResult =
+        let sim = Simulator(name, triggerResult, true)
         let result = sim.ExecuteGraph logicApp.definition.actions
 
         if sim.TerminationStatus.IsNone then
@@ -179,10 +180,10 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
                       (stringOfDateTime DateTime.UtcNow) with
                     outputs = triggerOutputs }
 
-        Simulator.Trigger logicApp triggerResult
+        Simulator.Trigger "unnamed_workflow" logicApp triggerResult
 
     member val TerminationStatus: Status option = None with get, set
-    member val ActionResults = Dictionary<string, CompletedAction>() with get
+    member val ActionResults = MutableOrderedMap<string, CompletedAction>() with get
     member val LoopContextStack = Stack<LoopContextImpl>() with get
     member val ArrayOperationContextStack = Stack<LoopContextImpl>() with get
 
@@ -190,6 +191,10 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
     override this.ArrayOperationContext = this.ArrayOperationContextStack.Peek()
     override this.TriggerResult = triggerResult
     override this.IsBugForBugAccurate = isBugForBugAccurate
+    override this.AllActionResults = this.ActionResults |> OrderedMap.CreateRange
+
+    override this.WorkflowDetails =
+        WorkflowDetails.Create $"dummyWorkflowId_{workflowName}" workflowName triggerResult.originHistoryName
 
     override this.GetActionResult name =
         this.ActionResults.TryGetValue name

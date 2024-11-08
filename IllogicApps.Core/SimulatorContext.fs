@@ -45,6 +45,12 @@ and [<AbstractClass>] SimulatorContext() =
     /// Gets the result of the trigger which invoked this workflow.
     abstract member TriggerResult: CompletedTrigger
 
+    /// Gets the results of all actions executed so far.
+    abstract member AllActionResults: OrderedMap<string, CompletedAction>
+
+    /// Gets the details of the workflow. Mostly crap & made for compatibility but I bet nobody will care lol
+    abstract member WorkflowDetails: WorkflowDetails
+
     /// Gets the result of an action by its name.
     abstract member GetActionResult: string -> CompletedAction option
 

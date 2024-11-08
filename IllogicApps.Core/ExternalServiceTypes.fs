@@ -1,6 +1,7 @@
 module IllogicApps.Core.ExternalServiceTypes
 
 open System.Collections.Generic
+open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Json
 
 type HttpRequest =
@@ -98,7 +99,65 @@ let workflowRequestOfJson json =
       body = JsonTree.getKey "body" json
       retryPolicy = JsonTree.getKey "retryPolicy" json |> workflowRequestRetryPolicyOfJson }
 
+type WorkflowRunDetails =
+    { id: string
+      name: string
+      type_: string }
+
+    static member Create workflowId runName =
+        { id = $"/workflows/{workflowId}/runs/{runName}"
+          name = runName
+          type_ = "workflows/runs" }
+
+let jsonOfWorkflowRunDetails run =
+    OrderedMap
+        .Builder()
+        .Add("id", String run.id)
+        .Add("name", String run.name)
+        .Add("type", String run.type_)
+        .Build()
+    |> Object
+
+type WorkflowDetails =
+    { id: string
+      name: string
+      type_: string
+      run: WorkflowRunDetails }
+
+    static member Create workflowId workflowName runName =
+        { id = $"/workflows/{workflowId}"
+          name = workflowName
+          type_ = "workflows"
+          run = WorkflowRunDetails.Create workflowId runName }
+
+let jsonOfWorkflowDetails details =
+    OrderedMap
+        .Builder()
+        .Add("id", String details.id)
+        .Add("name", String details.name)
+        .Add("type", String details.type_)
+        .Add("run", jsonOfWorkflowRunDetails details.run)
+        .Build()
+    |> Object
+
+type ScriptSource =
+    | Inline of string
+    | File of string
+
+type ScriptingLanguage =
+    | JavaScript
+    | CSharp
+    | PowerShell
+
+type ScriptExecutionRequest =
+    { source: ScriptSource
+      language: ScriptingLanguage
+      actions: OrderedMap<string, CompletedAction>
+      workflow: WorkflowDetails
+      trigger: CompletedTrigger }
+
 type ExternalServiceRequestType =
     | HttpRequest of HttpRequest * HttpRequestReply ref
     | HttpResponse of HttpRequestReply
     | Workflow of WorkflowRequest * HttpRequestReply ref
+    | ScriptExecution of ScriptExecutionRequest * Result<JsonTree, string> ref

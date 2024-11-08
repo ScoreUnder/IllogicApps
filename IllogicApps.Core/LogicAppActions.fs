@@ -88,10 +88,11 @@ type Switch(resolveAction, json) =
 
     member val Expression = JsonTree.getKey "expression" json with get
     member val Default = JsonTree.getKey "default" json |> actionGraphContainerOfJson resolveAction with get
-    member val Cases=
-            JsonTree.getKey "cases" json
-            |> Conversions.ensureObject
-            |> OrderedMap.mapValuesOnly (switchCaseOfJson resolveAction)with get
+
+    member val Cases =
+        JsonTree.getKey "cases" json
+        |> Conversions.ensureObject
+        |> OrderedMap.mapValuesOnly (switchCaseOfJson resolveAction) with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "Switch Begin"
@@ -193,7 +194,9 @@ type Terminate(json) =
 type InitializeVariable(json) =
     inherit BaseAction(json)
 
-    member val Inputs = JsonTree.getKey "inputs" json |> variablesInputsOfJson initializeVariableSingleOfJson with get
+    member val Inputs =
+        JsonTree.getKey "inputs" json
+        |> variablesInputsOfJson initializeVariableSingleOfJson with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "InitializeVariable"
@@ -398,11 +401,37 @@ type JavaScriptCode(json) =
     member val Inputs = JsonTree.getKey "inputs" json |> javaScriptCodeInputsOfJson with get
 
     override this.Execute(context: SimulatorContext) =
-        printfn "NOT IMPLEMENTED JavaScriptCode: %O" this.Inputs
+        printfn "JavaScriptCode: %O" this.Inputs
 
-        { status = Failed
-          inputs = None
-          outputs = None }
+        let result = ref (Error "Not executed")
+
+        let processedCode =
+            this.Inputs.code
+            |> String
+            |> context.EvaluateLanguage
+            |> Conversions.ensureString
+
+        context.ExternalServiceRequest
+        <| ScriptExecution(
+            { source = Inline processedCode
+              language = JavaScript
+              actions = context.AllActionResults
+              workflow = context.WorkflowDetails
+              trigger = context.TriggerResult },
+            result
+        )
+
+        match result.Value with
+        | Error message -> failwith message
+        | Ok result ->
+            { status = Succeeded
+              inputs =
+                Some(
+                    jsonOfJavaScriptCodeInputs
+                        { this.Inputs with
+                            code = processedCode }
+                )
+              outputs = Some result }
 
 // Request actions
 

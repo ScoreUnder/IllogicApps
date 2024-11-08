@@ -1,5 +1,6 @@
 module IllogicApps.Core.LogicAppActionSupport
 
+open System.Collections.Immutable
 open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Json
 
@@ -64,10 +65,39 @@ let queryInputsOfJson json =
     { from = JsonTree.getKey "from" json
       where = JsonTree.getKey "where" json }
 
-type JavaScriptCodeInputs = { code: string }
+type JavaScriptCodeDependencies =
+    { includeTrigger: bool option
+      actions: string list option }
+
+let javaScriptCodeDependenciesOfJson json =
+    { includeTrigger = JsonTree.tryGetKey "includeTrigger" json |> Option.map Conversions.ensureBoolean
+      actions =
+        JsonTree.tryGetKey "actions" json
+        |> Option.map (fun v -> v |> Conversions.ensureArray |> Seq.map Conversions.ensureString |> List.ofSeq) }
+
+let jsonOfJavaScriptCodeDependencies (deps: JavaScriptCodeDependencies) =
+    OrderedMap
+        .Builder()
+        .MaybeAdd("includeTrigger", deps.includeTrigger |> Option.map JsonTree.Boolean)
+        .MaybeAdd("actions", deps.actions |> Option.map Conversions.jsonOfStringList)
+        .Build()
+    |> JsonTree.Object
+
+type JavaScriptCodeInputs =
+    { code: string
+      explicitDependencies: JavaScriptCodeDependencies }
 
 let javaScriptCodeInputsOfJson json =
-    { code = JsonTree.getKey "code" json |> Conversions.ensureString }
+    { code = JsonTree.getKey "code" json |> Conversions.ensureString
+      explicitDependencies = JsonTree.getKey "explicitDependencies" json |> javaScriptCodeDependenciesOfJson }
+
+let jsonOfJavaScriptCodeInputs (inputs: JavaScriptCodeInputs) =
+    OrderedMap
+        .Builder()
+        .Add("code", JsonTree.String inputs.code)
+        .Add("explicitDependencies", jsonOfJavaScriptCodeDependencies inputs.explicitDependencies)
+        .Build()
+    |> JsonTree.Object
 
 type HttpResponseInputs =
     { body: JsonTree

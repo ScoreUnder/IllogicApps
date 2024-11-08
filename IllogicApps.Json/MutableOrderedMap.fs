@@ -157,6 +157,8 @@ type MutableOrderedMap<'K, 'V> when 'K: equality() =
             this.[key] <- newValue
             newValue
 
+    member this.TryGetValue(key: 'K, value: outref<'V>) : bool = backingMap.TryGetValue(key, &value)
+
     member this.Clear() =
         backingList.Clear()
         backingMap.Clear()

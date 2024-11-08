@@ -195,3 +195,9 @@ let jsonOfStringsMap (map: OrderedMap<string, string>) =
 
 let stringsMapOfJson json =
     json |> ensureObject |> OrderedMap.mapValuesOnly ensureString
+
+let jsonOfStringList list =
+    list |> List.map JsonTree.String |> createArray
+
+let stringListOfJson json =
+    json |> ensureArray |> Seq.map ensureString |> List.ofSeq
