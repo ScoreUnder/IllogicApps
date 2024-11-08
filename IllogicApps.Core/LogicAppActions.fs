@@ -13,10 +13,10 @@ open IllogicApps.Json
 
 // Triggers
 
-type Request() =
-    inherit BaseAction()
+type Request(json) =
+    inherit BaseAction(json)
 
-    member val Kind = "" with get, set
+    member val Kind = JsonTree.getKey "kind" json |> Conversions.ensureString with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "Trigger: %s" this.Kind
@@ -29,20 +29,14 @@ type Request() =
           inputs = triggerResult.action.inputs
           outputs = triggerResult.action.outputs }
 
-    static member OfJson json =
-        let r = Request()
-        r.Kind <- JsonTree.getKey "kind" json |> Conversions.ensureString
-        r.AugmentWithJson json
-        r
-
 // Actions
 
 // Control actions
 
-type Scope() =
-    inherit BaseAction()
+type Scope(resolveAction, json) =
+    inherit BaseAction(json)
 
-    member val Actions: ActionGraph = OrderedMap.empty with get, set
+    member val Actions = JsonTree.getKey "actions" json |> actionGraphOfJson resolveAction with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "Scope Begin"
@@ -58,17 +52,11 @@ type Scope() =
         |> Seq.map (fun kv -> kv.Key, (kv.Value: IGraphExecutable))
         |> Seq.toList
 
-    static member OfJson resolveAction json =
-        let r = Scope()
-        r.Actions <- JsonTree.getKey "actions" json |> actionGraphOfJson resolveAction
-        r.AugmentWithJson json
-        r
+type If(resolveAction, json) =
+    inherit Scope(resolveAction, json)
 
-type If() =
-    inherit Scope()
-
-    member val Expression = defaultExpression () with get, set
-    member val Else = ActionGraphContainer.Default with get, set
+    member val Expression = JsonTree.getKey "expression" json with get
+    member val Else = JsonTree.getKey "else" json |> actionGraphContainerOfJson resolveAction with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "If Begin"
@@ -95,21 +83,15 @@ type If() =
         |> Seq.map (fun kv -> kv.Key, (kv.Value: IGraphExecutable))
         |> Seq.toList
 
-    static member OfJson resolveAction json =
-        let r = If()
-        r.Actions <- JsonTree.getKey "actions" json |> actionGraphOfJson resolveAction
-        r.Else <- JsonTree.getKey "else" json |> actionGraphContainerOfJson resolveAction
-        r.Expression <- JsonTree.getKey "expression" json
-        r.AugmentWithJson json
-        r
+type Switch(resolveAction, json) =
+    inherit BaseAction(json)
 
-
-type Switch() =
-    inherit BaseAction()
-
-    member val Expression: JsonTree = Null with get, set
-    member val Default = ActionGraphContainer.Default with get, set
-    member val Cases: OrderedMap<string, SwitchCase> = OrderedMap.empty with get, set
+    member val Expression = JsonTree.getKey "expression" json with get
+    member val Default = JsonTree.getKey "default" json |> actionGraphContainerOfJson resolveAction with get
+    member val Cases=
+            JsonTree.getKey "cases" json
+            |> Conversions.ensureObject
+            |> OrderedMap.mapValuesOnly (switchCaseOfJson resolveAction)with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "Switch Begin"
@@ -143,24 +125,11 @@ type Switch() =
         |> Seq.map (fun kv -> kv.Key, (kv.Value: IGraphExecutable))
         |> Seq.toList
 
-    static member OfJson resolveAction json =
-        let r = Switch()
-        r.Expression <- JsonTree.getKey "expression" json
-        r.Default <- JsonTree.getKey "default" json |> actionGraphContainerOfJson resolveAction
+type Until(resolveAction, json) =
+    inherit Scope(resolveAction, json)
 
-        r.Cases <-
-            JsonTree.getKey "cases" json
-            |> Conversions.ensureObject
-            |> OrderedMap.mapValuesOnly (switchCaseOfJson resolveAction)
-
-        r.AugmentWithJson json
-        r
-
-type Until() =
-    inherit Scope()
-
-    member val Expression: JsonTree = Null with get, set
-    member val Limit = { count = 0; timeout = "" } with get, set
+    member val Expression = JsonTree.getKey "expression" json with get
+    member val Limit = JsonTree.getKey "limit" json |> untilLimitOfJson with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "Until Begin"
@@ -200,18 +169,10 @@ type Until() =
           outputs = None // TODO
         }
 
-    static member OfJson resolveAction json =
-        let r = Until()
-        r.Actions <- JsonTree.getKey "actions" json |> actionGraphOfJson resolveAction
-        r.Expression <- JsonTree.getKey "expression" json
-        r.Limit <- JsonTree.getKey "limit" json |> untilLimitOfJson
-        r.AugmentWithJson json
-        r
+type Terminate(json) =
+    inherit BaseAction(json)
 
-type Terminate() =
-    inherit BaseAction()
-
-    member val Inputs = { runError = None; runStatus = "" } with get, set
+    member val Inputs = JsonTree.getKey "inputs" json |> terminateInputsOfJson with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "Terminate: %s (%O)" this.Inputs.runStatus this.Inputs.runError
@@ -227,18 +188,12 @@ type Terminate() =
           inputs = Some(jsonOfTerminateInputs this.Inputs)
           outputs = None }
 
-    static member OfJson json =
-        let r = Terminate()
-        r.Inputs <- JsonTree.getKey "inputs" json |> terminateInputsOfJson
-        r.AugmentWithJson json
-        r
-
 // Variable actions
 
-type InitializeVariable() =
-    inherit BaseAction()
+type InitializeVariable(json) =
+    inherit BaseAction(json)
 
-    member val Inputs: InitializeVariableSingle VariablesInputs = { variables = [] } with get, set
+    member val Inputs = JsonTree.getKey "inputs" json |> variablesInputsOfJson initializeVariableSingleOfJson with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "InitializeVariable"
@@ -270,24 +225,14 @@ type InitializeVariable() =
           inputs = Some(Conversions.createObject [ "variables", processedVarsArray ])
           outputs = None }
 
-    static member OfJson json =
-        let r = InitializeVariable()
-
-        r.Inputs <-
-            JsonTree.getKey "inputs" json
-            |> variablesInputsOfJson initializeVariableSingleOfJson
-
-        r.AugmentWithJson json
-        r
-
-type SetVariable() =
-    inherit BaseAction()
+type SetVariable(json) =
+    inherit BaseAction(json)
 
     let typecheck (originalValue: JsonTree) (newValue: JsonTree) =
         if getVarType originalValue <> getVarType newValue then
             failwithf "Variable is of type %A, cannot set to %A" (getVarType originalValue) (getVarType newValue)
 
-    member val Inputs = { name = ""; value = Null } with get, set
+    member val Inputs = JsonTree.getKey "inputs" json |> setVariableSingleOfJson with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "SetVariable: %s = %O" this.Inputs.name this.Inputs.value
@@ -308,17 +253,10 @@ type SetVariable() =
           inputs = Some(inputs)
           outputs = Some(Conversions.createObject [ "body", inputs ]) }
 
-    static member OfJson json =
-        let r = SetVariable()
-        r.Inputs <- JsonTree.getKey "inputs" json |> setVariableSingleOfJson
-        r.AugmentWithJson json
-        r
+type AppendToStringVariable(json) =
+    inherit BaseAction(json)
 
-
-type AppendToStringVariable() =
-    inherit BaseAction()
-
-    member val Inputs = { name = ""; value = Null } with get, set
+    member val Inputs = JsonTree.getKey "inputs" json |> setVariableSingleOfJson with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "%s: %s = %O" this.ActionType this.Inputs.name this.Inputs.value
@@ -340,14 +278,8 @@ type AppendToStringVariable() =
     override this.Add context a b =
         String((Conversions.ensureString a) + (Conversions.ensureString b))
 
-    static member OfJson json =
-        let r = AppendToStringVariable()
-        r.Inputs <- JsonTree.getKey "inputs" json |> setVariableSingleOfJson
-        r.AugmentWithJson json
-        r
-
-type AppendToArrayVariable() =
-    inherit AppendToStringVariable()
+type AppendToArrayVariable(json) =
+    inherit AppendToStringVariable(json)
 
     override this.Add context a b =
         if context.IsBugForBugAccurate then
@@ -358,14 +290,8 @@ type AppendToArrayVariable() =
 
         Conversions.ensureArray a |> _.Add(b) |> Array
 
-    static member OfJson json =
-        let r = AppendToArrayVariable()
-        r.Inputs <- JsonTree.getKey "inputs" json |> setVariableSingleOfJson
-        r.AugmentWithJson json
-        r
-
-type IncrementVariable() =
-    inherit SetVariable()
+type IncrementVariable(json) =
+    inherit SetVariable(json)
 
     override this.Execute(context: SimulatorContext) =
         printfn "%s: %s" this.ActionType this.Inputs.name
@@ -391,29 +317,17 @@ type IncrementVariable() =
     abstract member Add: int64 -> int64 -> int64
     override this.Add a b = a + b
 
-    static member OfJson json =
-        let r = IncrementVariable()
-        r.Inputs <- JsonTree.getKey "inputs" json |> setVariableSingleOfJson
-        r.AugmentWithJson json
-        r
-
-type DecrementVariable() =
-    inherit IncrementVariable()
+type DecrementVariable(json) =
+    inherit IncrementVariable(json)
 
     override this.Add a b = a - b
 
-    static member OfJson json =
-        let r = DecrementVariable()
-        r.Inputs <- JsonTree.getKey "inputs" json |> setVariableSingleOfJson
-        r.AugmentWithJson json
-        r
-
 // Data Operations actions
 
-type Compose() =
-    inherit BaseAction()
+type Compose(json) =
+    inherit BaseAction(json)
 
-    member val Inputs: JsonTree = Null with get, set
+    member val Inputs = JsonTree.getKey "inputs" json with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "Compose: %O" this.Inputs
@@ -424,16 +338,10 @@ type Compose() =
           inputs = Some(result)
           outputs = Some(result) }
 
-    static member OfJson json =
-        let r = Compose()
-        r.Inputs <- JsonTree.getKey "inputs" json
-        r.AugmentWithJson json
-        r
+type ParseJson(json) =
+    inherit BaseAction(json)
 
-type ParseJson() =
-    inherit BaseAction()
-
-    member val Inputs: ParseJsonInputs = { content = Null; schema = Null } with get, set
+    member val Inputs = JsonTree.getKey "inputs" json |> parseJsonInputsOfJson with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "ParseJson: %O" this.Inputs
@@ -451,16 +359,10 @@ type ParseJson() =
           inputs = Some(Conversions.createObject [ "content", input; "schema", this.Inputs.schema ])
           outputs = Some(Conversions.createObject [ "body", result ]) }
 
-    static member OfJson json =
-        let r = ParseJson()
-        r.Inputs <- JsonTree.getKey "inputs" json |> parseJsonInputsOfJson
-        r.AugmentWithJson json
-        r
+type Query(json) =
+    inherit BaseAction(json)
 
-type Query() =
-    inherit BaseAction()
-
-    member val Inputs: QueryInputs = { from = Null; where = Null } with get, set
+    member val Inputs = JsonTree.getKey "inputs" json |> queryInputsOfJson with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "Query: %O in %O" this.Inputs.where this.Inputs.from
@@ -488,18 +390,12 @@ type Query() =
           inputs = Some(from)
           outputs = Some(Conversions.createObject [ "body", Conversions.createArray result ]) }
 
-    static member OfJson json =
-        let r = Query()
-        r.Inputs <- JsonTree.getKey "inputs" json |> queryInputsOfJson
-        r.AugmentWithJson json
-        r
-
 // Inline Code actions
 
-type JavaScriptCode() =
-    inherit BaseAction()
+type JavaScriptCode(json) =
+    inherit BaseAction(json)
 
-    member val Inputs: JavaScriptCodeInputs = { code = "" } with get, set
+    member val Inputs = JsonTree.getKey "inputs" json |> javaScriptCodeInputsOfJson with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "NOT IMPLEMENTED JavaScriptCode: %O" this.Inputs
@@ -508,21 +404,12 @@ type JavaScriptCode() =
           inputs = None
           outputs = None }
 
-    static member OfJson json =
-        let r = JavaScriptCode()
-        r.Inputs <- JsonTree.getKey "inputs" json |> javaScriptCodeInputsOfJson
-        r.AugmentWithJson json
-        r
-
 // Request actions
 
-type Response() =
-    inherit BaseAction()
+type Response(json) =
+    inherit BaseAction(json)
 
-    member val Inputs =
-        { HttpResponseInputs.body = Null
-          headers = None
-          statusCode = Integer 0 } with get, set
+    member val Inputs = JsonTree.getKey "inputs" json |> httpResponseInputsOfJson with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "Response: %O" this.Inputs
@@ -564,25 +451,12 @@ type Response() =
           inputs = Some(inputsObject)
           outputs = Some(inputsObject) }
 
-    static member OfJson json =
-        let r = Response()
-        r.Inputs <- JsonTree.getKey "inputs" json |> httpResponseInputsOfJson
-        r.AugmentWithJson json
-        r
-
 // HTTP actions
 
-type Http() =
-    inherit BaseAction()
+type Http(json) =
+    inherit BaseAction(json)
 
-    member val Inputs: HttpInputs =
-        { method = ""
-          uri = ""
-          headers = None
-          body = Null
-          queries = None
-          cookie = None
-          authentication = Null } with get, set
+    member val Inputs = JsonTree.getKey "inputs" json |> httpInputsOfJson with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "HTTP: %A" this.Inputs
@@ -608,22 +482,12 @@ type Http() =
           inputs = Some(jsonOfHttpInputs this.Inputs)
           outputs = Some(jsonOfHttpRequestReply result.Value) }
 
-    static member OfJson json =
-        let r = Http()
-        r.Inputs <- JsonTree.getKey "inputs" json |> httpInputsOfJson
-        r.AugmentWithJson json
-        r
-
 // Workflow actions
 
-type Workflow() =
-    inherit BaseAction()
+type Workflow(json) =
+    inherit BaseAction(json)
 
-    member val Inputs =
-        { workflowId = ""
-          headers = OrderedMap.empty
-          body = Null
-          retryPolicy = WorkflowRequestRetryPolicy.Default } with get, set
+    member val Inputs = JsonTree.getKey "inputs" json |> workflowRequestOfJson with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "Workflow: %s" (jsonOfWorkflowRequest this.Inputs |> Conversions.stringOfJson)
@@ -649,9 +513,3 @@ type Workflow() =
         { status = Succeeded
           inputs = Some(jsonOfWorkflowRequest request)
           outputs = Some(jsonOfHttpRequestReply result.Value) }
-
-    static member OfJson json =
-        let r = Workflow()
-        r.Inputs <- JsonTree.getKey "inputs" json |> workflowRequestOfJson
-        r.AugmentWithJson json
-        r

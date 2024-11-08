@@ -4,30 +4,30 @@ open CompletedStepTypes
 open IllogicApps.Json
 
 [<AbstractClass>]
-type BaseAction() =
+type BaseAction(json: JsonTree) =
     interface IGraphExecutable with
         member this.Execute(context: SimulatorContext) = this.Execute(context)
         member this.GetChildren() = this.GetChildren()
         member this.RunAfter = this.RunAfter
 
-    member val ActionType = "" with get, set
-    member val RunAfter: OrderedMap<string, Status list> option = None with get, set
-    member val TrackedProperties: OrderedMap<string, JsonTree> = OrderedMap.empty with get, set
+    member val ActionType = JsonTree.getKey "type" json |> Conversions.ensureString with get
+
+    member val RunAfter =
+        JsonTree.tryGetKey "runAfter" json
+        |> Option.map (fun v ->
+            v
+            |> Conversions.ensureObject
+            |> OrderedMap.mapValuesOnly (fun v -> v |> Conversions.ensureArray |> Seq.map statusOfJson |> List.ofSeq)) with get
+
+    member val TrackedProperties: OrderedMap<string, JsonTree> =
+        JsonTree.tryGetKey "trackedProperties" json
+        |> Option.map Conversions.ensureObject
+        |> Option.defaultValue OrderedMap.empty with get
 
     abstract member Execute: SimulatorContext -> ActionResult
     abstract member GetChildren: unit -> (string * IGraphExecutable) list
     default this.GetChildren() = []
 
-    member internal this.AugmentWithJson json =
-        this.ActionType <- JsonTree.getKey "type" json |> Conversions.ensureString
-
-        this.RunAfter <-
-            JsonTree.tryGetKey "runAfter" json
-            |> Option.map (fun v ->
-                v
-                |> Conversions.ensureObject
-                |> OrderedMap.mapValuesOnly (fun v ->
-                    v |> Conversions.ensureArray |> Seq.map statusOfJson |> List.ofSeq))
 
 let getAllChildren start =
     let rec aux (from: (string * IGraphExecutable) list) acc =
@@ -39,9 +39,9 @@ let getAllChildren start =
 
     aux start []
 
-type UnknownAction() =
-    inherit BaseAction()
-    member val Original = Conversions.emptyObject with get, set
+type UnknownAction(json) =
+    inherit BaseAction(json)
+    member val Original = json with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "Unknown action: %A" this.Original
@@ -49,9 +49,3 @@ type UnknownAction() =
         { status = Skipped
           inputs = None
           outputs = None }
-
-    static member OfJson json =
-        let r = UnknownAction()
-        r.Original <- json
-        r.AugmentWithJson json
-        r
