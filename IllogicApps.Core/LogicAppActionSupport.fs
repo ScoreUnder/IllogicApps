@@ -85,17 +85,17 @@ let jsonOfJavaScriptCodeDependencies (deps: JavaScriptCodeDependencies) =
 
 type JavaScriptCodeInputs =
     { code: string
-      explicitDependencies: JavaScriptCodeDependencies }
+      explicitDependencies: JavaScriptCodeDependencies option }
 
 let javaScriptCodeInputsOfJson json =
     { code = JsonTree.getKey "code" json |> Conversions.ensureString
-      explicitDependencies = JsonTree.getKey "explicitDependencies" json |> javaScriptCodeDependenciesOfJson }
+      explicitDependencies = JsonTree.tryGetKey "explicitDependencies" json |> Option.map javaScriptCodeDependenciesOfJson }
 
 let jsonOfJavaScriptCodeInputs (inputs: JavaScriptCodeInputs) =
     OrderedMap
         .Builder()
         .Add("code", JsonTree.String inputs.code)
-        .Add("explicitDependencies", jsonOfJavaScriptCodeDependencies inputs.explicitDependencies)
+        .MaybeAdd("explicitDependencies", inputs.explicitDependencies |> Option.map jsonOfJavaScriptCodeDependencies)
         .Build()
     |> JsonTree.Object
 

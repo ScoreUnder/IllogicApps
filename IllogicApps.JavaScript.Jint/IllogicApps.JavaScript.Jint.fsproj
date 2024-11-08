@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="Library.fs"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Jint" Version="4.1.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\IllogicApps.Core\IllogicApps.Core.fsproj" />
+      <ProjectReference Include="..\IllogicApps.Json\IllogicApps.Json.fsproj" />
+      <ProjectReference Include="..\IllogicApps.Simulator\IllogicApps.Simulator.fsproj" />
+    </ItemGroup>
+
+</Project>

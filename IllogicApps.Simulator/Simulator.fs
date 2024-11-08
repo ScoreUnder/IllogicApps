@@ -147,6 +147,23 @@ type private LoopContextImpl(values: JsonTree list, disposeHook: LoopContext -> 
 
     override this.Current = this.values.Head
 
+type SimulatorCreationOptions =
+    { workflowName: string
+      triggerResult: CompletedTrigger
+      externalServiceHandlers: ExternalServiceHandler list
+      isBugForBugAccurate: bool }
+
+    static member createSimple (logicApp: LogicAppSpec.Root) triggerOutputs =
+        { workflowName = "unnamed_workflow"
+          triggerResult =
+            CompletedTrigger.create
+                { CompletedAction.create
+                      (logicApp.definition.triggers.Keys |> Seq.head)
+                      (stringOfDateTime DateTime.UtcNow) with
+                    outputs = triggerOutputs }
+          externalServiceHandlers = [ loggingHandler; noOpHandler ]
+          isBugForBugAccurate = true }
+
 type Simulator
     private
     (
@@ -175,9 +192,16 @@ type Simulator
     member val private LoopContextStack = Stack<LoopContextImpl>() with get
     member val private ArrayOperationContextStack = Stack<LoopContextImpl>() with get
 
-    static member Trigger name (logicApp: LogicAppSpec.Root) triggerResult externalServiceHandlers =
-        let sim = Simulator(name, triggerResult, externalServiceHandlers, true)
-        let result = sim.ExecuteGraph logicApp.definition.actions
+    static member Trigger (actions: OrderedMap<string, #IGraphExecutable>) (creationOptions: SimulatorCreationOptions) =
+        let sim =
+            Simulator(
+                creationOptions.workflowName,
+                creationOptions.triggerResult,
+                creationOptions.externalServiceHandlers,
+                creationOptions.isBugForBugAccurate
+            )
+
+        let result = sim.ExecuteGraph actions
 
         if sim.TerminationStatus.IsNone then
             sim.StopExecuting result
@@ -188,14 +212,7 @@ type Simulator
         sim
 
     static member TriggerSimple (logicApp: LogicAppSpec.Root) triggerOutputs =
-        let triggerResult =
-            CompletedTrigger.create
-                { CompletedAction.create
-                      (logicApp.definition.triggers.Keys |> Seq.head)
-                      (stringOfDateTime DateTime.UtcNow) with
-                    outputs = triggerOutputs }
-
-        Simulator.Trigger "unnamed_workflow" logicApp triggerResult [ loggingHandler; noOpHandler ]
+        Simulator.Trigger logicApp.definition.actions (SimulatorCreationOptions.createSimple logicApp triggerOutputs)
 
     member val TerminationStatus: Status option = None with get, set
     member val ActionResults = MutableOrderedMap<string, CompletedAction>() with get
@@ -219,7 +236,7 @@ type Simulator
 
     override this.ExecuteGraph(actions: OrderedMap<string, 'a> when 'a :> IGraphExecutable) =
         let dependencyGraph = createDependencyGraph actions
-        let remainingActions = new Dictionary<string, 'a>(actions)
+        let remainingActions = Dictionary<string, 'a>(actions)
 
         let getNextActions name =
             Map.tryFind name dependencyGraph |> Option.defaultValue []

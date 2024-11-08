@@ -11,23 +11,23 @@ let examplePath = "Stateful1/workflow.json"
 let logicApp = readLogicApp <| examplePath.Replace("Stateful1", "SkippingTest")
 // let logicApp = readLogicApp <| examplePath.Replace("Stateful1", "FailurePropagationTest")
 
-// printfn "%A" logicApp
-
-// logicApp.definition.actions
-// |> LogicAppActionSupport.fromKvps
-// |> Seq.toList
-// |> LogicAppBaseAction.getAllChildren
-// |> printfn "%A"
-
-let sim = Simulator.TriggerSimple logicApp (Some (String "FAKE INPUT"))
+let sim =
+    Simulator.Trigger
+        logicApp.definition.actions
+        { SimulatorCreationOptions.createSimple logicApp (Some(String "FAKE INPUT")) with
+            externalServiceHandlers =
+                [ IllogicApps.JavaScript.Jint.jintJavascriptHandler
+                  ExternalServices.loggingHandler ] }
 
 printfn "\nAction results:\n---------------\n"
+
 sim.ActionResults
 |> Seq.map (fun (KeyValue(k, v)) -> k, CompletedStepTypes.jsonOfCompletedAction v)
 |> Conversions.createObject
 |> Conversions.writePrettyJson System.Console.Out
 
 printfn "\nVariable results:\n-----------------\n"
+
 sim.Variables
 |> Seq.map (fun (KeyValue(k, v)) -> k, v)
 |> Conversions.createObject
