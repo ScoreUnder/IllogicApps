@@ -3,6 +3,7 @@ namespace IllogicApps.Simulator
 open System
 open System.Collections.Generic
 
+open System.Diagnostics
 open IllogicApps.Core
 open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.LogicAppBaseAction
@@ -129,7 +130,7 @@ module private SimulatorHelper =
 
 open SimulatorHelper
 
-type LoopContextImpl(values: JsonTree list, disposeHook: LoopContext -> unit) as this =
+type private LoopContextImpl(values: JsonTree list, disposeHook: LoopContext -> unit) as this =
     inherit LoopContext()
 
     [<DefaultValue>]
@@ -163,12 +164,18 @@ type Simulator private (workflowName: string, triggerResult: CompletedTrigger, i
 
         this.RecordActionResult name result
 
+    member val private LoopContextStack = Stack<LoopContextImpl>() with get
+    member val private ArrayOperationContextStack = Stack<LoopContextImpl>() with get
+
     static member Trigger name (logicApp: LogicAppSpec.Root) triggerResult =
         let sim = Simulator(name, triggerResult, true)
         let result = sim.ExecuteGraph logicApp.definition.actions
 
         if sim.TerminationStatus.IsNone then
             sim.StopExecuting result
+
+        Debug.Assert(sim.LoopContextStack.Count = 0)
+        Debug.Assert(sim.ArrayOperationContextStack.Count = 0)
 
         sim
 
@@ -184,8 +191,6 @@ type Simulator private (workflowName: string, triggerResult: CompletedTrigger, i
 
     member val TerminationStatus: Status option = None with get, set
     member val ActionResults = MutableOrderedMap<string, CompletedAction>() with get
-    member val LoopContextStack = Stack<LoopContextImpl>() with get
-    member val ArrayOperationContextStack = Stack<LoopContextImpl>() with get
 
     override this.LoopContext = this.LoopContextStack.Peek()
     override this.ArrayOperationContext = this.ArrayOperationContextStack.Peek()
@@ -287,14 +292,14 @@ type Simulator private (workflowName: string, triggerResult: CompletedTrigger, i
     override this.PushArrayOperationContext(arg1: JsonTree seq) : LoopContext =
         this.PushLoopContext(this.ArrayOperationContextStack, arg1)
 
-    member this.PushLoopContext(stack: Stack<LoopContextImpl>, values: JsonTree seq) =
+    member private this.PushLoopContext(stack: Stack<LoopContextImpl>, values: JsonTree seq) =
         let loopContext =
             new LoopContextImpl(List.ofSeq values, this.PopAndCompareLoopContext stack)
 
         stack.Push(loopContext)
         loopContext
 
-    member this.PopAndCompareLoopContext (stack: Stack<LoopContextImpl>) context =
+    member private this.PopAndCompareLoopContext (stack: Stack<LoopContextImpl>) context =
         let top = stack.Peek(): LoopContext
 
         if top = context then

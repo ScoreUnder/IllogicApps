@@ -32,6 +32,3 @@ sim.Variables
 |> Seq.map (fun (KeyValue(k, v)) -> k, v)
 |> Conversions.createObject
 |> Conversions.writePrettyJson System.Console.Out
-
-if sim.LoopContextStack.Count <> 0 then failwith "Loop context stack not empty"
-if sim.ArrayOperationContextStack.Count <> 0 then failwith "Scope context stack not empty"
