@@ -182,9 +182,9 @@ type Simulator private (triggerResult: CompletedTrigger, ?isBugForBugAccurate: b
         Simulator.Trigger logicApp triggerResult
 
     member val TerminationStatus: Status option = None with get, set
-    member val ActionResults = Dictionary<string, CompletedAction>() with get, set
-    member val LoopContextStack = Stack<LoopContextImpl>() with get, set
-    member val ArrayOperationContextStack = Stack<LoopContextImpl>() with get, set
+    member val ActionResults = Dictionary<string, CompletedAction>() with get
+    member val LoopContextStack = Stack<LoopContextImpl>() with get
+    member val ArrayOperationContextStack = Stack<LoopContextImpl>() with get
 
     override this.LoopContext = this.LoopContextStack.Peek()
     override this.ArrayOperationContext = this.ArrayOperationContextStack.Peek()
