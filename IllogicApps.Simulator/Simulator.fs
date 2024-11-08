@@ -10,6 +10,7 @@ open IllogicApps.Core.LogicAppBaseAction
 open IllogicApps.Json
 open IllogicApps.Simulator.BuiltinCondition
 open CompletedStepTypes
+open IllogicApps.Simulator.ExternalServices
 
 module private SimulatorHelper =
     let private emptyDependencyList = OrderedMap.ofList [ ("", []) ]
@@ -146,7 +147,14 @@ type private LoopContextImpl(values: JsonTree list, disposeHook: LoopContext -> 
 
     override this.Current = this.values.Head
 
-type Simulator private (workflowName: string, triggerResult: CompletedTrigger, isBugForBugAccurate: bool) as this =
+type Simulator
+    private
+    (
+        workflowName: string,
+        triggerResult: CompletedTrigger,
+        externalServiceHandlers: ExternalServiceHandler list,
+        isBugForBugAccurate: bool
+    ) as this =
     inherit SimulatorContext()
 
     let isBugForBugAccurate = isBugForBugAccurate
@@ -167,8 +175,8 @@ type Simulator private (workflowName: string, triggerResult: CompletedTrigger, i
     member val private LoopContextStack = Stack<LoopContextImpl>() with get
     member val private ArrayOperationContextStack = Stack<LoopContextImpl>() with get
 
-    static member Trigger name (logicApp: LogicAppSpec.Root) triggerResult =
-        let sim = Simulator(name, triggerResult, true)
+    static member Trigger name (logicApp: LogicAppSpec.Root) triggerResult externalServiceHandlers =
+        let sim = Simulator(name, triggerResult, externalServiceHandlers, true)
         let result = sim.ExecuteGraph logicApp.definition.actions
 
         if sim.TerminationStatus.IsNone then
@@ -187,7 +195,7 @@ type Simulator private (workflowName: string, triggerResult: CompletedTrigger, i
                       (stringOfDateTime DateTime.UtcNow) with
                     outputs = triggerOutputs }
 
-        Simulator.Trigger "unnamed_workflow" logicApp triggerResult
+        Simulator.Trigger "unnamed_workflow" logicApp triggerResult [ loggingHandler; noOpHandler ]
 
     member val TerminationStatus: Status option = None with get, set
     member val ActionResults = MutableOrderedMap<string, CompletedAction>() with get
@@ -283,8 +291,8 @@ type Simulator private (workflowName: string, triggerResult: CompletedTrigger, i
     override this.StopExecuting status = this.TerminationStatus <- Some status
 
     override this.ExternalServiceRequest request =
-        printfn "External service request: %A" request
-        ()
+        if not (runAllHandlers externalServiceHandlers request) then
+            failwithf "No handler for external service request: %A" request
 
     override this.PushLoopContext(arg1: JsonTree seq) : LoopContext =
         this.PushLoopContext(this.LoopContextStack, arg1)

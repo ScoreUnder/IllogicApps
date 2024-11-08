@@ -11,6 +11,7 @@
         <Compile Include="BuiltinCondition.fs"/>
         <Compile Include="BuiltinFunctions.fs"/>
         <Compile Include="LanguageEvaluator.fs"/>
+        <Compile Include="ExternalServices.fs" />
         <Compile Include="Simulator.fs"/>
     </ItemGroup>
     <ItemGroup>
