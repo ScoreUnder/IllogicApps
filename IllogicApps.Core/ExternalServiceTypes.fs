@@ -156,7 +156,7 @@ type ScriptExecutionRequest =
       workflow: WorkflowDetails
       trigger: CompletedTrigger }
 
-type ExternalServiceRequestType =
+type ExternalServiceRequest =
     | HttpRequest of HttpRequest * HttpRequestReply ref
     | HttpResponse of HttpRequestReply
     | Workflow of WorkflowRequest * HttpRequestReply ref

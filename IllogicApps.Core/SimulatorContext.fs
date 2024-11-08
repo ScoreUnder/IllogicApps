@@ -73,7 +73,7 @@ and [<AbstractClass>] SimulatorContext() =
     /// Sends an external service request.
     /// This refers to anything outside the current workflow:
     /// Other workflow invocations, HTTP requests, filesystem access, etc.
-    abstract member ExternalServiceRequest: ExternalServiceRequestType -> unit
+    abstract member ExternalServiceRequest: ExternalServiceRequest -> unit
 
     /// Pushes a new loop context (i.e. sets a new default context for the items() expression).
     /// Remember to call Dispose() on the returned context when done.
