@@ -1,6 +1,7 @@
 module IllogicApps.Json.Conversions
 
 open System.Collections.Immutable
+open System.IO
 
 let escapeStringForJson str =
     let sb = System.Text.StringBuilder()
@@ -39,6 +40,66 @@ let stringOfJson json =
         | Boolean false -> "false" :: acc
 
     aux [] json |> String.concat ""
+
+let rec writePrettyJson (writer: TextWriter) json =
+    let rec write' json indent =
+        match json with
+        | Null -> writer.Write("null")
+        | Array a when a.IsEmpty -> writer.Write("[]")
+        | Array a when a.Length = 1 ->
+            // Short array, don't indent
+            writer.Write("[")
+            write' a.[0] indent
+            writer.Write("]")
+        | Array a ->
+            writer.WriteLine("[")
+
+            let nextIndent = indent + "  "
+            writer.Write(nextIndent)
+            write' a.[0] nextIndent
+
+            for el in a.AsSpan(System.Range.StartAt(1)) do
+                writer.WriteLine(",")
+                writer.Write(nextIndent)
+                write' el nextIndent
+
+            writer.WriteLine()
+            writer.Write(indent)
+            writer.Write("]")
+        | Object o when OrderedMap.isEmpty o -> writer.Write("{}")
+        | Object o when o.Count = 1 ->
+            writer.Write("{")
+            let (KeyValue(k, v)) = Seq.head o
+            write' (String k) indent
+            writer.Write(": ")
+            write' v indent
+            writer.Write("}")
+        | Object o ->
+            writer.WriteLine("{")
+
+            let nextIndent = indent + "  "
+            let asSeq = OrderedMap.toSeq o
+
+            let k, v = Seq.head asSeq
+            writer.Write(nextIndent)
+            write' (String k) nextIndent
+            writer.Write(": ")
+            write' v nextIndent
+
+            for k, v in Seq.skip 1 asSeq do
+                writer.WriteLine(",")
+                writer.Write(nextIndent)
+                write' (String k) nextIndent
+                writer.Write(": ")
+                write' v nextIndent
+
+            writer.WriteLine()
+            writer.Write(indent)
+            writer.Write("}")
+        | j -> writer.Write(stringOfJson j)
+
+    write' json ""
+    writer.WriteLine()
 
 let stringOfJsonType json =
     match json with

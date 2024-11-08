@@ -25,15 +25,13 @@ printfn "\nAction results:\n---------------\n"
 sim.ActionResults
 |> Seq.map (fun (KeyValue(k, v)) -> k, CompletedStepTypes.jsonOfCompletedAction v)
 |> Conversions.createObject
-|> Conversions.stringOfJson
-|> printfn "%s"
+|> Conversions.writePrettyJson System.Console.Out
 
 printfn "\nVariable results:\n-----------------\n"
 sim.Variables
 |> Seq.map (fun (KeyValue(k, v)) -> k, v)
 |> Conversions.createObject
-|> Conversions.stringOfJson
-|> printfn "%s"
+|> Conversions.writePrettyJson System.Console.Out
 
 if sim.LoopContextStack.Count <> 0 then failwith "Loop context stack not empty"
 if sim.ArrayOperationContextStack.Count <> 0 then failwith "Scope context stack not empty"
