@@ -28,7 +28,14 @@ let stringOfJson json =
         | Array a when a.IsEmpty -> "[]" :: acc
         | Array a -> "[" :: List.tail (Seq.foldBack (fun el acc -> "," :: aux acc el) a ("]" :: acc))
         | Object o when OrderedMap.isEmpty o -> "{}" :: acc
-        | Object o -> "{" :: List.tail (OrderedMap.foldBack (fun k v acc -> "," :: "\"" :: (escapeStringForJson k) :: "\":" :: aux acc v) o ("}" :: acc))
+        | Object o ->
+            "{"
+            :: List.tail (
+                OrderedMap.foldBack
+                    (fun k v acc -> "," :: "\"" :: (escapeStringForJson k) :: "\":" :: aux acc v)
+                    o
+                    ("}" :: acc)
+            )
         | String s -> "\"" :: (escapeStringForJson s) :: "\"" :: acc
         | Integer i -> string i :: acc
         | Float f when System.Double.IsNaN f -> "\"NaN\"" :: acc
