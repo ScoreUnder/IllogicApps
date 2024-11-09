@@ -27,7 +27,9 @@ type Request(json) =
 
         { status = triggerResult.action.status
           inputs = triggerResult.action.inputs
-          outputs = triggerResult.action.outputs }
+          outputs = triggerResult.action.outputs
+          code = triggerResult.action.code
+          error = triggerResult.action.error }
 
 // Actions
 
@@ -43,9 +45,12 @@ type Scope(resolveAction, json) =
         let result = context.ExecuteGraph this.Actions in
         printfn "Scope End"
 
-        { status = result
-          inputs = None
-          outputs = None }
+        let code, error = codeAndErrorFromScopeResult result
+
+        { ActionResult.Default with
+            status = result
+            code = Some code
+            error = error }
 
     override this.GetChildren() : (string * IGraphExecutable) list =
         this.Actions
@@ -74,9 +79,13 @@ type If(resolveAction, json) =
         let result = context.ExecuteGraph actions in
         printfn "If End"
 
+        let code, error = codeAndErrorFromScopeResult result
+
         { status = result
           inputs = None
-          outputs = Some(Conversions.createObject [ "expression", Boolean conditionResult ]) }
+          outputs = Some(Conversions.createObject [ "expression", Boolean conditionResult ])
+          code = Some code
+          error = error }
 
     override this.GetChildren() : (string * IGraphExecutable) list =
         Seq.append this.Actions this.Else.actions
@@ -116,9 +125,13 @@ type Switch(resolveAction, json) =
 
         printfn "Switch End"
 
+        let code, error = codeAndErrorFromScopeResult result
+
         { status = result
           inputs = None
-          outputs = Some(Conversions.createObject [ "expression", value ]) }
+          outputs = Some(Conversions.createObject [ "expression", value ])
+          code = Some code
+          error = error }
 
     override this.GetChildren() =
         this.Cases.Values
@@ -165,10 +178,13 @@ type Until(resolveAction, json) =
         let result = attempt 1L
         printfn "Until End"
 
+        let code, error = codeAndErrorFromScopeResult result
+
         { status = result
           inputs = None // TODO
           outputs = None // TODO
-        }
+          code = Some code
+          error = error }
 
 type Terminate(json) =
     inherit BaseAction(json)
@@ -185,9 +201,9 @@ type Terminate(json) =
            | "Cancelled" -> Skipped
            | _ -> Failed
 
-        { status = Succeeded
-          inputs = Some(jsonOfTerminateInputs this.Inputs)
-          outputs = None }
+        { ActionResult.Default with
+            inputs = Some(jsonOfTerminateInputs this.Inputs)
+            code = Some NotSpecified }
 
 // Variable actions
 
@@ -224,9 +240,9 @@ type InitializeVariable(json) =
             |> ImmutableArray.CreateRange
             |> Array
 
-        { status = Succeeded
-          inputs = Some(Conversions.createObject [ "variables", processedVarsArray ])
-          outputs = None }
+        { ActionResult.Default with
+            inputs = Some(Conversions.createObject [ "variables", processedVarsArray ])
+            code = Some NotSpecified }
 
 type SetVariable(json) =
     inherit BaseAction(json)
@@ -252,9 +268,10 @@ type SetVariable(json) =
         let inputs =
             Conversions.createObject [ "name", String this.Inputs.name; "value", value ]
 
-        { status = Succeeded
-          inputs = Some(inputs)
-          outputs = Some(Conversions.createObject [ "body", inputs ]) }
+        { ActionResult.Default with
+            inputs = Some(inputs)
+            outputs = Some(Conversions.createObject [ "body", inputs ])
+            code = Some NotSpecified }
 
 type AppendToStringVariable(json) =
     inherit BaseAction(json)
@@ -272,9 +289,9 @@ type AppendToStringVariable(json) =
         let newValue = this.Add context originalValue addend
         context.Variables.[this.Inputs.name] <- newValue
 
-        { status = Succeeded
-          inputs = Some(Conversions.createObject [ "name", String this.Inputs.name; "value", this.Inputs.value ])
-          outputs = None }
+        { ActionResult.Default with
+            inputs = Some(Conversions.createObject [ "name", String this.Inputs.name; "value", this.Inputs.value ])
+            code = Some NotSpecified }
 
     abstract member Add: SimulatorContext -> JsonTree -> JsonTree -> JsonTree
 
@@ -309,13 +326,14 @@ type IncrementVariable(json) =
 
         context.Variables.[this.Inputs.name] <- Integer value
 
-        { status = Succeeded
-          inputs =
-            Some(
-                Conversions.createObject
-                    [ "body", Conversions.createObject [ "name", String this.Inputs.name; "value", increment ] ]
-            )
-          outputs = Some(Conversions.createObject [ "name", String this.Inputs.name; "value", Integer value ]) }
+        { ActionResult.Default with
+            inputs =
+                Some(
+                    Conversions.createObject
+                        [ "body", Conversions.createObject [ "name", String this.Inputs.name; "value", increment ] ]
+                )
+            outputs = Some(Conversions.createObject [ "name", String this.Inputs.name; "value", Integer value ])
+            code = Some NotSpecified }
 
     abstract member Add: int64 -> int64 -> int64
     override this.Add a b = a + b
@@ -337,9 +355,10 @@ type Compose(json) =
         let result = context.EvaluateLanguage this.Inputs
         printfn "Compose Result: %O" result
 
-        { status = Succeeded
-          inputs = Some(result)
-          outputs = Some(result) }
+        { ActionResult.Default with
+            inputs = Some(result)
+            outputs = Some(result)
+            code = Some OK }
 
 type ParseJson(json) =
     inherit BaseAction(json)
@@ -358,9 +377,10 @@ type ParseJson(json) =
         // TODO: can we do freaky variable stuff in the schema?
         printfn "ParseJson Result: %O" result
 
-        { status = Succeeded
-          inputs = Some(Conversions.createObject [ "content", input; "schema", this.Inputs.schema ])
-          outputs = Some(Conversions.createObject [ "body", result ]) }
+        { ActionResult.Default with
+            inputs = Some(Conversions.createObject [ "content", input; "schema", this.Inputs.schema ])
+            outputs = Some(Conversions.createObject [ "body", result ])
+            code = Some OK }
 
 type Query(json) =
     inherit BaseAction(json)
@@ -389,9 +409,9 @@ type Query(json) =
 
         printfn "Query Result: %O" result
 
-        { status = Succeeded
-          inputs = Some(from)
-          outputs = Some(Conversions.createObject [ "body", Conversions.createArray result ]) }
+        { ActionResult.Default with
+            inputs = Some(from)
+            outputs = Some(Conversions.createObject [ "body", Conversions.createArray result ]) }
 
 // Inline Code actions
 
@@ -424,14 +444,14 @@ type JavaScriptCode(json) =
         match result.Value with
         | Error message -> failwith message
         | Ok result ->
-            { status = Succeeded
-              inputs =
-                Some(
-                    jsonOfJavaScriptCodeInputs
-                        { this.Inputs with
-                            code = processedCode }
-                )
-              outputs = Some result }
+            let procesedInputs =
+                { this.Inputs with
+                    code = processedCode }
+
+            { ActionResult.Default with
+                inputs = Some(jsonOfJavaScriptCodeInputs procesedInputs)
+                outputs = Some result
+                code = Some OK }
 
 // Request actions
 
@@ -476,9 +496,9 @@ type Response(json) =
                 .Build()
             |> Object
 
-        { status = Succeeded
-          inputs = Some(inputsObject)
-          outputs = Some(inputsObject) }
+        { ActionResult.Default with
+              inputs = Some(inputsObject)
+              outputs = Some(inputsObject) }
 
 // HTTP actions
 
@@ -507,9 +527,9 @@ type Http(json) =
             result
         )
 
-        { status = Succeeded
-          inputs = Some(jsonOfHttpInputs this.Inputs)
-          outputs = Some(jsonOfHttpRequestReply result.Value) }
+        { ActionResult.Default with
+              inputs = Some(jsonOfHttpInputs this.Inputs)
+              outputs = Some(jsonOfHttpRequestReply result.Value) }
 
 // Workflow actions
 
@@ -539,6 +559,7 @@ type Workflow(json) =
 
         context.ExternalServiceRequest <| ExternalServiceTypes.Workflow(request, result)
 
-        { status = Succeeded
-          inputs = Some(jsonOfWorkflowRequest request)
-          outputs = Some(jsonOfHttpRequestReply result.Value) }
+        { ActionResult.Default with
+              inputs = Some(jsonOfWorkflowRequest request)
+              outputs = Some(jsonOfHttpRequestReply result.Value)
+              code = Some Accepted }

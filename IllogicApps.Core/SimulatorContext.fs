@@ -11,8 +11,17 @@ type Expression = JsonTree
 
 type ActionResult =
     { status: Status
+      code: ActionCode option
+      error: ActionError option
       inputs: JsonTree option
       outputs: JsonTree option }
+
+    static member Default =
+        { status = Succeeded
+          code = None
+          error = None
+          inputs = None
+          outputs = None }
 
 [<AbstractClass>]
 type LoopContext() =

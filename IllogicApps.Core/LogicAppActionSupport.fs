@@ -1,6 +1,7 @@
 module IllogicApps.Core.LogicAppActionSupport
 
 open System.Collections.Immutable
+open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Json
 
@@ -89,7 +90,9 @@ type JavaScriptCodeInputs =
 
 let javaScriptCodeInputsOfJson json =
     { code = JsonTree.getKey "code" json |> Conversions.ensureString
-      explicitDependencies = JsonTree.tryGetKey "explicitDependencies" json |> Option.map javaScriptCodeDependenciesOfJson }
+      explicitDependencies =
+        JsonTree.tryGetKey "explicitDependencies" json
+        |> Option.map javaScriptCodeDependenciesOfJson }
 
 let jsonOfJavaScriptCodeInputs (inputs: JavaScriptCodeInputs) =
     OrderedMap
@@ -242,3 +245,12 @@ let getVarTypechecked (context: SimulatorContext) var typs =
             failwithf "Variable is of type %A, expected one of %A" variableType typs
 
         originalValue
+
+let codeAndErrorFromScopeResult result =
+    match result with
+    | Succeeded -> NotSpecified, None
+    | _ ->
+        ActionFailed,
+        Some
+            { ActionError.code = ActionFailed
+              message = "An action failed. No dependent actions succeeded." }

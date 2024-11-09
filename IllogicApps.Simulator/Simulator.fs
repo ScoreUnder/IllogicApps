@@ -125,9 +125,27 @@ module private SimulatorHelper =
         | _ -> node
 
     let skippedResult =
-        { status = Skipped
-          inputs = None
-          outputs = None }
+        { ActionResult.Default with
+            status = Skipped
+            code = Some ActionSkipped
+            error =
+                Some
+                    { code = ActionDependencyFailed
+                      message = "Action skipped due to dependency failure" } }
+
+    let skippedBranchResult =
+        { ActionResult.Default with
+            status = Skipped
+            code = Some ActionSkipped
+            error =
+                Some
+                    { code = ActionBranchingConditionNotSatisfied
+                      message = "Action skipped as part of a branch not executed" } }
+
+    let skippedTerminatedResult =
+        { ActionResult.Default with
+            status = Skipped
+            code = Some Terminated }
 
 open SimulatorHelper
 
@@ -185,6 +203,8 @@ type Simulator
                 status = result.status
                 inputs = result.inputs
                 outputs = result.outputs
+                error = result.error
+                code = result.code
                 clientTrackingId = triggerResult.action.clientTrackingId }
 
         this.RecordActionResult name result
@@ -248,13 +268,13 @@ type Simulator
                 match remainingActions.TryGetValue actionName with
                 | false, _ -> executeNext rest
                 | true, action ->
-                    let status =
+                    let status, result =
                         if this.TerminationStatus.IsSome then
                             // If we're terminating, just skip everything
                             // (i.e. consider dependencies fulfilled but not in the right state)
-                            Completed
+                            Completed, skippedTerminatedResult
                         else
-                            calculateDependencyStatus this.ActionResults action
+                            calculateDependencyStatus this.ActionResults action, skippedResult
 
                     match status with
                     | Satisfied ->
@@ -265,7 +285,7 @@ type Simulator
                     | Completed ->
                         // This action's dependencies are in the wrong state, skip it
                         remainingActions.Remove actionName |> ignore
-                        recordResultOf actionName (fun () -> skippedResult)
+                        recordResultOf actionName (fun () -> result)
                         action.GetChildren() |> this.ForceSkipAll
 
                         rest @ (getNextActions actionName)
@@ -337,4 +357,4 @@ type Simulator
         |> Seq.map (fun (k, v) -> k, (v: IGraphExecutable))
         |> Seq.toList
         |> getAllChildren
-        |> List.iter (fun (name, _) -> recordResultOf name (fun () -> skippedResult))
+        |> List.iter (fun (name, _) -> recordResultOf name (fun () -> skippedBranchResult))

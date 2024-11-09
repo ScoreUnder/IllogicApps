@@ -46,6 +46,5 @@ type UnknownAction(json) =
     override this.Execute(context: SimulatorContext) =
         printfn "Unknown action: %A" this.Original
 
-        { status = Skipped
-          inputs = None
-          outputs = None }
+        { ActionResult.Default with
+            status = Skipped }
