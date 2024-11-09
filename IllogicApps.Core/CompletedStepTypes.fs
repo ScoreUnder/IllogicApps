@@ -28,6 +28,39 @@ let statusOfString (s: string) =
     | "cancelled" -> Cancelled
     | s -> failwithf "Invalid status '%s'" s
 
+type ActionCode =
+    // Some of these only appear in "code", some of these only appear in "error"."code", and many appear in both
+    // I don't care enough to separate them, if they even are separate
+    | NotSpecified // (code) Success for some actions (Scope, Condition, Initialize Variable, etc.)
+    | OK // (code) Success for some actions (Compose, Parse JSON, Execute JavaScript Code, etc.)
+    | ActionSkipped // (code) Skipped by simulator
+    | ActionFailed // (code, error.code) Failure for some actions (Scope...?)
+    | ActionBranchingConditionNotSatisfied // (error.code) Skipped because inside a branch that wasn't taken
+    | ActionConditionFailed // (error.code) Skipped because runAfter condition was not met
+    | ActionDependencyFailed // (error.code) Skipped because runAfter condition was not met (what is the difference???)
+    | ActionResponseSkipped // (error.code) Skipped because the workflow is not called by something that waits for a response
+    | InlineCodeScriptRuntimeFailure // (code, error.code) Failure to run inline code script
+    | InvalidTemplate // (error.code) Failure to run template expression
+    | Accepted // (code) Ran inner workflow
+    | BadRequest // (code) Failure to run template expression?
+    | Terminated // (code) Was sequenced after workflow termination
+
+let stringOfActionCode =
+    function
+    | NotSpecified -> "NotSpecified"
+    | OK -> "OK"
+    | ActionSkipped -> "ActionSkipped"
+    | ActionFailed -> "ActionFailed"
+    | ActionBranchingConditionNotSatisfied -> "ActionBranchingConditionNotSatisfied"
+    | ActionConditionFailed -> "ActionConditionFailed"
+    | ActionDependencyFailed -> "ActionDependencyFailed"
+    | ActionResponseSkipped -> "ActionResponseSkipped"
+    | InlineCodeScriptRuntimeFailure -> "InlineCodeScriptRuntimeFailure"
+    | InvalidTemplate -> "InvalidTemplate"
+    | Accepted -> "Accepted"
+    | BadRequest -> "BadRequest"
+    | Terminated -> "Terminated"
+
 let statusOfJson (json: JsonTree) =
     json |> Conversions.ensureString |> statusOfString
 
@@ -40,6 +73,18 @@ let makeNewTrackingId () = Guid.NewGuid().ToString()
 let stringOfDateTime (dt: DateTime) =
     dt.ToString("o", CultureInfo.InvariantCulture)
 
+type ActionError =
+    { code: ActionCode
+      message: string }
+
+let jsonOfActionError (error: ActionError) =
+    OrderedMap
+        .Builder()
+        .Add("code", String(error.code |> stringOfActionCode))
+        .Add("message", String error.message)
+        .Build()
+    |> JsonTree.Object
+
 type CompletedAction =
     { name: string
       inputs: JsonTree option
@@ -48,7 +93,9 @@ type CompletedAction =
       endTime: string
       trackingId: string
       clientTrackingId: string
-      status: Status }
+      status: Status
+      code: ActionCode option
+      error: ActionError option }
 
 module CompletedAction =
     let inline create name startTime =
@@ -59,7 +106,9 @@ module CompletedAction =
           endTime = stringOfDateTime DateTime.UtcNow
           trackingId = makeNewTrackingId ()
           clientTrackingId = makeNewWorkflowRunId ()
-          status = Succeeded }
+          status = Succeeded
+          code = None
+          error = None }
 
 let orderedMapBuilderOfCompletedAction (ca: CompletedAction) =
     OrderedMap
@@ -72,6 +121,8 @@ let orderedMapBuilderOfCompletedAction (ca: CompletedAction) =
         .Add("trackingId", String ca.trackingId)
         .Add("clientTrackingId", String ca.clientTrackingId)
         .Add("status", String(ca.status |> stringOfStatus))
+        .MaybeAdd("code", ca.code |> Option.map (fun c -> c |> stringOfActionCode |> String))
+        .MaybeAdd("error", ca.error |> Option.map jsonOfActionError)
 
 let jsonOfCompletedAction (ca: CompletedAction) =
     Object((orderedMapBuilderOfCompletedAction ca).Build())
@@ -79,14 +130,12 @@ let jsonOfCompletedAction (ca: CompletedAction) =
 type CompletedTrigger =
     { action: CompletedAction
       scheduledTime: string option
-      originHistoryName: string
-      code: string option }
+      originHistoryName: string }
 
 let orderedMapBuilderOfCompletedTrigger (ct: CompletedTrigger) =
     (orderedMapBuilderOfCompletedAction ct.action)
         .MaybeAdd("scheduledTime", ct.scheduledTime)
         .Add("originHistoryName", String ct.originHistoryName)
-        .MaybeAdd("code", ct.code)
 
 let jsonOfCompletedTrigger (ct: CompletedTrigger) =
     Object((orderedMapBuilderOfCompletedTrigger ct).Build())
@@ -95,5 +144,4 @@ module CompletedTrigger =
     let inline create completedAction =
         { action = completedAction
           scheduledTime = None
-          originHistoryName = completedAction.clientTrackingId
-          code = None }
+          originHistoryName = completedAction.clientTrackingId }
