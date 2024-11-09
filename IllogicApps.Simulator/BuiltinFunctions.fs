@@ -545,18 +545,30 @@ let f_addToTime _ (args: Args) : JsonTree =
 
 // Workflow functions
 
-let f_outputs (sim: SimulatorContext) (args: Args) : JsonTree =
+let f_actions (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 1 args
     let actionName = Conversions.ensureString <| List.head args
 
     match sim.GetActionResult actionName with
-    | Some result -> result.outputs |> Conversions.jsonOfOption
+    | Some result -> result |> CompletedStepTypes.jsonOfCompletedAction
     | None -> failwithf "Action %s not found" actionName
+
+let f_body (sim: SimulatorContext) (args: Args) : JsonTree =
+    f_actions sim args |> JsonTree.getKey "outputs" |> JsonTree.getKey "body"
+
+let f_outputs (sim: SimulatorContext) (args: Args) : JsonTree =
+    f_actions sim args |> JsonTree.getKey "outputs"
 
 let f_trigger (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 0 args
 
     CompletedStepTypes.jsonOfCompletedTrigger sim.TriggerResult
+
+let f_triggerBody (sim: SimulatorContext) (args: Args) : JsonTree =
+    f_trigger sim args |> JsonTree.getKey "outputs" |> JsonTree.getKey "body"
+
+let f_triggerOutputs (sim: SimulatorContext) (args: Args) : JsonTree =
+    f_trigger sim args |> JsonTree.getKey "outputs"
 
 let f_variables (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 1 args
@@ -565,6 +577,11 @@ let f_variables (sim: SimulatorContext) (args: Args) : JsonTree =
     match sim.Variables.TryGetValue variableName with
     | true, value -> value
     | _ -> failwithf "Variable %s not found" variableName
+
+let f_workflow (sim: SimulatorContext) (args: Args) : JsonTree =
+    expectArgs 0 args
+
+    sim.WorkflowDetails |> ExternalServiceTypes.jsonOfWorkflowDetails
 
 // End function definitions
 
@@ -611,9 +628,14 @@ let functions: Map<string, LanguageFunction> =
       "addMinutes", f_addMinutes
       "addSeconds", f_addSeconds
       "addToTime", f_addToTime
+      "actions", f_actions
+      "body", f_body
       "outputs", f_outputs
       "trigger", f_trigger
-      "variables", f_variables ]
+      "triggerBody", f_triggerBody
+      "triggerOutputs", f_triggerOutputs
+      "variables", f_variables
+      "workflow", f_workflow ]
     |> List.toSeq
     |> Seq.append conditions
     |> Map.ofSeq
