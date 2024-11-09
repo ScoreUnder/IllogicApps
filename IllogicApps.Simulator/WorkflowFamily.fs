@@ -1,0 +1,117 @@
+module IllogicApps.Simulator.WorkflowFamily
+
+open System
+open IllogicApps.Core
+open IllogicApps.Core.CompletedStepTypes
+open IllogicApps.Core.ExternalServiceTypes
+open IllogicApps.Json
+open IllogicApps.Simulator.ExternalServices
+
+let addWorkflowResponseHeaders (sim: SimulatorContext) (headers: OrderedMap<string, string>) =
+    let workflowDetails = sim.WorkflowDetails
+    let trigger = sim.TriggerResult
+    let correlationId = Guid.NewGuid().ToString()
+
+    OrderedMap
+        .Builder()
+        .AddRange(headers)
+        .TryAdd("x-ms-workflow-run-id", workflowDetails.run.name)
+        .TryAdd("x-ms-correlation-id", correlationId)
+        .TryAdd("x-ms-client-tracking-id", trigger.action.clientTrackingId)
+        .TryAdd("x-ms-trigger-history-name", trigger.originHistoryName)
+        .TryAdd("x-ms-workflow-system-id", $"/scaleunits/prod-00/{workflowDetails.id}")
+        .TryAdd("x-ms-workflow-id", workflowDetails.id.Split('/') |> Array.last)
+        .TryAdd("x-ms-workflow-name", workflowDetails.name)
+        .TryAdd("x-ms-tracking-id", correlationId)
+        .TryAdd("x-ms-request-id", $":{correlationId}")
+        .Build()
+
+let createEmptyWorkflowResponse sim =
+    { statusCode = 202
+      body = Null
+      headers = addWorkflowResponseHeaders sim OrderedMap.empty }
+
+let buildWorkflowFamily
+    (settingsBuilder: SimulatorCreationOptions -> ExternalServiceHandler -> SimulatorCreationOptions)
+    (workflows: (string * LogicAppSpec.Root) seq)
+    (name: string)
+    (outputs: JsonTree option)
+    =
+    let workflows = workflows |> Map.ofSeq
+    let rootWorkflowId = makeNewWorkflowRunId ()
+
+    let allSims = ref []
+
+    let rec launchWorkflow name (workflow: LogicAppSpec.Root) outputs responseHook runId =
+        let defn = workflow.definition
+        let runId = runId |> Option.defaultWith makeNewWorkflowRunId
+
+        let triggerResult =
+            { CompletedTrigger.create
+                  { CompletedAction.create (defn.triggers.Keys |> Seq.head) (stringOfDateTime DateTime.UtcNow) with
+                      outputs = outputs
+                      clientTrackingId = runId } with
+                originHistoryName = rootWorkflowId }
+
+        let optionsBase =
+            { workflowName = name
+              triggerResult = triggerResult
+              externalServiceHandlers = []
+              isBugForBugAccurate = true }
+
+        settingsBuilder optionsBase (handleWorkflowRequest responseHook)
+        |> Simulator.Trigger defn.actions
+
+    and handleWorkflowRequest responseHook sim =
+        function
+        | Workflow(workflowReq, result) ->
+            let workflow = workflows |> Map.tryFind workflowReq.workflowId
+
+            match workflow with
+            | Some workflow ->
+                let receivedResponse = ref false
+
+                let nextResponseHook innerSim resp =
+                    if receivedResponse.Value then
+                        false
+                    else
+                        result.Value <-
+                            { resp with
+                                headers = addWorkflowResponseHeaders innerSim resp.headers }
+
+                        receivedResponse.Value <- true
+                        true
+
+                let outputs =
+                    OrderedMap
+                        .Builder()
+                        .Add("headers", workflowReq.headers |> OrderedMap.mapValuesOnly String |> Object)
+                        .MaybeAdd("body", workflowReq.body)
+                        .Build()
+                    |> Object
+
+                // If we ever go full async, I'll need a promise for the sim here because the outer workflow might
+                // finish before the inner one (because it only needs to wait until a response is received)
+                let innerSim =
+                    launchWorkflow workflowReq.workflowId workflow (Some outputs) (Some nextResponseHook) None
+
+                if not receivedResponse.Value then
+                    result.Value <- createEmptyWorkflowResponse innerSim
+
+                allSims.Value <- innerSim :: allSims.Value
+
+                true
+            | None -> false
+        | HttpResponse(resp) ->
+            match responseHook with
+            | Some hook -> hook sim resp
+            | None -> false
+        | _ -> false
+
+    let workflow = workflows |> Map.tryFind name
+
+    match workflow with
+    | Some workflow ->
+        let outerSim = launchWorkflow name workflow outputs None (Some rootWorkflowId)
+        outerSim :: allSims.Value
+    | None -> failwithf "Workflow not found: %s" name

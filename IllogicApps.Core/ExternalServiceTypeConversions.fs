@@ -85,8 +85,3 @@ let netHttpRequestMessageOfWorkflowRequest (req: WorkflowRequest) =
     // Not implemented, probably shouldn't be handled here: retryPolicy
 
     netReq
-
-let completedTriggerOfWorkflowRequest (req: WorkflowRequest) =
-    CompletedTrigger.create
-    <| { CompletedAction.create req.workflowId (stringOfDateTime DateTime.UtcNow) with
-           outputs = Conversions.optionOfJson req.body }

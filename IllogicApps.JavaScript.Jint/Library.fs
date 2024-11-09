@@ -47,7 +47,7 @@ let rec jsonOfJsValue (value: JsValue) : JsonTree =
     else
         failwithf "Unsupported JsValue: %A" value
 
-let jintJavascriptHandler (request: ExternalServiceRequest) =
+let jintJavascriptHandler (_sim: SimulatorContext) (request: ExternalServiceRequest) =
     match request with
     | ScriptExecution({ language = ScriptingLanguage.JavaScript
                         source = ScriptSource.Inline script

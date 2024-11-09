@@ -151,6 +151,21 @@ module OrderedMap =
             backingArray.Add key
             this
 
+        member this.TryAdd(key: 'K, value: 'V) =
+            if backingMap.ContainsKey key then
+                this
+            else
+                this.Add(key, value)
+
+        member this.AddRange(seq: KeyValuePair<'K, 'V> seq) =
+            seq |> Seq.iter (fun (KeyValue(k, v)) -> this.Add(k, v) |> ignore)
+            this
+
+        member this.AddRange(map: OrderedMap<'K, 'V>) =
+            backingMap.AddRange(map.BackingMap)
+            backingArray.AddRange(map.Keys)
+            this
+
         member this.Build() =
             OrderedMap.CreateUnsafe<'K, 'V>(backingMap.ToImmutable(), backingArray.DrainToImmutable())
 
@@ -189,10 +204,7 @@ module OrderedMap =
             unsafeAdd key value m
 
     let tryAdd (key: 'K) (value: 'V) (m: OrderedMap<'K, 'V>) =
-        if m.ContainsKey key then
-            m
-        else
-            unsafeAdd key value m
+        if m.ContainsKey key then m else unsafeAdd key value m
 
     let toSeq (m: OrderedMap<'K, 'V>) =
         m |> Seq.map (fun (KeyValue(k, v)) -> k, v)

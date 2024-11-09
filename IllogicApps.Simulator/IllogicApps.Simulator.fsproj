@@ -13,6 +13,7 @@
         <Compile Include="LanguageEvaluator.fs"/>
         <Compile Include="ExternalServices.fs" />
         <Compile Include="Simulator.fs"/>
+        <Compile Include="WorkflowFamily.fs" />
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\IllogicApps.Core\IllogicApps.Core.fsproj"/>

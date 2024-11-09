@@ -224,7 +224,7 @@ type Simulator
     override this.AllActionResults = this.ActionResults |> OrderedMap.CreateRange
 
     override this.WorkflowDetails =
-        WorkflowDetails.Create $"dummyWorkflowId_{workflowName}" workflowName triggerResult.originHistoryName
+        WorkflowDetails.Create $"dummyWorkflowId_{workflowName}" workflowName triggerResult.action.clientTrackingId
 
     override this.GetActionResult name =
         this.ActionResults.TryGetValue name
@@ -308,7 +308,7 @@ type Simulator
     override this.StopExecuting status = this.TerminationStatus <- Some status
 
     override this.ExternalServiceRequest request =
-        if not (runAllHandlers externalServiceHandlers request) then
+        if not (runAllHandlers externalServiceHandlers this request) then
             failwithf "No handler for external service request: %A" request
 
     override this.PushLoopContext(arg1: JsonTree seq) : LoopContext =

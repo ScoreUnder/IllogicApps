@@ -4,31 +4,44 @@ open IllogicApps.Json
 open ReadLogicApp
 open IllogicApps.Simulator
 
-let examplePath = "Stateful1/workflow.json"
+let logicAppNames =
+    [ "Stateful1"; "Stateful2"; "SkippingTest"; "FailurePropagationTest" ]
 
-// let logicApp = readLogicApp examplePath
-// let logicApp = readLogicApp <| examplePath.Replace("1", "2")
-let logicApp = readLogicApp <| examplePath.Replace("Stateful1", "SkippingTest")
-// let logicApp = readLogicApp <| examplePath.Replace("Stateful1", "FailurePropagationTest")
+let logicApps =
+    logicAppNames
+    |> List.map (fun name -> name, readLogicApp $"{name}/workflow.json")
 
-let sim =
-    Simulator.Trigger
-        logicApp.definition.actions
-        { SimulatorCreationOptions.createSimple logicApp (Some(String "FAKE INPUT")) with
-            externalServiceHandlers =
-                [ IllogicApps.JavaScript.Jint.jintJavascriptHandler
-                  ExternalServices.loggingHandler ] }
+let runWorkflow =
+    WorkflowFamily.buildWorkflowFamily
+        (fun settings workflowHandler ->
+            { settings with
+                isBugForBugAccurate = true
+                externalServiceHandlers =
+                    [ workflowHandler
+                      IllogicApps.JavaScript.Jint.jintJavascriptHandler
+                      ExternalServices.loggingHandler
+                      ExternalServices.noOpHandler ] })
+        logicApps
 
-printfn "\nAction results:\n---------------\n"
+let logicAppNamesStr = logicAppNames |> String.concat ", "
+System.Console.WriteLine($"Enter workflow name (one of {logicAppNamesStr}):")
+let userInput = System.Console.In.ReadLine()
 
-sim.ActionResults
-|> Seq.map (fun (KeyValue(k, v)) -> k, CompletedStepTypes.jsonOfCompletedAction v)
-|> Conversions.createObject
-|> Conversions.writePrettyJson System.Console.Out
+let sims = runWorkflow userInput (Some(String "Test trigger"))
 
-printfn "\nVariable results:\n-----------------\n"
+for sim in sims do
+    printfn "\nWorkflow results for %s:\n------------------------\n" sim.WorkflowDetails.name
 
-sim.Variables
-|> Seq.map (fun (KeyValue(k, v)) -> k, v)
-|> Conversions.createObject
-|> Conversions.writePrettyJson System.Console.Out
+    printfn "\nAction results:\n---------------\n"
+
+    sim.ActionResults
+    |> Seq.map (fun (KeyValue(k, v)) -> k, CompletedStepTypes.jsonOfCompletedAction v)
+    |> Conversions.createObject
+    |> Conversions.writePrettyJson System.Console.Out
+
+    printfn "\nVariable results:\n-----------------\n"
+
+    sim.Variables
+    |> Seq.map (fun (KeyValue(k, v)) -> k, v)
+    |> Conversions.createObject
+    |> Conversions.writePrettyJson System.Console.Out
