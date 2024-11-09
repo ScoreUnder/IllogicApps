@@ -1,0 +1,185 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Scope": {
+                "type": "Scope",
+                "actions": {
+                    "Execute_JavaScript_Code": {
+                        "type": "JavaScriptCode",
+                        "inputs": {
+                            "code": "throw 0"
+                        }
+                    },
+                    "Compose": {
+                        "type": "Compose",
+                        "inputs": "yy",
+                        "runAfter": {
+                            "Execute_JavaScript_Code": [
+                                "SUCCEEDED",
+                                "TIMEDOUT",
+                                "FAILED",
+                                "SKIPPED"
+                            ]
+                        }
+                    },
+                    "Compose_1": {
+                        "type": "Compose",
+                        "inputs": "xx",
+                        "runAfter": {
+                            "Execute_JavaScript_Code": [
+                                "FAILED",
+                                "TIMEDOUT"
+                            ]
+                        }
+                    }
+                },
+                "runAfter": {}
+            },
+            "Scope_1": {
+                "type": "Scope",
+                "actions": {
+                    "Execute_JavaScript_Code-copy": {
+                        "type": "JavaScriptCode",
+                        "inputs": {
+                            "code": "throw 0"
+                        }
+                    },
+                    "Compose_2": {
+                        "type": "Compose",
+                        "inputs": "assd",
+                        "runAfter": {
+                            "Execute_JavaScript_Code-copy": [
+                                "SUCCEEDED"
+                            ]
+                        }
+                    },
+                    "Compose_3": {
+                        "type": "Compose",
+                        "inputs": "das",
+                        "runAfter": {
+                            "Execute_JavaScript_Code-copy": [
+                                "FAILED",
+                                "TIMEDOUT"
+                            ]
+                        }
+                    },
+                    "Compose_4": {
+                        "type": "Compose",
+                        "inputs": "wow",
+                        "runAfter": {
+                            "Compose_3": [
+                                "SUCCEEDED",
+                                "TIMEDOUT",
+                                "SKIPPED",
+                                "FAILED"
+                            ],
+                            "Compose_2": [
+                                "SUCCEEDED",
+                                "TIMEDOUT",
+                                "SKIPPED",
+                                "FAILED"
+                            ]
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Scope": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Scope_2": {
+                "type": "Scope",
+                "actions": {
+                    "Execute_JavaScript_Code-copy-copy": {
+                        "type": "JavaScriptCode",
+                        "inputs": {
+                            "code": "throw 0"
+                        }
+                    },
+                    "Compose_5": {
+                        "type": "Compose",
+                        "inputs": "asdf",
+                        "runAfter": {
+                            "Execute_JavaScript_Code-copy-copy": [
+                                "TIMEDOUT",
+                                "FAILED"
+                            ]
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Scope_1": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "The_only_failing_scope": {
+                "type": "Scope",
+                "actions": {
+                    "Execute_JavaScript_Code-copy-copy_1": {
+                        "type": "JavaScriptCode",
+                        "inputs": {
+                            "code": "throw 0"
+                        }
+                    },
+                    "Last_successful_action": {
+                        "type": "Compose",
+                        "inputs": "asdf",
+                        "runAfter": {
+                            "Execute_JavaScript_Code-copy-copy_1": [
+                                "TIMEDOUT",
+                                "FAILED"
+                            ]
+                        }
+                    },
+                    "Compose_7": {
+                        "type": "Compose",
+                        "inputs": "asdf",
+                        "runAfter": {
+                            "Execute_JavaScript_Code-copy-copy_1": [
+                                "SUCCEEDED"
+                            ]
+                        }
+                    },
+                    "Skipped_thing": {
+                        "type": "Compose",
+                        "inputs": "ad",
+                        "runAfter": {
+                            "Last_successful_action": [
+                                "SKIPPED"
+                            ],
+                            "Compose_7": [
+                                "SKIPPED"
+                            ]
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Scope_2": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Should_never_execute": {
+                "type": "Compose",
+                "inputs": ":(",
+                "runAfter": {
+                    "The_only_failing_scope": [
+                        "SUCCEEDED"
+                    ]
+                }
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "triggers": {
+            "When_a_HTTP_request_is_received": {
+                "type": "Request",
+                "kind": "Http"
+            }
+        }
+    },
+    "kind": "Stateful"
+}
