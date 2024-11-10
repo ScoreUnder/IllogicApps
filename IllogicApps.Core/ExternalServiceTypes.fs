@@ -68,6 +68,7 @@ type WorkflowRequest =
     { workflowId: string
       headers: OrderedMap<string, string>
       body: JsonTree
+      asyncSupported: bool
       retryPolicy: WorkflowRequestRetryPolicy }
 
 let jsonOfWorkflowRequest req =
@@ -97,6 +98,7 @@ let workflowRequestOfJson json =
         |> Conversions.ensureObject
         |> OrderedMap.mapValuesOnly Conversions.ensureString
       body = JsonTree.getKey "body" json
+      asyncSupported = true
       retryPolicy = JsonTree.getKey "retryPolicy" json |> workflowRequestRetryPolicyOfJson }
 
 type WorkflowRunDetails =

@@ -26,10 +26,15 @@ let addWorkflowResponseHeaders (sim: SimulatorContext) (headers: OrderedMap<stri
         .TryAdd("x-ms-request-id", $":{correlationId}")
         .Build()
 
-let createEmptyWorkflowResponse sim =
+let createAsyncBeginWorkflowResponse sim =
     { statusCode = 202
       body = Null
       headers = addWorkflowResponseHeaders sim OrderedMap.empty }
+
+type WorkflowResponseState =
+    | NotReceived
+    | Ignored
+    | Received
 
 let buildWorkflowFamily
     (settingsBuilder: SimulatorCreationOptions -> ExternalServiceHandler -> SimulatorCreationOptions)
@@ -69,18 +74,25 @@ let buildWorkflowFamily
 
             match workflow with
             | Some workflow ->
-                let receivedResponse = ref false
+                let receivedResponse = ref NotReceived
 
                 let nextResponseHook innerSim resp =
-                    if receivedResponse.Value then
-                        false
-                    else
+                    match receivedResponse.Value with
+                    | Received -> false
+                    | Ignored ->
+                        receivedResponse.Value <- Received
+                        true
+                    | NotReceived ->
                         result.Value <-
                             { resp with
                                 headers = addWorkflowResponseHeaders innerSim resp.headers }
 
-                        receivedResponse.Value <- true
+                        receivedResponse.Value <- Received
                         true
+
+                if not workflowReq.asyncSupported then
+                    receivedResponse.Value <- Ignored
+                    result.Value <- createAsyncBeginWorkflowResponse sim
 
                 let outputs =
                     OrderedMap
@@ -94,9 +106,6 @@ let buildWorkflowFamily
                 // finish before the inner one (because it only needs to wait until a response is received)
                 let innerSim =
                     launchWorkflow workflowReq.workflowId workflow (Some outputs) (Some nextResponseHook) None
-
-                if not receivedResponse.Value then
-                    result.Value <- createEmptyWorkflowResponse innerSim
 
                 allSims.Value <- innerSim :: allSims.Value
 

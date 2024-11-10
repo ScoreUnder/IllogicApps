@@ -41,7 +41,10 @@ type ActionCode =
     | ActionResponseSkipped // (error.code) Skipped because the workflow is not called by something that waits for a response
     | InlineCodeScriptRuntimeFailure // (code, error.code) Failure to run inline code script
     | InvalidTemplate // (error.code) Failure to run template expression
+    | NestedWorkflowDoesNotContainResponseAction // (code, error.code) Failure to run nested workflow due to missing response action
+    | NoResponse // (error.code) Failure to receive response from inner workflow
     | Accepted // (code) Ran inner workflow
+    | BadGateway // (code) Failure to receive response from inner workflow
     | BadRequest // (code) Failure to run template expression?
     | Terminated // (code) Was sequenced after workflow termination
 
@@ -57,7 +60,10 @@ let stringOfActionCode =
     | ActionResponseSkipped -> "ActionResponseSkipped"
     | InlineCodeScriptRuntimeFailure -> "InlineCodeScriptRuntimeFailure"
     | InvalidTemplate -> "InvalidTemplate"
+    | NestedWorkflowDoesNotContainResponseAction -> "NestedWorkflowDoesNotContainResponseAction"
+    | NoResponse -> "NoResponse"
     | Accepted -> "Accepted"
+    | BadGateway -> "BadGateway"
     | BadRequest -> "BadRequest"
     | Terminated -> "Terminated"
 

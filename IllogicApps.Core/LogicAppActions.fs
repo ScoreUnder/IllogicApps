@@ -497,8 +497,8 @@ type Response(json) =
             |> Object
 
         { ActionResult.Default with
-              inputs = Some(inputsObject)
-              outputs = Some(inputsObject) }
+            inputs = Some(inputsObject)
+            outputs = Some(inputsObject) }
 
 // HTTP actions
 
@@ -528,8 +528,8 @@ type Http(json) =
         )
 
         { ActionResult.Default with
-              inputs = Some(jsonOfHttpInputs this.Inputs)
-              outputs = Some(jsonOfHttpRequestReply result.Value) }
+            inputs = Some(jsonOfHttpInputs this.Inputs)
+            outputs = Some(jsonOfHttpRequestReply result.Value) }
 
 // Workflow actions
 
@@ -537,6 +537,10 @@ type Workflow(json) =
     inherit BaseAction(json)
 
     member val Inputs = JsonTree.getKey "inputs" json |> workflowRequestOfJson with get
+
+    member val OperationOptions =
+        JsonTree.tryGetKey "operationOptions" json
+        |> Option.map Conversions.ensureString with get
 
     override this.Execute(context: SimulatorContext) =
         printfn "Workflow: %s" (jsonOfWorkflowRequest this.Inputs |> Conversions.stringOfJson)
@@ -549,17 +553,34 @@ type Workflow(json) =
 
         let body = this.Inputs.body |> context.EvaluateLanguage
 
-        let result = ref HttpRequestReply.Default
+        let asyncSupported =
+            not (this.OperationOptions |> Option.exists ((=) "DisableAsyncPattern"))
+
+        let result =
+            ref
+                { HttpRequestReply.Default with
+                    statusCode = System.Int32.MinValue }
 
         let request =
             { workflowId = this.Inputs.workflowId
               headers = headers
               body = body
+              asyncSupported = asyncSupported
               retryPolicy = this.Inputs.retryPolicy }
 
         context.ExternalServiceRequest <| ExternalServiceTypes.Workflow(request, result)
 
-        { ActionResult.Default with
-              inputs = Some(jsonOfWorkflowRequest request)
-              outputs = Some(jsonOfHttpRequestReply result.Value)
-              code = Some Accepted }
+        if result.Value.statusCode = System.Int32.MinValue then
+            { ActionResult.Default with
+                status = Failed
+                inputs = Some(jsonOfWorkflowRequest this.Inputs)
+                code = Some BadGateway
+                error =
+                    Some
+                        { code = NoResponse
+                          message = "The server did not receive a response from an upstream server." } }
+        else
+            { ActionResult.Default with
+                inputs = Some(jsonOfWorkflowRequest request)
+                outputs = Some(jsonOfHttpRequestReply result.Value)
+                code = Some Accepted }
