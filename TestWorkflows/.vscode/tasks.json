@@ -24,21 +24,6 @@
 				"kind": "build",
 				"isDefault": false
 			}
-		},
-		{
-			"type": "shell",
-			"command": "dotnet",
-			"args": [
-				"build",
-				"IllogicApps.Test/IllogicApps.Test.fsproj"
-			],
-			"problemMatcher": "$msCompile",
-			"isBackground": false,
-			"label": "build",
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
 		}
 	],
 	"inputs": [

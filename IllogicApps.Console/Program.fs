@@ -9,7 +9,7 @@ let logicAppNames =
 
 let logicApps =
     logicAppNames
-    |> List.map (fun name -> name, readLogicApp $"{name}/workflow.json")
+    |> List.map (fun name -> name, readLogicApp $"TestWorkflows/{name}/workflow.json")
 
 let runWorkflow =
     WorkflowFamily.buildWorkflowFamily
