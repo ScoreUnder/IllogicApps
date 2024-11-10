@@ -196,7 +196,18 @@ type Simulator
 
     let recordResultOf name (f: unit -> ActionResult) =
         let startTime = DateTime.UtcNow
-        let result = f ()
+
+        let result =
+            try
+                f ()
+            with e ->
+                { ActionResult.Default with
+                    status = Failed
+                    code = Some ActionFailed
+                    error =
+                        Some
+                            { code = ActionFailed
+                              message = $"Action threw exception: {e}" } }
 
         let result =
             { CompletedAction.create name (stringOfDateTime startTime) with
