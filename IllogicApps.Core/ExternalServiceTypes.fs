@@ -51,7 +51,7 @@ type WorkflowRequestRetryPolicy =
       count: int64 option
       interval: string option
       minimumInterval: string option
-      maximumInterval: string  option}
+      maximumInterval: string option }
 
     static member Default =
         { type_ = "none"
@@ -110,10 +110,9 @@ let workflowRequestOfJson json =
       headers =
         JsonTree.tryGetKey "headers" json
         |> Option.map (fun headers ->
-            headers |>
-            Conversions.ensureObject
-            |> OrderedMap.mapValuesOnly Conversions.ensureString
-        )
+            headers
+            |> Conversions.ensureObject
+            |> OrderedMap.mapValuesOnly Conversions.ensureString)
         |> Option.defaultValue OrderedMap.empty
       body = JsonTree.tryGetKey "body" json |> Conversions.jsonOfOption
       asyncSupported = true
