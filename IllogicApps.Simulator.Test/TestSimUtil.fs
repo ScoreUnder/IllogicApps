@@ -58,6 +58,13 @@ type private 'a TraceResult =
     static member tuple2 (a: 'a TraceResult) (b: 'b TraceResult) =
         TraceResult.map2 (fun a b -> (a, b)) a b
 
+type private NeedEvaluationException(index, parent, ast) =
+    inherit System.Exception()
+
+    member this.Index = index
+    member this.Parent = parent
+    member this.Ast = ast
+
 let rec stringOfAst =
     function
     | LanguageParser.Literal(lit) -> Conversions.stringOfJson lit
@@ -82,14 +89,44 @@ let traceEvaluationParsed expr =
     let rec trace' =
         function
         | LanguageParser.Literal _ as ast -> NoChanges ast
-        | LanguageParser.Call(name, args) ->
-            args
-            |> List.map trace'
-            |> TraceResult.sequence
-            |> TraceResult.step (fun args -> LanguageParser.Call(name, args)) (fun args ->
-                match BuiltinFunctions.functions.TryGetValue(name) with
-                | true, func -> Changes(args |> List.map unpackLiteral |> func simContext |> LanguageParser.Literal)
-                | _ -> TraceError $"Function {name} not found")
+        | LanguageParser.Call(name, args) as ast ->
+            match BuiltinFunctions.functions.TryGetValue(name) with
+            | true, func ->
+                args
+                |> List.map trace'
+                |> TraceResult.sequence
+                |> TraceResult.step (fun args -> LanguageParser.Call(name, args)) (fun args ->
+                    match BuiltinFunctions.functions.TryGetValue(name) with
+                    | true, func ->
+                        Changes(args |> List.map unpackLiteral |> func simContext |> LanguageParser.Literal)
+                    | _ -> TraceError $"Function {name} not found")
+            | _ ->
+                match BuiltinFunctions.lazyFunctions.TryGetValue(name) with
+                | true, func ->
+                    try
+                        args
+                        |> List.mapi (fun i v ->
+                            lazy
+                                match v with
+                                | LanguageParser.Literal v -> v
+                                | _ -> raise (NeedEvaluationException(i, ast, v)))
+                        |> func simContext
+                        |> LanguageParser.Literal
+                        |> Changes
+                    with :? NeedEvaluationException as e ->
+                        let i = e.Index
+                        let parent = e.Parent
+
+                        e.Ast
+                        |> trace'
+                        |> TraceResult.step
+                            (fun evaluated ->
+                                let newArgs = args |> List.mapi (fun j v -> if i = j then evaluated else v)
+                                LanguageParser.Call(name, newArgs))
+                            (fun _ ->
+                                TraceError
+                                    $"Internal error: Expected evaluation of argument {i} of {parent} to change, but it didn't")
+                | _ -> TraceError $"Function {name} not found"
         | LanguageParser.Member(parent, mem) ->
             TraceResult.tuple2 (trace' parent) (trace' mem)
             |> TraceResult.step LanguageParser.Member (fun (parent, mem) ->

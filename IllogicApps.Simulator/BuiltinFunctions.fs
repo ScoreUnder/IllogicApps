@@ -9,8 +9,10 @@ open System.Xml
 open IllogicApps.Core
 open IllogicApps.Json
 
-type LanguageFunction = SimulatorContext -> JsonTree list -> JsonTree
 type Args = JsonTree list
+type LanguageFunction = SimulatorContext -> Args -> JsonTree
+type LazyArgs = JsonTree Lazy list
+type LazyArgsLanguageFunction = SimulatorContext -> LazyArgs -> JsonTree
 
 module ContentType =
     let Binary = "application/octet-stream"
@@ -312,6 +314,19 @@ let f_item (sim: SimulatorContext) (args: Args) : JsonTree =
 
 // Logical comparison functions
 
+let f_and _ (args: LazyArgs) : JsonTree =
+    match args with
+    | [ Lazy(Boolean false as b); _ ] -> b
+    | [ Lazy(Boolean true); Lazy(Boolean _ as b) ] -> b
+    | [ _; _ ] -> failwith "Expected two booleans"
+    | _ -> failwith "Expected two arguments"
+
+let f_if _ (args: LazyArgs) : JsonTree =
+    match args with
+    | [ Lazy(Boolean c); a; b ] -> if c then a.Value else b.Value
+    | [ _; _; _ ] -> failwith "Expected boolean and two other arguments"
+    | _ -> failwith "Expected three arguments"
+
 let f_not _ (args: Args) : JsonTree =
     expectArgs 1 args
     let value = List.head args
@@ -319,6 +334,13 @@ let f_not _ (args: Args) : JsonTree =
     match value with
     | Boolean b -> Boolean(not b)
     | kind -> failwithf "Expected boolean, got %A" kind
+
+let f_or _ (args: LazyArgs) : JsonTree =
+    match args with
+    | [ Lazy(Boolean true as b); _ ] -> b
+    | [ Lazy(Boolean false); Lazy(Boolean _ as b) ] -> b
+    | [ _; _ ] -> failwith "Expected two booleans"
+    | _ -> failwith "Expected two arguments"
 
 // Conversion functions
 
@@ -698,3 +720,6 @@ let functions: Map<string, LanguageFunction> =
     |> List.toSeq
     |> Seq.append conditions
     |> Map.ofSeq
+
+let lazyFunctions: Map<string, LazyArgsLanguageFunction> =
+    [ "and", f_and; "if", f_if; "or", f_or ] |> List.toSeq |> Map.ofSeq

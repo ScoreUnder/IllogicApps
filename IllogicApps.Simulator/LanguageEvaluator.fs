@@ -41,7 +41,10 @@ let rec evaluate simContext (ast: LanguageParser.Ast) =
     | LanguageParser.Call(name, args) ->
         match BuiltinFunctions.functions.TryGetValue(name) with
         | true, func -> args |> List.map (evaluate simContext) |> func simContext
-        | _ -> failwithf "Function %s not found" name
+        | _ ->
+            match BuiltinFunctions.lazyFunctions.TryGetValue(name) with
+            | true, func -> args |> List.map (fun ast -> lazy evaluate simContext ast) |> func simContext
+            | _ -> failwithf "Function %s not found" name
     | LanguageParser.Member(parent, mem) ->
         accessMember (evaluate simContext parent) (evaluate simContext mem)
         |> MemberAccessResult.get
