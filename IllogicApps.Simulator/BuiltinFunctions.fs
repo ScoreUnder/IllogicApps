@@ -264,14 +264,6 @@ let f_concat _ (args: Args) : JsonTree =
 
     args |> List.map objectToString |> String.concat "" |> String
 
-let f_endsWith _ (args: Args) : JsonTree =
-    match args with
-    | [ a; b ] ->
-        match a, b with
-        | String a, String b -> Boolean(a.EndsWith(b))
-        | kindA, kindB -> failwithf "Expected strings, got %A and %A" kindA kindB
-    | _ -> failwith "Expected 2 arguments"
-
 let f_formatNumber _ (args: Args) : JsonTree =
     let num, format, locale =
         match args with
@@ -296,14 +288,6 @@ let f_guid _ (args: Args) : JsonTree =
         | _ -> failwith "Expected 0 or 1 argument"
 
     String(Guid.NewGuid().ToString(format))
-
-let f_startsWith _ (args: Args) : JsonTree =
-    match args with
-    | [ a; b ] ->
-        match a, b with
-        | String a, String b -> Boolean(a.StartsWith(b))
-        | kindA, kindB -> failwithf "Expected strings, got %A and %A" kindA kindB
-    | _ -> failwith "Expected 2 arguments"
 
 // Collection functions
 
@@ -683,10 +667,8 @@ let functions: Map<string, LanguageFunction> =
 
     [ "chunk", f_chunk
       "concat", f_concat
-      "endsWith", f_endsWith
       "formatNumber", f_formatNumber
       "guid", f_guid
-      "startsWith", f_startsWith
       "item", f_item
       "not", f_not
       "array", f_array
