@@ -108,9 +108,13 @@ let workflowRequestOfJson json =
         |> JsonTree.getKey "id"
         |> Conversions.ensureString
       headers =
-        JsonTree.getKey "headers" json
-        |> Conversions.ensureObject
-        |> OrderedMap.mapValuesOnly Conversions.ensureString
+        JsonTree.tryGetKey "headers" json
+        |> Option.map (fun headers ->
+            headers |>
+            Conversions.ensureObject
+            |> OrderedMap.mapValuesOnly Conversions.ensureString
+        )
+        |> Option.defaultValue OrderedMap.empty
       body = JsonTree.tryGetKey "body" json |> Conversions.jsonOfOption
       asyncSupported = true
       retryPolicy =
