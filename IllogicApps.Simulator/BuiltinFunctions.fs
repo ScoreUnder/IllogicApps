@@ -315,11 +315,16 @@ let f_item (sim: SimulatorContext) (args: Args) : JsonTree =
 // Logical comparison functions
 
 let f_and _ (args: LazyArgs) : JsonTree =
-    match args with
-    | [ Lazy(Boolean false as b); _ ] -> b
-    | [ Lazy(Boolean true); Lazy(Boolean _ as b) ] -> b
-    | [ _; _ ] -> failwith "Expected two booleans"
-    | _ -> failwith "Expected two arguments"
+    if args = [] then
+        failwith "Expected at least one argument"
+
+    Seq.forall
+        (fun arg ->
+            match arg with
+            | Lazy(Boolean b) -> b
+            | _ -> failwith "Expected boolean arguments")
+        args
+    |> Boolean
 
 let f_if _ (args: LazyArgs) : JsonTree =
     match args with
@@ -336,11 +341,16 @@ let f_not _ (args: Args) : JsonTree =
     | kind -> failwithf "Expected boolean, got %A" kind
 
 let f_or _ (args: LazyArgs) : JsonTree =
-    match args with
-    | [ Lazy(Boolean true as b); _ ] -> b
-    | [ Lazy(Boolean false); Lazy(Boolean _ as b) ] -> b
-    | [ _; _ ] -> failwith "Expected two booleans"
-    | _ -> failwith "Expected two arguments"
+    if args = [] then
+        failwith "Expected at least one argument"
+
+    Seq.exists
+        (fun arg ->
+            match arg with
+            | Lazy(Boolean b) -> b
+            | _ -> failwith "Expected boolean arguments")
+        args
+    |> Boolean
 
 // Conversion functions
 

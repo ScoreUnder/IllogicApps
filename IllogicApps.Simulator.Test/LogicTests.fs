@@ -89,3 +89,27 @@ let ``Test basic "or"`` expr expected =
 [<TestCase("@if(if(true,false,true),if(false,1,2),if(false,3,4))", 4)>]
 let ``Test basic "if"`` expr expected =
     testOrTrace expr <@ Integer expected = testExpressionEvaluation expr @>
+
+[<TestCase("@and(true)", true)>]
+[<TestCase("@and(false)", false)>]
+[<TestCase("@and(true,true,true,true,true,true,true,true,true)", true)>]
+[<TestCase("@and(true,true,true,true,true,true,true,true,false)", false)>]
+[<TestCase("@and(true,true,true,false,true,true,true,true,true)", false)>]
+[<TestCase("@and(false,true,true,true,true,true,true,true,true)", false)>]
+let ``Test multiple argument "and"`` expr expected =
+    testOrTrace expr <@ Boolean expected = testExpressionEvaluation expr @>
+
+[<TestCase("@or(true)", true)>]
+[<TestCase("@or(false)", false)>]
+[<TestCase("@or(false,false,false,false,false,false,false,false,false)", false)>]
+[<TestCase("@or(false,false,false,false,false,false,false,false,true)", true)>]
+[<TestCase("@or(false,false,false,true,false,false,false,false,false)", true)>]
+[<TestCase("@or(true,false,false,false,false,false,false,false,false)", true)>]
+let ``Test multiple argument "or"`` expr expected =
+    testOrTrace expr <@ Boolean expected = testExpressionEvaluation expr @>
+
+[<TestCase("@or()")>]
+[<TestCase("@and()")>]
+let ``Test empty argument "or" and "and"`` expr =
+    raisesWithOrTrace<System.Exception> expr <@ testExpressionEvaluation expr @> (fun e ->
+        let message = e.Message in <@ message.Contains("Expected at least one argument") @>)
