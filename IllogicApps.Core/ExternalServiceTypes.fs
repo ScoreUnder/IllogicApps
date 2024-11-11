@@ -96,7 +96,7 @@ let jsonOfWorkflowRequest req =
             |> OrderedMap.CreateRange
             |> Object
         )
-        .Add("body", req.body)
+        .MaybeAdd("body", req.body |> Conversions.optionOfJson)
         .Add("retryPolicy", jsonOfWorkflowRequestRetryPolicy req.retryPolicy)
         .Build()
     |> Object
@@ -111,7 +111,7 @@ let workflowRequestOfJson json =
         JsonTree.getKey "headers" json
         |> Conversions.ensureObject
         |> OrderedMap.mapValuesOnly Conversions.ensureString
-      body = JsonTree.getKey "body" json
+      body = JsonTree.tryGetKey "body" json |> Conversions.jsonOfOption
       asyncSupported = true
       retryPolicy =
         JsonTree.tryGetKey "retryPolicy" json
