@@ -178,8 +178,46 @@ type ScriptExecutionRequest =
       workflow: WorkflowDetails
       trigger: CompletedTrigger }
 
+type ServiceProviderConfiguration =
+    { connectionName: string
+      operationId: string
+      serviceProviderId: string }
+
+let serviceProviderConfigurationOfJson json =
+    { connectionName = JsonTree.getKey "connectionName" json |> Conversions.ensureString
+      operationId = JsonTree.getKey "operationId" json |> Conversions.ensureString
+      serviceProviderId = JsonTree.getKey "serviceProviderId" json |> Conversions.ensureString }
+
+let jsonOfServiceProviderConfiguration (config: ServiceProviderConfiguration) =
+    OrderedMap
+        .Builder()
+        .Add("connectionName", JsonTree.String config.connectionName)
+        .Add("operationId", JsonTree.String config.operationId)
+        .Add("serviceProviderId", JsonTree.String config.serviceProviderId)
+        .Build()
+    |> JsonTree.Object
+
+type ServiceProviderRequest =
+    { parameters: JsonTree
+      serviceProviderConfiguration: ServiceProviderConfiguration }
+
+let serviceProviderRequestOfJson json =
+    { parameters = JsonTree.tryGetKey "parameters" json |> Conversions.jsonOfOption
+      serviceProviderConfiguration =
+        JsonTree.getKey "serviceProviderConfiguration" json
+        |> serviceProviderConfigurationOfJson }
+
+let jsonOfServiceProviderRequest (inputs: ServiceProviderRequest) =
+    OrderedMap
+        .Builder()
+        .MaybeAdd("parameters", inputs.parameters)
+        .Add("serviceProviderConfiguration", jsonOfServiceProviderConfiguration inputs.serviceProviderConfiguration)
+        .Build()
+    |> JsonTree.Object
+
 type ExternalServiceRequest =
     | HttpRequest of HttpRequest * HttpRequestReply ref
     | HttpResponse of HttpRequestReply
     | Workflow of WorkflowRequest * HttpRequestReply ref
     | ScriptExecution of ScriptExecutionRequest * Result<JsonTree, string> ref
+    | ServiceProvider of ServiceProviderRequest * HttpRequestReply ref

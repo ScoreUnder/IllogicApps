@@ -453,6 +453,33 @@ type JavaScriptCode(json) =
                 outputs = Some result
                 code = Some OK }
 
+// Key Vault actions
+
+type ServiceProvider(json) =
+    inherit BaseAction(json)
+
+    member val Inputs = JsonTree.getKey "inputs" json |> serviceProviderInputsOfJson with get
+
+    override this.Execute(context: SimulatorContext) =
+        printfn "ServiceProvider: %O" this.Inputs
+
+        let result = ref HttpRequestReply.Default
+
+        let processedInputs =
+            { this.Inputs with
+                parameters = context.EvaluateLanguage(this.Inputs.parameters) }
+
+        context.ExternalServiceRequest
+        <| ExternalServiceTypes.ServiceProvider(
+            { parameters = processedInputs.parameters |> context.EvaluateLanguage
+              serviceProviderConfiguration = processedInputs.serviceProviderConfiguration },
+            result
+        )
+
+        { ActionResult.Default with
+            inputs = Some(jsonOfServiceProviderInputs processedInputs)
+            outputs = Some(jsonOfHttpRequestReply result.Value) }
+
 // Request actions
 
 type Response(json) =

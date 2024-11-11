@@ -22,6 +22,7 @@ let actionMap =
           "ParseJson", (fun _ v -> ParseJson v)
           "Query", (fun _ v -> Query v)
           "JavaScriptCode", (fun _ v -> JavaScriptCode v)
+          "ServiceProvider", (fun _ v -> ServiceProvider v)
           "Response", (fun _ v -> Response v)
           "Http", (fun _ v -> Http v)
           "Workflow", (fun _ v -> Workflow v) ]

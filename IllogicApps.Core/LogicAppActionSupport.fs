@@ -2,6 +2,7 @@ module IllogicApps.Core.LogicAppActionSupport
 
 open System.Collections.Immutable
 open IllogicApps.Core.CompletedStepTypes
+open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Json
 
@@ -99,6 +100,24 @@ let jsonOfJavaScriptCodeInputs (inputs: JavaScriptCodeInputs) =
         .Builder()
         .Add("code", JsonTree.String inputs.code)
         .MaybeAdd("explicitDependencies", inputs.explicitDependencies |> Option.map jsonOfJavaScriptCodeDependencies)
+        .Build()
+    |> JsonTree.Object
+
+type ServiceProviderInputs =
+    { parameters: JsonTree
+      serviceProviderConfiguration: ServiceProviderConfiguration }
+
+let serviceProviderInputsOfJson json =
+    { parameters = JsonTree.tryGetKey "parameters" json |> Conversions.jsonOfOption
+      serviceProviderConfiguration =
+        JsonTree.getKey "serviceProviderConfiguration" json
+        |> serviceProviderConfigurationOfJson }
+
+let jsonOfServiceProviderInputs (inputs: ServiceProviderInputs) =
+    OrderedMap
+        .Builder()
+        .MaybeAdd("parameters", inputs.parameters)
+        .Add("serviceProviderConfiguration", jsonOfServiceProviderConfiguration inputs.serviceProviderConfiguration)
         .Build()
     |> JsonTree.Object
 
