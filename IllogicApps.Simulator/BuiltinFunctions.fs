@@ -241,10 +241,59 @@ let parseDataUri (str: string) isForString =
 
 // String functions
 
+let f_chunk _ (args: Args) : JsonTree =
+    expectArgs 2 args
+
+    match args with
+    | [ String s; Integer i ] ->
+        s
+        |> Seq.chunkBySize (int i)
+        |> Seq.map (string >> String)
+        |> Conversions.createArray
+    | [ Array a; Integer i ] ->
+        a
+        |> Seq.chunkBySize (int i)
+        |> Seq.map Conversions.createArray
+        |> Conversions.createArray
+    | _ -> failwith "Expected string and integer, or array and integer"
+
 let f_concat _ (args: Args) : JsonTree =
     expectArgsAtLeast 1 args
 
     args |> List.map objectToString |> String.concat "" |> String
+
+let f_endsWith _ (args: Args) : JsonTree =
+    match args with
+    | [ a; b ] ->
+        match a, b with
+        | String a, String b -> Boolean(a.EndsWith(b))
+        | kindA, kindB -> failwithf "Expected strings, got %A and %A" kindA kindB
+    | _ -> failwith "Expected 2 arguments"
+
+let f_formatNumber _ (args: Args) : JsonTree =
+    let num, format, locale =
+        match args with
+        | [ num; format ] -> num, format, CultureInfo.DefaultThreadCurrentCulture
+        | [ num; format; locale ] -> num, format, CultureInfo.GetCultureInfo(Conversions.ensureString locale)
+        | _ -> failwithf "Expected 2 or 3 args, got %d" (List.length args)
+
+    let format = Conversions.ensureString format
+
+    match num with
+    | Integer i -> String(i.ToString(format, locale))
+    | Float f -> String(f.ToString(format, locale))
+    | Decimal d -> String(d.ToString(format, locale))
+    | _ -> failwithf "Expected number, got %A" (JsonTree.getType num)
+
+let f_guid _ (args: Args) : JsonTree =
+    let format =
+        match args with
+        | [] -> "D"
+        | [ String fmt ] -> fmt
+        | [ _ ] -> failwith "Expected string argument"
+        | _ -> failwith "Expected 0 or 1 argument"
+
+    String(Guid.NewGuid().ToString(format))
 
 let f_startsWith _ (args: Args) : JsonTree =
     match args with
@@ -594,7 +643,11 @@ let functions: Map<string, LanguageFunction> =
         |> Map.toSeq
         |> Seq.map (fun (k, v) -> k, conditionToFunction v)
 
-    [ "concat", f_concat
+    [ "chunk", f_chunk
+      "concat", f_concat
+      "endsWith", f_endsWith
+      "formatNumber", f_formatNumber
+      "guid", f_guid
       "startsWith", f_startsWith
       "item", f_item
       "not", f_not
