@@ -3,7 +3,6 @@ module IllogicApps.Core.ExternalServiceTypeConversions
 open System
 open System.Net
 open System.Text
-open CompletedStepTypes
 open ExternalServiceTypes
 open IllogicApps.Json
 

@@ -13,6 +13,20 @@ type HttpRequest =
       cookie: string option
       authentication: JsonTree }
 
+type HttpTrigger =
+    { queries: OrderedMap<string, string>
+      headers: OrderedMap<string, string>
+      body: JsonTree option }
+
+let jsonOfHttpTrigger trigger =
+    OrderedMap
+        .Builder()
+        .Add("queries", trigger.queries |> OrderedMap.mapValuesOnly String |> Object)
+        .Add("headers", trigger.headers |> OrderedMap.mapValuesOnly String |> Object)
+        .MaybeAdd("body", trigger.body)
+        .Build()
+    |> Object
+
 type HttpRequestReply =
     { statusCode: int
       headers: OrderedMap<string, string>
