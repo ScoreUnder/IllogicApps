@@ -1,7 +1,6 @@
 module IllogicApps.Simulator.Test.TestSimUtil
 
 open IllogicApps.Json
-open NUnit.Framework
 open Swensen.Unquote
 open IllogicApps.Core
 open IllogicApps.Simulator
@@ -163,7 +162,7 @@ let traceEvaluationParsed expr =
         match result with
         | NoChanges ast -> Ok ast :: acc
         | Changes nextAst -> trace'' (Ok ast :: acc) nextAst
-        | TraceError err -> Error err :: acc
+        | TraceError err -> Error err :: Ok ast :: acc
 
     trace'' [] expr |> List.rev
 
@@ -187,32 +186,28 @@ let traceEvaluationParsedTo f expr =
 let testOrTrace expr quote =
     try
         test quote
-    with e ->
+    with _ ->
         traceEvaluationTo System.Console.WriteLine expr
         reraise ()
 
 let raisesOrTrace<'e when 'e :> exn> expr quote =
     try
         raises<'e> quote
-    with
-    | :? AssertionException
-    | :? AssertionFailedException ->
+    with _ ->
         traceEvaluationTo System.Console.WriteLine expr
         reraise ()
 
 let raisesWithOrTrace<'e when 'e :> exn> expr quote f =
     try
         raisesWith<'e> quote f
-    with
-    | :? AssertionException
-    | :? AssertionFailedException ->
+    with _ ->
         traceEvaluationTo System.Console.WriteLine expr
         reraise ()
 
 let testOrTraceParsed expr quote =
     try
         test quote
-    with e ->
+    with _ ->
         traceEvaluationParsedTo System.Console.WriteLine expr
         reraise ()
 
@@ -220,18 +215,14 @@ let testOrTraceParsed expr quote =
 let raisesOrTraceParsed<'e when 'e :> exn> expr quote =
     try
         raises<'e> quote
-    with
-    | :? AssertionException
-    | :? AssertionFailedException ->
+    with _ ->
         traceEvaluationParsedTo System.Console.WriteLine expr
         reraise ()
 
 let raisesWithOrTraceParsed<'e when 'e :> exn> expr quote f =
     try
         raisesWith<'e> quote f
-    with
-    | :? AssertionException
-    | :? AssertionFailedException ->
+    with _ ->
         traceEvaluationParsedTo System.Console.WriteLine expr
         reraise ()
 
