@@ -19,10 +19,13 @@ type HttpTrigger =
       body: JsonTree option }
 
 let jsonOfHttpTrigger trigger =
-    OrderedMap.Builder()
+    OrderedMap
+        .Builder()
         .MaybeAdd("queries", trigger.queries |> Option.map Conversions.jsonOfStringsMap)
         .MaybeAdd("headers", trigger.headers |> Option.map Conversions.jsonOfStringsMap)
-        .MaybeAdd("body", trigger.body).Build() |> Object
+        .MaybeAdd("body", trigger.body)
+        .Build()
+    |> Object
 
 type HttpRequestReply =
     { statusCode: int
@@ -45,35 +48,35 @@ let jsonOfHttpRequestReply reply =
 
 type WorkflowRequestRetryPolicy =
     { type_: string
-      count: int64
-      interval: string
-      minimumInterval: string
-      maximumInterval: string }
+      count: int64 option
+      interval: string option
+      minimumInterval: string option
+      maximumInterval: string  option}
 
     static member Default =
-        { type_ = ""
-          count = 0
-          interval = ""
-          minimumInterval = ""
-          maximumInterval = "" }
+        { type_ = "none"
+          count = None
+          interval = None
+          minimumInterval = None
+          maximumInterval = None }
 
 let jsonOfWorkflowRequestRetryPolicy policy =
     OrderedMap
         .Builder()
         .Add("type", String policy.type_)
-        .Add("count", Integer policy.count)
-        .Add("interval", String policy.interval)
-        .Add("minimumInterval", String policy.minimumInterval)
-        .Add("maximumInterval", String policy.maximumInterval)
+        .MaybeAdd("count", policy.count |> Option.map Integer)
+        .MaybeAdd("interval", policy.interval)
+        .MaybeAdd("minimumInterval", policy.minimumInterval)
+        .MaybeAdd("maximumInterval", policy.maximumInterval)
         .Build()
     |> Object
 
 let workflowRequestRetryPolicyOfJson json =
     { type_ = JsonTree.getKey "type" json |> Conversions.ensureString
-      count = JsonTree.getKey "count" json |> Conversions.ensureInteger
-      interval = JsonTree.getKey "interval" json |> Conversions.ensureString
-      minimumInterval = JsonTree.getKey "minimumInterval" json |> Conversions.ensureString
-      maximumInterval = JsonTree.getKey "maximumInterval" json |> Conversions.ensureString }
+      count = JsonTree.tryGetKey "count" json |> Option.map Conversions.ensureInteger
+      interval = JsonTree.tryGetKey "interval" json |> Option.map Conversions.ensureString
+      minimumInterval = JsonTree.tryGetKey "minimumInterval" json |> Option.map Conversions.ensureString
+      maximumInterval = JsonTree.tryGetKey "maximumInterval" json |> Option.map Conversions.ensureString }
 
 type WorkflowRequest =
     { workflowId: string
@@ -110,7 +113,10 @@ let workflowRequestOfJson json =
         |> OrderedMap.mapValuesOnly Conversions.ensureString
       body = JsonTree.getKey "body" json
       asyncSupported = true
-      retryPolicy = JsonTree.getKey "retryPolicy" json |> workflowRequestRetryPolicyOfJson }
+      retryPolicy =
+        JsonTree.tryGetKey "retryPolicy" json
+        |> Option.map workflowRequestRetryPolicyOfJson
+        |> Option.defaultValue WorkflowRequestRetryPolicy.Default }
 
 type WorkflowRunDetails =
     { id: string
