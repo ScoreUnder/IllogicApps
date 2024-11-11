@@ -1,6 +1,5 @@
 namespace IllogicApps.Core.LogicAppActions
 
-open System.Collections.Immutable
 open System.Xml
 
 open IllogicApps.Core
@@ -237,8 +236,7 @@ type InitializeVariable(json) =
             processedVars
             |> List.map (fun (name, type_, value) ->
                 Conversions.createObject [ "name", String name; "type", String(type_.ToString()); "value", value ])
-            |> ImmutableArray.CreateRange
-            |> Array
+            |> Conversions.createArray
 
         { ActionResult.Default with
             inputs = Some(Conversions.createObject [ "variables", processedVarsArray ])

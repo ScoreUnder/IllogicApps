@@ -92,9 +92,8 @@ let jsonOfWorkflowRequest req =
         .Add(
             "headers",
             req.headers
-            |> Seq.map (fun (KeyValue(k, v)) -> KeyValuePair(k, String v))
-            |> OrderedMap.CreateRange
-            |> Object
+            |> Seq.map (fun (KeyValue(k, v)) -> k, String v)
+            |> Conversions.createObject
         )
         .MaybeAdd("body", req.body |> Conversions.optionOfJson)
         .Add("retryPolicy", jsonOfWorkflowRequestRetryPolicy req.retryPolicy)
