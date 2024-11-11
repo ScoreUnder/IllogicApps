@@ -14,18 +14,15 @@ type HttpRequest =
       authentication: JsonTree }
 
 type HttpTrigger =
-    { queries: OrderedMap<string, string>
-      headers: OrderedMap<string, string>
+    { queries: OrderedMap<string, string> option
+      headers: OrderedMap<string, string> option
       body: JsonTree option }
 
 let jsonOfHttpTrigger trigger =
-    OrderedMap
-        .Builder()
-        .Add("queries", trigger.queries |> OrderedMap.mapValuesOnly String |> Object)
-        .Add("headers", trigger.headers |> OrderedMap.mapValuesOnly String |> Object)
-        .MaybeAdd("body", trigger.body)
-        .Build()
-    |> Object
+    OrderedMap.Builder()
+        .MaybeAdd("queries", trigger.queries |> Option.map Conversions.jsonOfStringsMap)
+        .MaybeAdd("headers", trigger.headers |> Option.map Conversions.jsonOfStringsMap)
+        .MaybeAdd("body", trigger.body).Build() |> Object
 
 type HttpRequestReply =
     { statusCode: int
