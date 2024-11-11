@@ -259,9 +259,9 @@ type SetVariable(json) =
         if not (context.Variables.ContainsKey(this.Inputs.name)) then
             failwithf "Variable '%s' does not exist" this.Inputs.name
 
-        typecheck context.Variables.[this.Inputs.name] this.Inputs.value
-
         let value = this.Inputs.value |> context.EvaluateLanguage
+
+        typecheck context.Variables.[this.Inputs.name] value
 
         context.Variables.[this.Inputs.name] <- value
 
