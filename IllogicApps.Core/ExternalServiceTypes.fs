@@ -26,19 +26,19 @@ let jsonOfHttpTrigger trigger =
 
 type HttpRequestReply =
     { statusCode: int
-      headers: OrderedMap<string, string>
-      body: JsonTree }
+      headers: OrderedMap<string, string> option
+      body: JsonTree option }
 
     static member Default =
         { statusCode = 0
-          headers = OrderedMap.empty
-          body = Null }
+          headers = None
+          body = None }
 
 let jsonOfHttpRequestReply reply =
     OrderedMap
         .Builder()
         .Add("statusCode", Integer reply.statusCode)
-        .Add("headers", reply.headers |> Conversions.jsonOfStringsMap)
+        .MaybeAdd("headers", reply.headers |> Option.map Conversions.jsonOfStringsMap)
         .MaybeAdd("body", reply.body)
         .Build()
     |> Object

@@ -4,6 +4,7 @@ open System
 open System.Net
 open System.Text
 open ExternalServiceTypes
+open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Json
 
 let formUri (str: string) (query: OrderedMap<string, string>) =
@@ -53,18 +54,20 @@ let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
 
 let httpRequestReplyOfNetHttpResponseMessage (resp: Http.HttpResponseMessage) =
     let headers =
-        resp.Headers
-        // TODO: this doesn't handle multiple headers with the same key
-        // (and nor do my types in ExternalServiceTypes)
-        |> Seq.collect (fun kvp -> kvp.Value |> Seq.map (fun v -> (kvp.Key, v)))
+        Seq.append resp.Headers resp.TrailingHeaders
+        |> Seq.map (fun (KeyValue(k, v)) -> k, String.concat "," v)
         |> OrderedMap.ofSeq
 
     let body =
-        resp.Content.ReadAsStringAsync().Result
-        |> decodeBodyByContentType resp.Content.Headers.ContentType.MediaType
+        match resp.Content with
+        | null -> None
+        | content ->
+            content.ReadAsStringAsync().Result
+            |> decodeBodyByContentType resp.Content.Headers.ContentType.MediaType
+            |> Some
 
     { statusCode = int resp.StatusCode
-      headers = headers
+      headers = Some headers
       body = body }
 
 let netHttpRequestMessageOfWorkflowRequest (req: WorkflowRequest) =
@@ -84,3 +87,22 @@ let netHttpRequestMessageOfWorkflowRequest (req: WorkflowRequest) =
     // Not implemented, probably shouldn't be handled here: retryPolicy
 
     netReq
+
+let netHttpResponseMessageOfHttpRequestReply (resp: HttpRequestReply) =
+    let netResp =
+        new Http.HttpResponseMessage(
+            enum<HttpStatusCode> resp.statusCode,
+            Content =
+                (resp.body
+                 |> Option.bind (fun body ->
+                     match contentTypeOfJsonType (JsonTree.getType body) with
+                     | Some type_ ->
+                         Some(new Http.StringContent(body |> Conversions.stringOfJson, Encoding.UTF8, type_))
+                     | None -> None)
+                 |> Option.toObj)
+        )
+
+    resp.headers
+    |> Option.iter (OrderedMap.iter (fun k v -> netResp.Headers.TryAddWithoutValidation(k, v) |> ignore))
+
+    netResp

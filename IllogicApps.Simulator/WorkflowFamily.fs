@@ -28,8 +28,8 @@ let addWorkflowResponseHeaders (sim: SimulatorContext) (headers: OrderedMap<stri
 
 let createAsyncBeginWorkflowResponse sim =
     { statusCode = 202
-      body = Null
-      headers = addWorkflowResponseHeaders sim OrderedMap.empty }
+      body = None
+      headers = Some(addWorkflowResponseHeaders sim OrderedMap.empty) }
 
 type WorkflowResponseState =
     | NotReceived
@@ -85,7 +85,11 @@ let buildWorkflowFamily
                     | NotReceived ->
                         result.Value <-
                             { resp with
-                                headers = addWorkflowResponseHeaders innerSim resp.headers }
+                                headers =
+                                    resp.headers
+                                    |> Option.defaultValue OrderedMap.empty
+                                    |> addWorkflowResponseHeaders innerSim
+                                    |> Some }
 
                         receivedResponse.Value <- Received
                         true

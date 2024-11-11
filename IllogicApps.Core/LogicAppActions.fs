@@ -480,11 +480,8 @@ type Response(json) =
         context.ExternalServiceRequest
         <| HttpResponse(
             { HttpRequestReply.statusCode = processedStatusCode |> Conversions.ensureInteger |> int
-              headers =
-                (processedHeaders
-                 |> Option.map OrderedMap.ofSeq
-                 |> Option.defaultValue OrderedMap.empty)
-              body = processedBody }
+              headers = Option.map OrderedMap.ofSeq processedHeaders
+              body = Conversions.optionOfJson processedBody }
         )
 
         let inputsObject =
