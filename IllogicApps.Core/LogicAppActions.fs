@@ -209,12 +209,26 @@ type Terminate(json) =
 type InitializeVariable(json) =
     inherit BaseAction(json)
 
+    let validateJustOneVariable (v: InitializeVariableSingle VariablesInputs) =
+        if v.variables.IsEmpty then
+            failwith "No variables to initialize in InitializeVariable"
+
+        if not v.variables.Tail.IsEmpty then
+            failwith "Only one variable can be initialized at a time with InitializeVariable"
+
+        v
+
     member val Inputs =
         JsonTree.getKey "inputs" json
-        |> variablesInputsOfJson initializeVariableSingleOfJson with get
+        |> variablesInputsOfJson initializeVariableSingleOfJson
+        |> validateJustOneVariable with get
 
     override this.Execute(context: SimulatorContext) =
-        printfn "InitializeVariable"
+        printfn
+            "InitializeVariable: %s (%A) = %A"
+            this.Inputs.variables.Head.name
+            this.Inputs.variables.Head.type_
+            this.Inputs.variables.Head.value
 
         let processedVars =
             this.Inputs.variables
@@ -224,7 +238,7 @@ type InitializeVariable(json) =
                 (variable.name, variable.type_, value))
 
         processedVars
-        |> List.iter (fun (name, type_, value) ->
+        |> List.iter (fun (name, _, value) ->
             printfn "InitializeVariable: %s = %O" name value
 
             if context.Variables.ContainsKey(name) then
