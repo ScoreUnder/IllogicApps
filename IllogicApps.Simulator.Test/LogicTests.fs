@@ -57,6 +57,10 @@ let ``Test short-circuiting "if"`` (expr: string, expected: Result<int, string>)
         raisesWithOrTrace<System.Exception> expr <@ testExpressionEvaluation expr @> (fun e ->
             let message = e.Message in <@ message.Contains(expected) @>)
 
+[<TestCase("@and(true,true)", true)>]
+[<TestCase("@and(false,true)", false)>]
+[<TestCase("@and(true,false)", false)>]
+[<TestCase("@and(false,false)", false)>]
 [<TestCase("@and(and(false,true),and(true,true))", false)>]
 [<TestCase("@and(and(true,false),and(true,true))", false)>]
 [<TestCase("@and(and(true,true),and(false,true))", false)>]
@@ -65,6 +69,10 @@ let ``Test short-circuiting "if"`` (expr: string, expected: Result<int, string>)
 let ``Test basic "and"`` expr expected =
     testOrTrace expr <@ Boolean expected = testExpressionEvaluation expr @>
 
+[<TestCase("@or(true,true)", true)>]
+[<TestCase("@or(false,true)", true)>]
+[<TestCase("@or(true,false)", true)>]
+[<TestCase("@or(false,false)", false)>]
 [<TestCase("@or(or(false,true),or(true,true))", true)>]
 [<TestCase("@or(or(true,false),or(true,true))", true)>]
 [<TestCase("@or(or(true,true),or(false,true))", true)>]
@@ -75,5 +83,9 @@ let ``Test basic "or"`` expr expected =
 
 [<TestCase("@if(true,1,2)", 1)>]
 [<TestCase("@if(false,1,2)", 2)>]
+[<TestCase("@if(if(false,false,true),if(true,1,2),if(true,3,4))", 1)>]
+[<TestCase("@if(if(false,false,true),if(false,1,2),if(false,3,4))", 2)>]
+[<TestCase("@if(if(true,false,true),if(true,1,2),if(true,3,4))", 3)>]
+[<TestCase("@if(if(true,false,true),if(false,1,2),if(false,3,4))", 4)>]
 let ``Test basic "if"`` expr expected =
     testOrTrace expr <@ Integer expected = testExpressionEvaluation expr @>
