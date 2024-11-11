@@ -603,10 +603,13 @@ let f_actions (sim: SimulatorContext) (args: Args) : JsonTree =
     | None -> failwithf "Action %s not found" actionName
 
 let f_body (sim: SimulatorContext) (args: Args) : JsonTree =
-    f_actions sim args |> JsonTree.getKey "outputs" |> JsonTree.getKey "body"
+    f_actions sim args
+    |> JsonTree.tryGetKey "outputs"
+    |> Option.bind (JsonTree.tryGetKey "body")
+    |> Conversions.jsonOfOption
 
 let f_outputs (sim: SimulatorContext) (args: Args) : JsonTree =
-    f_actions sim args |> JsonTree.getKey "outputs"
+    f_actions sim args |> JsonTree.tryGetKey "outputs" |> Conversions.jsonOfOption
 
 let f_trigger (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 0 args
@@ -614,10 +617,13 @@ let f_trigger (sim: SimulatorContext) (args: Args) : JsonTree =
     CompletedStepTypes.jsonOfCompletedTrigger sim.TriggerResult
 
 let f_triggerBody (sim: SimulatorContext) (args: Args) : JsonTree =
-    f_trigger sim args |> JsonTree.getKey "outputs" |> JsonTree.getKey "body"
+    f_trigger sim args
+    |> JsonTree.tryGetKey "outputs"
+    |> Option.bind (JsonTree.tryGetKey "body")
+    |> Conversions.jsonOfOption
 
 let f_triggerOutputs (sim: SimulatorContext) (args: Args) : JsonTree =
-    f_trigger sim args |> JsonTree.getKey "outputs"
+    f_trigger sim args |> JsonTree.tryGetKey "outputs" |> Conversions.jsonOfOption
 
 let f_variables (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 1 args
