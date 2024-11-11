@@ -62,9 +62,19 @@ let httpRequestReplyOfNetHttpResponseMessage (resp: Http.HttpResponseMessage) =
         match resp.Content with
         | null -> None
         | content ->
-            content.ReadAsStringAsync().Result
-            |> decodeBodyByContentType resp.Content.Headers.ContentType.MediaType
-            |> Some
+            let contentType =
+                content.Headers.ContentType
+                |> Option.ofObj
+                |> Option.bind (fun o -> o.MediaType |> Option.ofObj)
+
+            let contentStr = content.ReadAsStringAsync().Result
+
+            if String.IsNullOrEmpty contentStr && Option.isNone contentType then
+                None
+            else
+                contentStr
+                |> decodeBodyByContentType (Option.defaultValue "text/plain" contentType)
+                |> Some
 
     { statusCode = int resp.StatusCode
       headers = Some headers
