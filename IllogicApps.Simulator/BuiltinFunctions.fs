@@ -427,6 +427,27 @@ let f_split _ (args: Args) : JsonTree =
     | [ _; _ ] -> failwith "Both arguments must be of type string"
     | _ -> failwith "Expected two arguments"
 
+let f_substring _ (args: Args) : JsonTree =
+    match args with
+    | String s :: Integer startIndex :: etc ->
+        let startIndex = Operators.Checked.int startIndex
+
+        let length =
+            match etc with
+            | [] -> s.Length - startIndex
+            | [ Integer length ] -> Operators.Checked.int length
+            | [ invalid ] -> failwithf "Expected integer, got %A" (JsonTree.getType invalid)
+            | _ -> failwith "Expected 2 or 3 arguments"
+
+        if startIndex < 0 || startIndex + length > s.Length || length < 0 then
+            failwith
+                "Parameters out of range: 'start index' and 'length' must be non-negative integers and their sum must be no larger than the length of the string"
+
+        String(s.Substring(startIndex, length))
+    | _ ->
+        expectArgsRange 2 3 args
+        failwith "Expected string and integer, or string, integer, and integer"
+
 // Collection functions
 
 let f_item (sim: SimulatorContext) (args: Args) : JsonTree =
@@ -804,6 +825,7 @@ let functions: Map<string, LanguageFunction> =
       "replace", f_replace
       "slice", f_slice
       "split", f_split
+      "substring", f_substring
       "item", f_item
       "not", f_not
       "array", f_array

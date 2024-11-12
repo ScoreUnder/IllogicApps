@@ -69,3 +69,24 @@ let ``split test cases`` =
 
 [<TestCaseSource(nameof ``split test cases``)>]
 let ``Test split`` expr expected = objOrFailTest expr expected
+
+let ``substring test cases`` =
+    let rangeError =
+        Error
+            "out of range: 'start index' and 'length' must be non-negative integers and their sum must be no larger than the length of the string"
+
+    [ "@substring('abcdef',0)", Ok "abcdef"
+      "@substring('abcdef',0,99)", rangeError
+      "@substring('abcdef',3)", Ok "def"
+      "@substring('abcdef',3,1)", Ok "d"
+      "@substring('abcdef',39,99)", rangeError
+      "@substring('abcdef',39,-10)", rangeError
+      "@substring('abcdef',-3)", rangeError
+      "@substring('abcdef',-1,2)", rangeError
+      "@substring('abcdef',-3,-1)", rangeError
+      "@substring('abcdef',-33)", rangeError
+      "@substring('abcdef',-33,-44)", rangeError ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``substring test cases``)>]
+let ``Test substring`` expr expected = stringOrFailTest expr expected
