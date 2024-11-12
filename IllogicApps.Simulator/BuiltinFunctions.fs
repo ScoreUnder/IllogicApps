@@ -869,9 +869,10 @@ let f_workflow (sim: SimulatorContext) (args: Args) : JsonTree =
 
 let f_setProperty _ (args: Args) : JsonTree =
     match args with
-    | [ Object o; String k; v ] -> o |> OrderedMap.set k v |> Object
-    | [ _; _; _ ] -> failwith "Expected object, string, and value"
-    | _ -> failwith "Expected three arguments"
+    | [ Object o; String k; v ] -> o |> OrderedMap.setAtEnd k v |> Object
+    | [ Object _; _; _ ] -> failwith "The second argument must be of type string"
+    | [ _; _; _ ] -> failwith "The first argument must be of type object"
+    | _ -> failwith "This function expects three parameters"
 
 // End function definitions
 

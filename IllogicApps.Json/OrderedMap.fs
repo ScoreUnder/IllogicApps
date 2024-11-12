@@ -195,13 +195,15 @@ module OrderedMap =
         OrderedMap.CreateUnsafe<'K, 'V>(map.Add(key, value), keys.Add(key))
 
     let set (key: 'K) (value: 'V) (m: OrderedMap<'K, 'V>) =
-        if m.ContainsKey key then
-            OrderedMap.CreateRange(
-                m
-                |> Seq.map (fun (KeyValue(k, v)) -> KeyValuePair(k, (if k = key then value else v)))
-            )
-        else
-            unsafeAdd key value m
+        let keys = if m.ContainsKey key then m.Keys else m.Keys.Add(key)
+        let map = m.BackingMap.SetItem(key, value)
+        OrderedMap.CreateUnsafe<'K, 'V>(map, keys)
+
+    let setAtEnd (key: 'K) (value: 'V) (m: OrderedMap<'K, 'V>) =
+        let map = m.BackingMap.SetItem(key, value)
+        let keys = if m.ContainsKey key then m.Keys.Remove(key) else m.Keys
+        let keys = keys.Add(key)
+        OrderedMap.CreateUnsafe<'K, 'V>(map, keys)
 
     let tryAdd (key: 'K) (value: 'V) (m: OrderedMap<'K, 'V>) =
         if m.ContainsKey key then m else unsafeAdd key value m
