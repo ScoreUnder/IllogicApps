@@ -481,10 +481,44 @@ let f_trim _ (args: Args) : JsonTree =
 
 // Collection functions
 
+let f_empty _ (args: Args) : JsonTree =
+    match args with
+    | [ Array a ] -> Boolean(a.Length = 0)
+    | [ String s ] -> Boolean(s.Length = 0)
+    | [ Object o ] -> Boolean(o.Count = 0)
+    | [ Null ] -> Boolean true
+    | [ _ ] -> failwith "Expected parameter to be an object, an array or a string"
+    | _ -> failwith "This function expects one parameter"
+
+let f_first _ (args: Args) : JsonTree =
+    match args with
+    | [ Array a ] -> if a.Length = 0 then Null else a.[0]
+    | [ String s ] -> if s.Length = 0 then String "" else String(s.[0..0])
+    | [ _ ] -> failwith "Expected parameter to be an array or a string"
+    | _ -> failwith "This function expects one parameter"
+
 let f_item (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 0 args
 
     sim.ArrayOperationContext.Current
+
+let f_join _ (args: Args) : JsonTree =
+    match args with
+    | [ Array a; String separator ] -> a |> Seq.map objectToString |> String.concat separator |> String
+    | [ Array _; _ ] -> failwith "Second argument must be of type string"
+    | [ _; _ ] -> failwith "First argument must be an array"
+    | _ -> failwith "This function expects two parameters"
+
+let f_last _ (args: Args) : JsonTree =
+    match args with
+    | [ Array a ] -> if a.Length = 0 then Null else a.[a.Length - 1]
+    | [ String s ] ->
+        if s.Length = 0 then
+            String ""
+        else
+            String(s.[s.Length - 1 ..])
+    | [ _ ] -> failwith "Expected parameter to be an array or a string"
+    | _ -> failwith "This function expects one parameter"
 
 // Logical comparison functions
 
@@ -564,7 +598,6 @@ let f_createArray _ (args: Args) : JsonTree =
     expectArgsAtLeast 1 args
 
     Conversions.createArray args
-
 
 let f_dataUri _ (args: Args) : JsonTree =
     expectArgs 1 args
@@ -832,6 +865,14 @@ let f_workflow (sim: SimulatorContext) (args: Args) : JsonTree =
 
     sim.WorkflowDetails |> ExternalServiceTypes.jsonOfWorkflowDetails
 
+// Manipulation functions
+
+let f_setProperty _ (args: Args) : JsonTree =
+    match args with
+    | [ Object o; String k; v ] -> o |> OrderedMap.set k v |> Object
+    | [ _; _; _ ] -> failwith "Expected object, string, and value"
+    | _ -> failwith "Expected three arguments"
+
 // End function definitions
 
 let private conditionToFunction (condition: BuiltinCondition.LanguageCondition) : LanguageFunction =
@@ -860,7 +901,11 @@ let functions: Map<string, LanguageFunction> =
       "toLower", f_toLower
       "toUpper", f_toUpper
       "trim", f_trim
+      "empty", f_empty
+      "first", f_first
       "item", f_item
+      "join", f_join
+      "last", f_last
       "not", f_not
       "array", f_array
       "base64", f_base64
@@ -898,7 +943,8 @@ let functions: Map<string, LanguageFunction> =
       "triggerBody", f_triggerBody
       "triggerOutputs", f_triggerOutputs
       "variables", f_variables
-      "workflow", f_workflow ]
+      "workflow", f_workflow
+      "setProperty", f_setProperty ]
     |> List.toSeq
     |> Seq.append conditions
     |> Map.ofSeq
