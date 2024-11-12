@@ -289,6 +289,92 @@ let f_guid _ (args: Args) : JsonTree =
 
     String(Guid.NewGuid().ToString(format))
 
+let f_indexOf _ (args: Args) : JsonTree =
+    match args with
+    | [ String haystack; String needle ] -> haystack.IndexOf(needle) |> int64 |> Integer
+    | [ a; b ] -> failwithf "Expected two strings; got %A and %A" (JsonTree.getType a) (JsonTree.getType b)
+    | _ -> failwith "Expected two arguments"
+
+let f_isFloat _ (args: Args) : JsonTree =
+    let str, culture =
+        match args with
+        | [ s ] -> s, CultureInfo.InvariantCulture
+        | [ s; c ] -> s, CultureInfo.GetCultureInfo(Conversions.ensureString c)
+        | _ -> failwithf "Expected 1 or 2 args, got %d" (List.length args)
+
+    let str = Conversions.ensureString str
+
+    match Double.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, culture) with
+    | v, _ -> Boolean v
+
+let f_isInt _ (args: Args) : JsonTree =
+    expectArgs 1 args
+
+    let str = Conversions.ensureString <| List.head args
+
+    match
+        Int64.TryParse(
+            str,
+            NumberStyles.Integer
+            ||| NumberStyles.AllowExponent
+            ||| NumberStyles.AllowThousands,
+            CultureInfo.InvariantCulture
+        )
+    with
+    | v, _ -> Boolean v
+
+let f_lastIndexOf _ (args: Args) : JsonTree =
+    match args with
+    | [ String haystack; String needle ] -> haystack.LastIndexOf(needle) |> int64 |> Integer
+    | [ a; b ] -> failwithf "Expected two strings; got %A and %A" (JsonTree.getType a) (JsonTree.getType b)
+    | _ -> failwith "Expected two arguments"
+
+let f_length _ (args: Args) : JsonTree =
+    expectArgs 1 args
+
+    match List.head args with
+    | String s -> Integer(int64 s.Length)
+    | Array a -> Integer(int64 a.Length)
+    | _ -> failwith "Expected string or array"
+
+let f_nthIndexOf _ (args: Args) : JsonTree =
+    expectArgs 3 args
+
+    match args with
+    | [ String haystack; String needle; Integer n ] ->
+        if n = 0L then
+            failwith "Expected the index parameter to be nonzero"
+
+        if n > 0L then
+            let rec nthIndexOf (haystack: string) (needle: string) (n: int) (start: int) =
+                if n = 0 then
+                    start
+                else
+                    match haystack.IndexOf(needle, start) with
+                    | -1 -> -1
+                    | i -> nthIndexOf haystack needle (n - 1) (i + 1)
+
+            nthIndexOf haystack needle (int n) 0 |> int64 |> Integer
+        else
+            let rec nthLastIndexOf (haystack: string) (needle: string) (n: int) (start: int) =
+                if n = 0 then
+                    start
+                else
+                    match haystack.LastIndexOf(needle, start) with
+                    | -1 -> -1
+                    | i -> nthLastIndexOf haystack needle (n - 1) (i - 1)
+
+            nthLastIndexOf haystack needle (int -n) (haystack.Length - 1)
+            |> int64
+            |> Integer
+    | [ a; b; c ] ->
+        failwithf
+            "Expected three strings; got %A, %A, and %A"
+            (JsonTree.getType a)
+            (JsonTree.getType b)
+            (JsonTree.getType c)
+    | _ -> failwith "Expected three arguments"
+
 // Collection functions
 
 let f_item (sim: SimulatorContext) (args: Args) : JsonTree =
@@ -472,18 +558,6 @@ let f_int (sim: SimulatorContext) (args: Args) : JsonTree =
         with
         | true, result -> Integer result
         | _ -> failwithf "Could not parse %s as int" str
-
-let f_isFloat _ (args: Args) : JsonTree =
-    let str, culture =
-        match args with
-        | [ s ] -> s, CultureInfo.InvariantCulture
-        | [ s; c ] -> s, CultureInfo.GetCultureInfo(Conversions.ensureString c)
-        | _ -> failwithf "Expected 1 or 2 args, got %d" (List.length args)
-
-    let str = Conversions.ensureString str
-
-    match Double.TryParse(str, NumberStyles.Float ||| NumberStyles.Number, culture) with
-    | v, _ -> Boolean v
 
 let f_json (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 1 args
@@ -669,6 +743,12 @@ let functions: Map<string, LanguageFunction> =
       "concat", f_concat
       "formatNumber", f_formatNumber
       "guid", f_guid
+      "indexOf", f_indexOf
+      "isFloat", f_isFloat
+      "isInt", f_isInt
+      "lastIndexOf", f_lastIndexOf
+      "length", f_length
+      "nthIndexOf", f_nthIndexOf
       "item", f_item
       "not", f_not
       "array", f_array
@@ -683,7 +763,6 @@ let functions: Map<string, LanguageFunction> =
       "decimal", f_decimal
       "float", f_float
       "int", f_int
-      "isFloat", f_isFloat
       "json", f_json
       "string", f_string
       "xml", f_xml
