@@ -90,3 +90,25 @@ let ``substring test cases`` =
 
 [<TestCaseSource(nameof ``substring test cases``)>]
 let ``Test substring`` expr expected = stringOrFailTest expr expected
+
+let ``toLower test cases`` =
+    [ "@toLower('ıIiİçÇğĞ')", Ok "ıiiİççğğ" // Turkish (the lowercasing of "I" conflicts with English)
+      "@toLower('Ｚｅｎｋａｋｕ　Ｔｅｘｔ')", Ok "ｚｅｎｋａｋｕ　ｔｅｘｔ" // Zenkaku
+      "@toLower('')", Ok "" // empty string
+      "@toLower(binary('Testing'))", Error "to be a string" // binary
+      "@toLower(xml('<Root>Test</Root>'))", Error "to be a string" ] // xml
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``toLower test cases``)>]
+let ``Test toLower`` expr expected = stringOrFailTest expr expected
+
+let ``toUpper test cases`` =
+    [ "@toUpper('ıIiİçÇğĞ')", Ok "ıIIİÇÇĞĞ" // Turkish (the uppercasing of "i" conflicts with English)
+      "@toUpper('Ｚｅｎｋａｋｕ　Ｔｅｘｔ')", Ok "ＺＥＮＫＡＫＵ　ＴＥＸＴ" // Zenkaku
+      "@toUpper('')", Ok "" // empty string
+      "@toUpper(binary('Testing'))", Error "to be a string" // binary
+      "@toUpper(xml('<Root>Test</Root>'))", Error "to be a string" ] // xml
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``toUpper test cases``)>]
+let ``Test toUpper`` expr expected = stringOrFailTest expr expected

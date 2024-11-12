@@ -62,6 +62,16 @@ let expectArgsAtLeast n (args: Args) =
     if args.Length < n then
         failwithf "Expected at least %d arguments, got %d" n args.Length
 
+let expectSingleArg (args: Args) =
+    match args with
+    | [ arg ] -> arg
+    | _ -> failwithf "Expected single argument, got %d arguments" args.Length
+
+let ensureStringMsg msg (node: JsonTree) =
+    match node with
+    | String s -> s
+    | _ -> failwith msg
+
 let count seq el = Seq.filter ((=) el) seq |> Seq.length
 
 let toBase64 (str: string) =
@@ -448,6 +458,20 @@ let f_substring _ (args: Args) : JsonTree =
         expectArgsRange 2 3 args
         failwith "Expected string and integer, or string, integer, and integer"
 
+let f_toLower _ (args: Args) : JsonTree =
+    args
+    |> expectSingleArg
+    |> ensureStringMsg "Expected parameter to be a string"
+    |> _.ToLowerInvariant()
+    |> String
+
+let f_toUpper _ (args: Args) : JsonTree =
+    args
+    |> expectSingleArg
+    |> ensureStringMsg "Expected parameter to be a string"
+    |> _.ToUpperInvariant()
+    |> String
+
 // Collection functions
 
 let f_item (sim: SimulatorContext) (args: Args) : JsonTree =
@@ -826,6 +850,8 @@ let functions: Map<string, LanguageFunction> =
       "slice", f_slice
       "split", f_split
       "substring", f_substring
+      "toLower", f_toLower
+      "toUpper", f_toUpper
       "item", f_item
       "not", f_not
       "array", f_array
