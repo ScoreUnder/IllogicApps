@@ -112,3 +112,19 @@ let ``toUpper test cases`` =
 
 [<TestCaseSource(nameof ``toUpper test cases``)>]
 let ``Test toUpper`` expr expected = stringOrFailTest expr expected
+
+let ``trim test cases`` =
+    [ "@trim('')", Ok "" // empty string
+      "@trim('       ')", Ok "" // whitespace only
+      "@trim('test     ing')", Ok "test     ing" // whitespace sandwich
+      "@trim(binary('  Testing  '))", Error "are not valid" // binary
+      "@trim(xml('  <Root>  Test  </Root>  '))", Error "are not valid" // xml
+      "@trim('testing    ')", Ok "testing" // trailing whitespace
+      "@trim('     testing')", Ok "testing" // leading whitespace
+      "@trim('\t\t\ttesting\t\t\t')", Ok "testing" // tabs trailing and leading
+      "@trim('\r\n\r  \t\rtesting\r \n\t\r')", Ok "testing" // mixed whitespace
+      "@trim('\u3000\u3000\u3000testing\u3000\u3000\u3000')", Ok "testing" ] // Zenkaku whitespace
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``trim test cases``)>]
+let ``Test trim`` expr expected = stringOrFailTest expr expected

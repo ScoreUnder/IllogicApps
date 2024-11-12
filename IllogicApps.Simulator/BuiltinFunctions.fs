@@ -472,6 +472,13 @@ let f_toUpper _ (args: Args) : JsonTree =
     |> _.ToUpperInvariant()
     |> String
 
+let f_trim _ (args: Args) : JsonTree =
+    args
+    |> expectSingleArg
+    |> ensureStringMsg "The provided parameters are not valid"
+    |> _.Trim()
+    |> String
+
 // Collection functions
 
 let f_item (sim: SimulatorContext) (args: Args) : JsonTree =
@@ -852,6 +859,7 @@ let functions: Map<string, LanguageFunction> =
       "substring", f_substring
       "toLower", f_toLower
       "toUpper", f_toUpper
+      "trim", f_trim
       "item", f_item
       "not", f_not
       "array", f_array
