@@ -168,7 +168,7 @@ type Until(resolveAction, json) =
                         context.EvaluateLanguage(this.Expression) |> Conversions.ensureBoolean in
 
                     printfn "Until Condition: %b" condition
-                    if condition then attempt (num + 1L) else result
+                    if not condition then attempt (num + 1L) else result
             | Skipped -> failwith "Overall result is Skipped"
             | Cancelled
             | Failed
