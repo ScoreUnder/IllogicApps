@@ -15,6 +15,7 @@
         <Compile Include="NumericConversionTests.fs"/>
         <Compile Include="BinaryConversionTests.fs"/>
         <Compile Include="LogicTests.fs" />
+        <Compile Include="StringFunctionsTests.fs" />
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="coverlet.collector" Version="6.0.2">

@@ -335,7 +335,7 @@ let f_length _ (args: Args) : JsonTree =
     match List.head args with
     | String s -> Integer(int64 s.Length)
     | Array a -> Integer(int64 a.Length)
-    | _ -> failwith "Expected string or array"
+    | _ -> failwith "Expected parameter to be an array or a string"
 
 let f_nthIndexOf _ (args: Args) : JsonTree =
     expectArgs 3 args
@@ -374,6 +374,58 @@ let f_nthIndexOf _ (args: Args) : JsonTree =
             (JsonTree.getType b)
             (JsonTree.getType c)
     | _ -> failwith "Expected three arguments"
+
+let f_replace _ (args: Args) : JsonTree =
+    match args with
+    | [ String s; String search; String replace ] ->
+        match search with
+        | "" -> failwith "String cannot be of zero length. (Parameter 'oldValue')"
+        | _ -> s.Replace(search, replace) |> String
+    | [ a; b; c ] ->
+        failwithf
+            "Expected three strings; got %A, %A, and %A"
+            (JsonTree.getType a)
+            (JsonTree.getType b)
+            (JsonTree.getType c)
+    | _ -> failwith "Expected three arguments"
+
+let f_slice _ (args: Args) : JsonTree =
+    match args with
+    | String text :: Integer startIndex :: etc ->
+        let startIndex = Operators.Checked.int startIndex
+
+        let endIndex =
+            match etc with
+            | [] -> text.Length
+            | [ Integer endIndex ] -> Operators.Checked.int endIndex
+            | _ -> failwith "Expected 2 or 3 arguments"
+
+        let startIndex =
+            if startIndex < 0 then
+                startIndex + text.Length
+            else
+                startIndex
+
+        let endIndex = if endIndex < 0 then endIndex + text.Length else endIndex
+
+        if startIndex >= text.Length || endIndex < startIndex then
+            String ""
+        else
+            let startIndex = max 0 startIndex
+            let endIndex = min text.Length endIndex
+            String(text.Substring(startIndex, endIndex - startIndex))
+    | _ ->
+        expectArgsRange 2 3 args
+        failwith "Expected string and integer, or string, integer, and integer"
+
+let f_split _ (args: Args) : JsonTree =
+    match args with
+    | [ String s; String separator ] ->
+        s.Split([| separator |], StringSplitOptions.None)
+        |> Seq.map String
+        |> Conversions.createArray
+    | [ _; _ ] -> failwith "Both arguments must be of type string"
+    | _ -> failwith "Expected two arguments"
 
 // Collection functions
 
@@ -749,6 +801,9 @@ let functions: Map<string, LanguageFunction> =
       "lastIndexOf", f_lastIndexOf
       "length", f_length
       "nthIndexOf", f_nthIndexOf
+      "replace", f_replace
+      "slice", f_slice
+      "split", f_split
       "item", f_item
       "not", f_not
       "array", f_array

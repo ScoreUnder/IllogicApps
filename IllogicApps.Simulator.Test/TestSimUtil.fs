@@ -231,3 +231,24 @@ let stringTest expr expected =
 
 let objTest expr expected =
     testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
+
+let stringOrFailTest (expr: string) (expected: Result<string, string>) =
+    match expected with
+    | Ok expected -> testOrTrace expr <@ String expected = testExpressionEvaluation expr @>
+    | Error expected ->
+        raisesWithOrTrace<System.Exception> expr <@ testExpressionEvaluation expr @> (fun e ->
+            let message = e.Message in <@ message.Contains(expected) @>)
+
+let boolOrFailTest (expr: string) (expected: Result<bool, string>) =
+    match expected with
+    | Ok expected -> testOrTrace expr <@ Boolean expected = testExpressionEvaluation expr @>
+    | Error expected ->
+        raisesWithOrTrace<System.Exception> expr <@ testExpressionEvaluation expr @> (fun e ->
+            let message = e.Message in <@ message.Contains(expected) @>)
+
+let objOrFailTest (expr: string) (expected: Result<string, string>) =
+    match expected with
+    | Ok expected -> testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
+    | Error expected ->
+        raisesWithOrTrace<System.Exception> expr <@ testExpressionEvaluation expr @> (fun e ->
+            let message = e.Message in <@ message.Contains(expected) @>)
