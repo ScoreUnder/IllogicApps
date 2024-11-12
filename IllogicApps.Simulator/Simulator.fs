@@ -165,6 +165,7 @@ type private LoopContextImpl(values: JsonTree list, disposeHook: LoopContext -> 
 
     override this.Current = this.values.Head
 
+[<Struct>]
 type SimulatorCreationOptions =
     { workflowName: string
       triggerResult: CompletedTrigger
@@ -182,17 +183,10 @@ type SimulatorCreationOptions =
           externalServiceHandlers = [ loggingHandler; noOpHandler ]
           isBugForBugAccurate = true }
 
-type Simulator
-    private
-    (
-        workflowName: string,
-        triggerResult: CompletedTrigger,
-        externalServiceHandlers: ExternalServiceHandler list,
-        isBugForBugAccurate: bool
-    ) as this =
+type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     inherit SimulatorContext()
 
-    let isBugForBugAccurate = isBugForBugAccurate
+    let isBugForBugAccurate = creationOptions.isBugForBugAccurate
 
     let recordResultOf name (f: unit -> ActionResult) =
         let startTime = DateTime.UtcNow
@@ -216,7 +210,7 @@ type Simulator
                 outputs = result.outputs
                 error = result.error
                 code = result.code
-                clientTrackingId = triggerResult.action.clientTrackingId }
+                clientTrackingId = creationOptions.triggerResult.action.clientTrackingId }
 
         this.RecordActionResult name result
 
@@ -224,13 +218,7 @@ type Simulator
     member val private ArrayOperationContextStack = Stack<LoopContextImpl>() with get
 
     static member Trigger (actions: OrderedMap<string, #IGraphExecutable>) (creationOptions: SimulatorCreationOptions) =
-        let sim =
-            Simulator(
-                creationOptions.workflowName,
-                creationOptions.triggerResult,
-                creationOptions.externalServiceHandlers,
-                creationOptions.isBugForBugAccurate
-            )
+        let sim = Simulator(creationOptions)
 
         let result = sim.ExecuteGraph actions
 
@@ -250,12 +238,15 @@ type Simulator
 
     override this.LoopContext = this.LoopContextStack.Peek()
     override this.ArrayOperationContext = this.ArrayOperationContextStack.Peek()
-    override this.TriggerResult = triggerResult
+    override this.TriggerResult = creationOptions.triggerResult
     override this.IsBugForBugAccurate = isBugForBugAccurate
     override this.AllActionResults = this.ActionResults |> OrderedMap.CreateRange
 
     override this.WorkflowDetails =
-        WorkflowDetails.Create $"dummyWorkflowId_{workflowName}" workflowName triggerResult.action.clientTrackingId
+        WorkflowDetails.Create
+            $"dummyWorkflowId_{creationOptions.workflowName}"
+            creationOptions.workflowName
+            creationOptions.triggerResult.action.clientTrackingId
 
     override this.GetActionResult name =
         this.ActionResults.TryGetValue name
@@ -339,7 +330,7 @@ type Simulator
     override this.StopExecuting status = this.TerminationStatus <- Some status
 
     override this.ExternalServiceRequest request =
-        if not (runAllHandlers externalServiceHandlers this request) then
+        if not (runAllHandlers creationOptions.externalServiceHandlers this request) then
             failwithf "No handler for external service request: %A" request
 
     override this.PushLoopContext(arg1: JsonTree seq) : LoopContext =
