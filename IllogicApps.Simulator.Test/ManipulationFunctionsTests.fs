@@ -18,6 +18,19 @@ let ``coalesce test cases`` =
 [<TestCaseSource(nameof ``coalesce test cases``)>]
 let ``Test coalesce`` expr expected = jsonOrFailTest expr expected
 
+let ``coalesce short-circuiting test cases`` =
+    [ "@coalesce('hi',FakeFunctionWhichErrors())", Ok(String "hi")
+      "@coalesce(null,FakeFunctionWhichErrors())",
+      Error "The template function 'FakeFunctionWhichErrors' is not defined or not valid"
+      "@coalesce(FakeFunctionWhichErrors(),'hi')",
+      Error "The template function 'FakeFunctionWhichErrors' is not defined or not valid"
+      "@coalesce(FakeFunctionWhichErrors(),null)",
+      Error "The template function 'FakeFunctionWhichErrors' is not defined or not valid" ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``coalesce short-circuiting test cases``)>]
+let ``Test coalesce short-circuiting`` expr expected = jsonOrFailTest expr expected
+
 let ``setProperty test cases`` =
     [ "@setProperty(json('{}'),'a','')", Ok """{ "a": "" }""" // set in empty object
       "@setProperty(json('{\"a\":1,\"b\":2,\"c\":3,\"d\":4}'),'c',3)", Ok """{ "a": 1, "b": 2, "d": 4, "c": 3 }""" // set existing key to existing value
