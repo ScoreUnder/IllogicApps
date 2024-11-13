@@ -867,10 +867,15 @@ let f_workflow (sim: SimulatorContext) (args: Args) : JsonTree =
 
 // Manipulation functions
 
-let f_coalesce _ (args: Args) : JsonTree =
+let f_coalesce _ (args: LazyArgs) : JsonTree =
     match args with
     | [] -> failwith "This function expects at least one parameter"
-    | _ -> args |> List.tryFind (fun arg -> arg <> Null) |> Option.defaultValue Null
+    | _ ->
+        args
+        |> List.tryPick (function
+            | Lazy(Null) -> None
+            | Lazy(x) -> Some x)
+        |> Option.defaultValue Null
 
 let f_setProperty _ (args: Args) : JsonTree =
     match args with
@@ -950,11 +955,12 @@ let functions: Map<string, LanguageFunction> =
       "triggerOutputs", f_triggerOutputs
       "variables", f_variables
       "workflow", f_workflow
-      "coalesce", f_coalesce
       "setProperty", f_setProperty ]
     |> List.toSeq
     |> Seq.append conditions
     |> Map.ofSeq
 
 let lazyFunctions: Map<string, LazyArgsLanguageFunction> =
-    [ "and", f_and; "if", f_if; "or", f_or ] |> List.toSeq |> Map.ofSeq
+    [ "and", f_and; "if", f_if; "or", f_or; "coalesce", f_coalesce ]
+    |> List.toSeq
+    |> Map.ofSeq
