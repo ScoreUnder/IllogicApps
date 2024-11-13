@@ -819,6 +819,16 @@ let f_addToTime _ (args: Args) : JsonTree =
     | [ ts1; ts2; unit; fmt ] -> addToTime' ts1 ts2 unit (fmt |> Conversions.ensureString)
     | _ -> failwith "Expected 3 or 4 arguments"
 
+let f_utcNow _ (args: Args) : JsonTree =
+    let format =
+        match args with
+        | [] -> "o"
+        | [ String format ] -> format
+        | [ _ ] -> failwith "Expected string argument"
+        | _ -> failwith "Expected 0 or 1 argument"
+
+    String(DateTime.UtcNow.ToString(format))
+
 // Workflow functions
 
 let f_actions (sim: SimulatorContext) (args: Args) : JsonTree =
@@ -947,6 +957,7 @@ let functions: Map<string, LanguageFunction> =
       "addMinutes", f_addMinutes
       "addSeconds", f_addSeconds
       "addToTime", f_addToTime
+      "utcNow", f_utcNow
       "actions", f_actions
       "body", f_body
       "outputs", f_outputs
