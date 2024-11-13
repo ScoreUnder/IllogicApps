@@ -124,18 +124,18 @@ module private SimulatorHelper =
         | String s -> f s
         | _ -> node
 
-    let logActionPreRun actionName action =
-        let actionType =
-            match box action with
-            | :? BaseAction as action -> action.ActionType
-            | _ -> action.GetType().Name
+    let getActionType action =
+        match box action with
+        | :? BaseAction as action -> action.ActionType
+        | _ -> action.GetType().Name
 
-        printfn "Starting action %s (%s)" actionName actionType
+    let logActionPreRun actionName actionType =
+        printfn "[Action %s (%s) started]" actionName actionType
 
-    let logActionPostRun actionName result =
+    let logActionPostRun actionName actionType result =
         match result.error with
-        | None -> printfn "Action %s ended: %A" actionName result.status
-        | Some err -> printfn "Action %s ended: %A (%A)" actionName result.status err
+        | None -> printfn "[Action %s (%s) ended: %A]" actionName actionType result.status
+        | Some err -> printfn "[Action %s (%s) ended: %A (%A)]" actionName actionType result.status err
 
     let skippedResult =
         { ActionResult.Default with
@@ -296,9 +296,10 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
                     | Satisfied ->
                         remainingActions.Remove actionName |> ignore
 
-                        logActionPreRun actionName action
+                        let actionType = getActionType action
+                        logActionPreRun actionName actionType
                         let result = recordResultOf actionName (fun () -> action.Execute this)
-                        logActionPostRun actionName result
+                        logActionPostRun actionName actionType result
 
                         rest @ (getNextActions actionName)
                     | Completed ->
