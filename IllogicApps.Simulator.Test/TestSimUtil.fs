@@ -98,7 +98,7 @@ let traceEvaluationParsed expr =
                     match BuiltinFunctions.functions.TryGetValue(name) with
                     | true, func ->
                         Changes(args |> List.map unpackLiteral |> func simContext |> LanguageParser.Literal)
-                    | _ -> TraceError $"Function {name} not found")
+                    | _ -> TraceError <| LanguageEvaluator.ErrorMessages.badFunctionCall name)
             | _ ->
                 match BuiltinFunctions.lazyFunctions.TryGetValue(name) with
                 | true, func ->
@@ -125,7 +125,7 @@ let traceEvaluationParsed expr =
                             (fun _ ->
                                 TraceError
                                     $"Internal error: Expected evaluation of argument {i} of {parent} to change, but it didn't")
-                | _ -> TraceError $"Function {name} not found"
+                | _ -> TraceError <| LanguageEvaluator.ErrorMessages.badFunctionCall name
         | LanguageParser.Member(parent, mem) ->
             TraceResult.tuple2 (trace' parent) (trace' mem)
             |> TraceResult.step LanguageParser.Member (fun (parent, mem) ->

@@ -2,6 +2,10 @@ module IllogicApps.Simulator.LanguageEvaluator
 
 open IllogicApps.Json
 
+module ErrorMessages =
+    let badFunctionCall name =
+        $"The template function '{name}' is not defined or not valid"
+
 type MemberAccessResult =
     | AccessOk of JsonTree
     | ForgivableError of string
@@ -44,7 +48,7 @@ let rec evaluate simContext (ast: LanguageParser.Ast) =
         | _ ->
             match BuiltinFunctions.lazyFunctions.TryGetValue(name) with
             | true, func -> args |> List.map (fun ast -> lazy evaluate simContext ast) |> func simContext
-            | _ -> failwithf "Function %s not found" name
+            | _ -> failwith <| ErrorMessages.badFunctionCall name
     | LanguageParser.Member(parent, mem) ->
         accessMember (evaluate simContext parent) (evaluate simContext mem)
         |> MemberAccessResult.get
