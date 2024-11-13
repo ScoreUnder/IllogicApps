@@ -505,6 +505,18 @@ type Response(json) =
         let inline stringPairSeqToObject seq =
             Seq.map (fun (k, v) -> k, String v) seq |> Conversions.createObject
 
+        let inline parseIntegerOrStringteger json =
+            match json with
+            | String s -> int s
+            | Integer i -> int i
+            | _ -> failwith "Expected integer or string"
+
+        let inline expect2xx4xx5xx i =
+            if i < 200 || i >= 600 || (i >= 300 && i < 400) then
+                failwith "Expected 2xx, 4xx, or 5xx status code"
+
+            i
+
         let processedBody = this.Inputs.body |> context.EvaluateLanguage
 
         let processedHeaders =
@@ -518,7 +530,7 @@ type Response(json) =
 
         context.ExternalServiceRequest
         <| HttpResponse(
-            { HttpRequestReply.statusCode = processedStatusCode |> Conversions.ensureInteger |> int
+            { HttpRequestReply.statusCode = processedStatusCode |> parseIntegerOrStringteger |> expect2xx4xx5xx
               headers = Option.map OrderedMap.ofSeq processedHeaders
               body = Conversions.optionOfJson processedBody }
         )
