@@ -819,6 +819,14 @@ let f_addToTime _ (args: Args) : JsonTree =
     | [ ts1; ts2; unit; fmt ] -> addToTime' ts1 ts2 unit (fmt |> Conversions.ensureString)
     | _ -> failwith "Expected 3 or 4 arguments"
 
+let f_ticks _ (args: Args) : JsonTree =
+    args
+    |> expectSingleArg
+    |> Conversions.ensureString
+    |> DateTimeOffset.Parse
+    |> _.Ticks
+    |> Integer
+
 let f_utcNow _ (args: Args) : JsonTree =
     let format =
         match args with
@@ -957,6 +965,7 @@ let functions: Map<string, LanguageFunction> =
       "addMinutes", f_addMinutes
       "addSeconds", f_addSeconds
       "addToTime", f_addToTime
+      "ticks", f_ticks
       "utcNow", f_utcNow
       "actions", f_actions
       "body", f_body
