@@ -555,23 +555,38 @@ type Http(json) =
 
         let result = ref HttpRequestReply.Default in
 
+        let evaluateString s =
+            s |> String |> context.EvaluateLanguage |> Conversions.ensureString
+
+        let evaluateStringStringMap map =
+            map |> OrderedMap.map (fun k v -> evaluateString k, evaluateString v)
+
+        let processedInputs =
+            { method = evaluateString this.Inputs.method
+              uri = evaluateString this.Inputs.uri
+              headers = this.Inputs.headers |> Option.map evaluateStringStringMap
+              body = this.Inputs.body |> context.EvaluateLanguage
+              queries = this.Inputs.queries |> Option.map evaluateStringStringMap
+              cookie = this.Inputs.cookie |> Option.map evaluateString
+              authentication = this.Inputs.authentication |> context.EvaluateLanguage }
+
         context.ExternalServiceRequest
         <| HttpRequest(
-            { method = this.Inputs.method
-              uri = this.Inputs.uri
-              headers = (this.Inputs.headers |> Option.defaultValue OrderedMap.empty)
+            { method = processedInputs.method
+              uri = processedInputs.uri
+              headers = (processedInputs.headers |> Option.defaultValue OrderedMap.empty)
               body =
-                (this.Inputs.body
+                (processedInputs.body
                  |> Conversions.optionOfJson
                  |> Option.map Conversions.rawStringOfJson)
-              queryParameters = (this.Inputs.queries |> Option.defaultValue OrderedMap.empty)
-              cookie = this.Inputs.cookie
-              authentication = this.Inputs.authentication },
+              queryParameters = processedInputs.queries |> Option.defaultValue OrderedMap.empty
+              cookie = processedInputs.cookie
+              authentication = processedInputs.authentication },
             result
         )
 
         { ActionResult.Default with
-            inputs = Some(jsonOfHttpInputs this.Inputs)
+            inputs = Some(jsonOfHttpInputs processedInputs)
             outputs = Some(jsonOfHttpRequestReply result.Value) }
 
 // Workflow actions
