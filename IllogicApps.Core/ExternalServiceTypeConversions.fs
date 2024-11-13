@@ -45,8 +45,8 @@ let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
     | Some content -> netReq.Content <- new Http.StringContent(content)
     | None -> ()
 
-    req.cookie |> Option.iter (fun v -> netReq.Headers.Add("Cookie", v))
-    req.headers |> OrderedMap.iter (fun k v -> netReq.Headers.Add(k, v))
+    req.cookie |> Option.iter (fun v -> netReq.Headers.TryAddWithoutValidation("Cookie", v) |> ignore)
+    req.headers |> OrderedMap.iter (fun k v -> netReq.Headers.TryAddWithoutValidation(k, v) |> ignore)
 
     // Not implemented, probably shouldn't be handled here: authentication
 
