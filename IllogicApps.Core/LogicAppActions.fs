@@ -259,9 +259,11 @@ type InitializeVariable(json) =
 type SetVariable(json) =
     inherit BaseAction(json)
 
-    let typecheck (originalValue: JsonTree) (newValue: JsonTree) =
-        if getVarType originalValue <> getVarType newValue then
-            failwithf "Variable is of type %A, cannot set to %A" (getVarType originalValue) (getVarType newValue)
+    let typecheck (originalType: VariableType) (newValue: JsonTree) =
+        match originalType, getVarType newValue with
+        | VariableType.Float, VariableType.Integer -> ()
+        | a, b when a = b -> ()
+        | a, b -> failwithf "Variable is of type %A, cannot set to %A" a b
 
     member val Inputs = JsonTree.getKey "inputs" json |> setVariableSingleOfJson with get
 
@@ -273,9 +275,10 @@ type SetVariable(json) =
 
         let value = this.Inputs.value |> context.EvaluateLanguage
 
-        typecheck context.Variables.[this.Inputs.name] value
+        let originalType = getVarType context.Variables.[this.Inputs.name]
+        typecheck originalType value
 
-        context.Variables.[this.Inputs.name] <- value
+        context.Variables.[this.Inputs.name] <- coerce originalType value
 
         let inputs =
             Conversions.createObject [ "name", String this.Inputs.name; "value", value ]
