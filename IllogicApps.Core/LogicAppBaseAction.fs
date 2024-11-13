@@ -44,7 +44,7 @@ type UnknownAction(json) =
     member val Original = json with get
 
     override this.Execute(context: SimulatorContext) =
-        printfn "Unknown action: %A" this.Original
+        printfn "Unknown action: %s" <| Conversions.prettyStringOfJson this.Original
 
         { ActionResult.Default with
             status = Skipped }

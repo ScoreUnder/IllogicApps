@@ -18,8 +18,6 @@ type Request(json) =
     member val Kind = JsonTree.getKey "kind" json |> Conversions.ensureString with get
 
     override this.Execute(context: SimulatorContext) =
-        printfn "Trigger: %s" this.Kind
-
         // TODO: Does this ever get called?
 
         let triggerResult = context.TriggerResult
@@ -40,9 +38,7 @@ type Scope(resolveAction, json) =
     member val Actions = JsonTree.getKey "actions" json |> actionGraphOfJson resolveAction with get
 
     override this.Execute(context: SimulatorContext) =
-        printfn "Scope Begin"
         let result = context.ExecuteGraph this.Actions in
-        printfn "Scope End"
 
         let code, error = codeAndErrorFromScopeResult result
 
@@ -63,8 +59,7 @@ type If(resolveAction, json) =
     member val Else = JsonTree.getKey "else" json |> actionGraphContainerOfJson resolveAction with get
 
     override this.Execute(context: SimulatorContext) =
-        printfn "If Begin"
-        let conditionResult = context.EvaluateCondition this.Expression in // TODO
+        let conditionResult = context.EvaluateCondition this.Expression in
         printfn "If Condition: %b" conditionResult
 
         let actions, otherActions =
@@ -76,7 +71,6 @@ type If(resolveAction, json) =
         otherActions |> fromKvps |> context.ForceSkipAll
 
         let result = context.ExecuteGraph actions in
-        printfn "If End"
 
         let code, error = codeAndErrorFromScopeResult result
 
@@ -103,7 +97,6 @@ type Switch(resolveAction, json) =
         |> OrderedMap.mapValuesOnly (switchCaseOfJson resolveAction) with get
 
     override this.Execute(context: SimulatorContext) =
-        printfn "Switch Begin"
         let value = context.EvaluateLanguage this.Expression in
         printfn "Switch Value: %O" value
 
@@ -121,8 +114,6 @@ type Switch(resolveAction, json) =
         |> context.ForceSkipAll
 
         let result = context.ExecuteGraph actions in
-
-        printfn "Switch End"
 
         let code, error = codeAndErrorFromScopeResult result
 
@@ -145,15 +136,12 @@ type Until(resolveAction, json) =
     member val Limit = JsonTree.getKey "limit" json |> untilLimitOfJson with get
 
     override this.Execute(context: SimulatorContext) =
-        printfn "Until Begin"
-
         let parsedTimeout = XmlConvert.ToTimeSpan(this.Limit.timeout)
         let timeout = System.DateTime.Now.Add(parsedTimeout)
 
         let rec attempt num =
-            printfn "Until Attempt %d Begin" num
+            printfn "Until Attempt %d" num
             let result = context.ExecuteGraph this.Actions in
-            printfn "Until Attempt %d End" num
 
             match result with
             | Succeeded ->
@@ -175,7 +163,6 @@ type Until(resolveAction, json) =
             | TimedOut -> result
 
         let result = attempt 1L
-        printfn "Until End"
 
         let code, error = codeAndErrorFromScopeResult result
 
@@ -224,11 +211,13 @@ type InitializeVariable(json) =
         |> validateJustOneVariable with get
 
     override this.Execute(context: SimulatorContext) =
+        let firstVar = this.Inputs.variables.Head
+
         printfn
-            "InitializeVariable: %s (%A) = %A"
-            this.Inputs.variables.Head.name
-            this.Inputs.variables.Head.type_
-            this.Inputs.variables.Head.value
+            "InitializeVariable: %s (%A) = %s"
+            firstVar.name
+            firstVar.type_
+            (Conversions.prettyStringOfJson firstVar.value)
 
         let processedVars =
             this.Inputs.variables
@@ -239,7 +228,7 @@ type InitializeVariable(json) =
 
         processedVars
         |> List.iter (fun (name, _, value) ->
-            printfn "InitializeVariable: %s = %O" name value
+            printfn "InitializeVariable: %s = %s" name (Conversions.prettyStringOfJson value)
 
             if context.Variables.ContainsKey(name) then
                 failwithf "Variable '%s' already exists" name
@@ -268,7 +257,7 @@ type SetVariable(json) =
     member val Inputs = JsonTree.getKey "inputs" json |> setVariableSingleOfJson with get
 
     override this.Execute(context: SimulatorContext) =
-        printfn "SetVariable: %s = %O" this.Inputs.name this.Inputs.value
+        printfn "SetVariable: %s = %O" this.Inputs.name (Conversions.prettyStringOfJson this.Inputs.value)
 
         if not (context.Variables.ContainsKey(this.Inputs.name)) then
             failwithf "Variable '%s' does not exist" this.Inputs.name
@@ -294,7 +283,7 @@ type AppendToStringVariable(json) =
     member val Inputs = JsonTree.getKey "inputs" json |> setVariableSingleOfJson with get
 
     override this.Execute(context: SimulatorContext) =
-        printfn "%s: %s = %O" this.ActionType this.Inputs.name this.Inputs.value
+        printfn "%s: %s = %s" this.ActionType this.Inputs.name (Conversions.prettyStringOfJson this.Inputs.value)
 
         if not (context.Variables.ContainsKey(this.Inputs.name)) then
             failwithf "Variable '%s' does not exist" this.Inputs.name
@@ -329,7 +318,7 @@ type IncrementVariable(json) =
     inherit SetVariable(json)
 
     override this.Execute(context: SimulatorContext) =
-        printfn "%s: %s" this.ActionType this.Inputs.name
+        printfn "%s: %s = %s" this.ActionType this.Inputs.name (Conversions.prettyStringOfJson this.Inputs.value)
 
         let originalValue =
             getVarTypechecked context this.Inputs.name [ VariableType.Integer; VariableType.Float ]
@@ -366,9 +355,9 @@ type Compose(json) =
     member val Inputs = JsonTree.getKey "inputs" json with get
 
     override this.Execute(context: SimulatorContext) =
-        printfn "Compose: %O" this.Inputs
+        printfn "Compose: %s" (Conversions.prettyStringOfJson this.Inputs)
         let result = context.EvaluateLanguage this.Inputs
-        printfn "Compose Result: %O" result
+        printfn "Compose Result: %s" (Conversions.prettyStringOfJson result)
 
         { ActionResult.Default with
             inputs = Some(result)
@@ -390,7 +379,7 @@ type ParseJson(json) =
             | json -> json
         // TODO: schema
         // TODO: can we do freaky variable stuff in the schema?
-        printfn "ParseJson Result: %O" result
+        printfn "ParseJson Result: %s" (Conversions.prettyStringOfJson result)
 
         { ActionResult.Default with
             inputs = Some(Conversions.createObject [ "content", input; "schema", this.Inputs.schema ])
@@ -403,7 +392,10 @@ type Query(json) =
     member val Inputs = JsonTree.getKey "inputs" json |> queryInputsOfJson with get
 
     override this.Execute(context: SimulatorContext) =
-        printfn "Query: %O in %O" this.Inputs.where this.Inputs.from
+        printfn
+            "Query: %s in %s"
+            (Conversions.prettyStringOfJson this.Inputs.where)
+            (Conversions.prettyStringOfJson this.Inputs.from)
 
         let from = context.EvaluateLanguage this.Inputs.from
 
@@ -420,13 +412,13 @@ type Query(json) =
 
             if loopContext.Advance() then filterValsRev next else next
 
-        let result = filterValsRev [] |> List.rev in
+        let result = filterValsRev [] |> List.rev |> Conversions.createArray in
 
-        printfn "Query Result: %O" result
+        printfn "Query Result: %s" (Conversions.prettyStringOfJson result)
 
         { ActionResult.Default with
             inputs = Some(from)
-            outputs = Some(Conversions.createObject [ "body", Conversions.createArray result ]) }
+            outputs = Some(Conversions.createObject [ "body", result ]) }
 
 // Inline Code actions
 
@@ -594,7 +586,7 @@ type Workflow(json) =
         |> Option.map Conversions.ensureString with get
 
     override this.Execute(context: SimulatorContext) =
-        printfn "Workflow: %s" (jsonOfWorkflowRequest this.Inputs |> Conversions.stringOfJson)
+        printfn "Workflow: %s" (jsonOfWorkflowRequest this.Inputs |> Conversions.prettyStringOfJson)
 
         let headers =
             this.Inputs.headers

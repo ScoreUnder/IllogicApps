@@ -108,6 +108,11 @@ let rec writePrettyJson (writer: TextWriter) json =
     write' json ""
     writer.WriteLine()
 
+let prettyStringOfJson json =
+    use writer = new StringWriter()
+    writePrettyJson writer json
+    writer.ToString()
+
 let stringOfJsonType json =
     match json with
     | JsonType.Null -> "null"

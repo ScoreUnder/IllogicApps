@@ -213,6 +213,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
                 clientTrackingId = creationOptions.triggerResult.action.clientTrackingId }
 
         this.RecordActionResult name result
+        result
 
     member val private LoopContextStack = Stack<LoopContextImpl>() with get
     member val private ArrayOperationContextStack = Stack<LoopContextImpl>() with get
@@ -281,13 +282,18 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
                     match status with
                     | Satisfied ->
                         remainingActions.Remove actionName |> ignore
-                        recordResultOf actionName (fun () -> action.Execute this)
+                        printfn "Starting action %s" actionName
+                        let result = recordResultOf actionName (fun () -> action.Execute this)
+
+                        match result.error with
+                        | None -> printfn "Action %s ended: %A" actionName result.status
+                        | Some err -> printfn "Action %s ended: %A (%A)" actionName result.status err
 
                         rest @ (getNextActions actionName)
                     | Completed ->
                         // This action's dependencies are in the wrong state, skip it
                         remainingActions.Remove actionName |> ignore
-                        recordResultOf actionName (fun () -> result)
+                        recordResultOf actionName (fun () -> result) |> ignore
                         action.GetChildren() |> this.ForceSkipAll
 
                         rest @ (getNextActions actionName)
@@ -359,4 +365,4 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         |> Seq.map (fun (k, v) -> k, (v: IGraphExecutable))
         |> Seq.toList
         |> getAllChildren
-        |> List.iter (fun (name, _) -> recordResultOf name (fun () -> skippedBranchResult))
+        |> List.iter (fun (name, _) -> recordResultOf name (fun () -> skippedBranchResult) |> ignore)
