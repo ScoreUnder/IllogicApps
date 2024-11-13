@@ -11,7 +11,7 @@ let ``Test cases for short-circuiting "and"`` =
       "@and(and(and(true,true),false),nope())", Ok false
       "@and(and(and(true,false),true),nope())", Ok false
       "@and(and(and(false,true),true),nope())", Ok false
-      "@and(and(and(true,true),true),nope())", Error "Function nope not found" ]
+      "@and(and(and(true,true),true),nope())", Error "The template function 'nope' is not defined or not valid" ]
     |> List.map TestCaseData
 
 [<TestCaseSource(nameof ``Test cases for short-circuiting "and"``)>]
@@ -29,7 +29,7 @@ let ``Test cases for short-circuiting "or"`` =
       "@or(or(or(false,false),true),nope())", Ok true
       "@or(or(or(false,true),false),nope())", Ok true
       "@or(or(or(true,false),false),nope())", Ok true
-      "@or(or(or(false,false),false),nope())", Error "Function nope not found" ]
+      "@or(or(or(false,false),false),nope())", Error "The template function 'nope' is not defined or not valid" ]
     |> List.map TestCaseData
 
 [<TestCaseSource(nameof ``Test cases for short-circuiting "or"``)>]
@@ -43,10 +43,10 @@ let ``Test short-circuiting "or"`` (expr: string, expected: Result<bool, string>
 let ``Test cases for short-circuiting "if"`` =
     [ "@if(true,1,throwMeAnError())", Ok 1
       "@if(false,throwMeAnError(),2)", Ok 2
-      "@if(true,throwMeAnError(),2)", Error "Function throwMeAnError not found"
-      "@if(false,1,throwMeAnError())", Error "Function throwMeAnError not found"
-      "@if(if(true,false,true),if(true,throwMeAnError(),throwAnotherError()),if(true,secretThirdError(),4))", Error "Function secretThirdError not found"
-      "@if(if(false,false,true),if(false,throwMeAnError(),throwAnotherError()),if(false,secretThirdError(),4))", Error "Function throwAnotherError not found" ]
+      "@if(true,throwMeAnError(),2)", Error "The template function 'throwMeAnError' is not defined or not valid"
+      "@if(false,1,throwMeAnError())", Error "The template function 'throwMeAnError' is not defined or not valid"
+      "@if(if(true,false,true),if(true,throwMeAnError(),throwAnotherError()),if(true,secretThirdError(),4))", Error "The template function 'secretThirdError' is not defined or not valid"
+      "@if(if(false,false,true),if(false,throwMeAnError(),throwAnotherError()),if(false,secretThirdError(),4))", Error "The template function 'throwAnotherError' is not defined or not valid" ]
     |> List.map TestCaseData
 
 [<TestCaseSource(nameof ``Test cases for short-circuiting "if"``)>]
