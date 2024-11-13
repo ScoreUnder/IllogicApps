@@ -867,6 +867,11 @@ let f_workflow (sim: SimulatorContext) (args: Args) : JsonTree =
 
 // Manipulation functions
 
+let f_coalesce _ (args: Args) : JsonTree =
+    match args with
+    | [] -> failwith "This function expects at least one parameter"
+    | _ -> args |> List.tryFind (fun arg -> arg <> Null) |> Option.defaultValue Null
+
 let f_setProperty _ (args: Args) : JsonTree =
     match args with
     | [ Object o; String k; v ] -> o |> OrderedMap.setAtEnd k v |> Object
@@ -945,6 +950,7 @@ let functions: Map<string, LanguageFunction> =
       "triggerOutputs", f_triggerOutputs
       "variables", f_variables
       "workflow", f_workflow
+      "coalesce", f_coalesce
       "setProperty", f_setProperty ]
     |> List.toSeq
     |> Seq.append conditions

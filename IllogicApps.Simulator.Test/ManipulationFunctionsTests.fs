@@ -1,7 +1,22 @@
 module IllogicApps.Simulator.Test.ManipulationFunctionsTests
 
 open NUnit.Framework
+open IllogicApps.Json
 open TestSimUtil
+
+let ``coalesce test cases`` =
+    [ "@coalesce(null)", Ok Null // coalesce of one null
+      "@coalesce(true)", Ok(Boolean true) // coalesce of one non-null
+      "@coalesce()", Error "at least one parameter" // empty coalesce
+      "@coalesce(null,'x')", Ok(String "x") // coalesce with first parameter null
+      "@coalesce('x',null)", Ok(String "x") // coalesce with second parameter null
+      "@coalesce(null,null)", Ok Null // coalesce with two nulls
+      "@coalesce('x','y')", Ok(String "x") // coalesce with two different parameters
+      "@coalesce(null,null,null,null,null,null,null,'hi',null)", Ok(String "hi") ] // coalesce with one non-null hiding amongst many nulls
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``coalesce test cases``)>]
+let ``Test coalesce`` expr expected = jsonOrFailTest expr expected
 
 let ``setProperty test cases`` =
     [ "@setProperty(json('{}'),'a','')", Ok """{ "a": "" }""" // set in empty object
