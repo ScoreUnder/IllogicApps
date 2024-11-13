@@ -59,7 +59,7 @@ type If(resolveAction, json) =
     member val Else = JsonTree.getKey "else" json |> actionGraphContainerOfJson resolveAction with get
 
     override this.Execute(context: SimulatorContext) =
-        let conditionResult = context.EvaluateCondition this.Expression in
+        let conditionResult = this.Expression |> context.EvaluateLanguage |> context.EvaluateCondition in
         printfn "If Condition: %b" conditionResult
 
         let actions, otherActions =
