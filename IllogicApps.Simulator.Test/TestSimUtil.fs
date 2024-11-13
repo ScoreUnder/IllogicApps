@@ -232,6 +232,9 @@ let stringTest expr expected =
 let objTest expr expected =
     testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
 
+let jsonTest (expr: string) (expected: JsonTree) =
+    testOrTrace expr <@ expected = testExpressionEvaluation expr @>
+
 let stringOrFailTest (expr: string) (expected: Result<string, string>) =
     match expected with
     | Ok expected -> testOrTrace expr <@ String expected = testExpressionEvaluation expr @>

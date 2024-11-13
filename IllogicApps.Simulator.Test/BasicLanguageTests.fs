@@ -56,8 +56,7 @@ let NumericDoubleParsingTest (expr: string) (expected: float) =
 [<TestCase("@{+54}", "54")>]
 [<TestCase("@{3e1}", "30")>]
 [<TestCase("@{+1.}", "1")>]
-let NumericIntegerInterpolationTest (expr: string) (expected: string) =
-    test <@ String expected = testExpressionEvaluation expr @>
+let NumericIntegerInterpolationTest (expr: string) (expected: string) = stringTest expr expected
 
 [<TestCase("@{0.5}", "0.5")>]
 [<TestCase("@{+.5}", "0.5")>]
@@ -66,25 +65,21 @@ let NumericIntegerInterpolationTest (expr: string) (expected: string) =
 [<TestCase("@{3.2e1}", "32")>]
 [<TestCase("@{0.9e+1}", "9")>]
 [<TestCase("@{3.2e-1}", "0.32")>]
-let NumericDoubleInterpolationTest (expr: string) (expected: string) =
-    test <@ String expected = testExpressionEvaluation expr @>
+let NumericDoubleInterpolationTest (expr: string) (expected: string) = stringTest expr expected
 
 [<TestCase("@'test'", "test")>]
 [<TestCase("@'don''t worry'", "don't worry")>]
-let StringParsingTest (expr: string) (expected: string) =
-    test <@ String expected = testExpressionEvaluation expr @>
+let StringParsingTest (expr: string) (expected: string) = stringTest expr expected
 
 [<TestCase("@{'test'}", "test")>]
 [<TestCase("@{'don''t worry'}", "don't worry")>]
 [<TestCase("foo @{'bar'} baz", "foo bar baz")>]
 [<TestCase("@{'h'}@{'e'}@{'l'}@{'l'}@{'o'}", "hello")>]
 [<TestCase("@{'hello'} @{'world'}", "hello world")>]
-let InterpolatedStringParsingTest (expr: string) (expected: string) =
-    test <@ String expected = testExpressionEvaluation expr @>
+let InterpolatedStringParsingTest (expr: string) (expected: string) = stringTest expr expected
 
 [<TestCase("testing @@{'blah'} @{'thing'}", "testing @{'blah'} thing")>]
-let InterpolatedStringWithPassthroughTest (expr: string) (expected: string) =
-    test <@ String expected = testExpressionEvaluation expr @>
+let InterpolatedStringWithPassthroughTest (expr: string) (expected: string) = stringTest expr expected
 
 [<TestCase("@'a','b','c'")>]
 [<TestCase("@{'a','b','c'}")>]
@@ -119,5 +114,16 @@ let UnparseableTest (expr: string) =
 [<TestCase("@{true}", "True")>]
 [<TestCase("@{false}", "False")>]
 [<TestCase("@{null}", "")>]
-let ConstantsInterpolationTest (expr: string) (expected: string) =
-    test <@ String expected = testExpressionEvaluation expr @>
+let ConstantsInterpolationTest (expr: string) (expected: string) = stringTest expr expected
+
+let ``Case insensitive access test cases`` =
+    [ "@json('{\"abCDef\": 123}').abcdef", Integer 123L
+      "@json('{\"abCDef\": 123}')?.abcdef", Integer 123L
+      "@json('{\"abCDef\": 123}').AbcdEF", Integer 123L
+      "@json('{\"abCDef\": 123}')['abcdef']", Integer 123L
+      "@json('{\"abCDef\": 123}')?['abcdef']", Integer 123L
+      "@json('{\"abCDef\": 123}')['AbcdEF']", Integer 123L ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``Case insensitive access test cases``)>]
+let ``Test case insensitive member access`` expr expected = jsonTest expr expected
