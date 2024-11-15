@@ -59,10 +59,9 @@ let buildWorkflowFamily
                 originHistoryName = rootWorkflowId }
 
         let optionsBase =
-            { workflowName = name
-              triggerResult = triggerResult
-              externalServiceHandlers = []
-              isBugForBugAccurate = true }
+            { SimulatorCreationOptions.Default with
+                workflowName = name
+                triggerResult = triggerResult }
 
         settingsBuilder optionsBase (handleWorkflowRequest responseHook)
         |> Simulator.Trigger defn.actions

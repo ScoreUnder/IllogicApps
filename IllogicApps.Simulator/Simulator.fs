@@ -188,18 +188,23 @@ type SimulatorCreationOptions =
       appConfig: OrderedMap<string, string>
       parameters: OrderedMap<string, Parameter> }
 
-    static member createSimple (logicApp: LogicAppSpec.Root) triggerOutputs =
+    static member Default =
         { workflowName = "unnamed_workflow"
-          triggerResult =
-            CompletedTrigger.create
-                { CompletedAction.create
-                      (logicApp.definition.triggers.Keys |> Seq.head)
-                      (stringOfDateTime DateTime.UtcNow) with
-                    outputs = triggerOutputs }
-          externalServiceHandlers = [ loggingHandler; noOpHandler ]
+          triggerResult = CompletedTrigger.create <| CompletedAction.create "" ""
+          externalServiceHandlers = []
           isBugForBugAccurate = true
           appConfig = OrderedMap.empty
           parameters = OrderedMap.empty }
+
+    static member createSimple (logicApp: LogicAppSpec.Root) triggerOutputs =
+        { SimulatorCreationOptions.Default with
+            triggerResult =
+                CompletedTrigger.create
+                    { CompletedAction.create
+                          (logicApp.definition.triggers.Keys |> Seq.head)
+                          (stringOfDateTime DateTime.UtcNow) with
+                        outputs = triggerOutputs }
+            externalServiceHandlers = [ loggingHandler; noOpHandler ] }
 
 type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     inherit SimulatorContext()
