@@ -242,6 +242,8 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         creationOptions.parameters
         |> OrderedMap.mapValuesOnly (fun v -> lazy evaluateParameter this v)
 
+    let variables = Dictionary<string, JsonTree>()
+
     member val private LoopContextStack = Stack<LoopContextImpl>() with get
     member val private ArrayOperationContextStack = Stack<LoopContextImpl>() with get
 
@@ -263,7 +265,14 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
     member val TerminationStatus: Status option = None with get, set
     member val ActionResults = MutableOrderedMap<string, CompletedAction>() with get
+    member this.Variables = variables
 
+    override this.GetVariable name =
+        match variables.TryGetValue name with
+        | true, value -> Some value
+        | _ -> None
+
+    override this.SetVariable name value = variables.[name] <- value
     override this.LoopContext = this.LoopContextStack.Peek()
     override this.ArrayOperationContext = this.ArrayOperationContextStack.Peek()
     override this.TriggerResult = creationOptions.triggerResult

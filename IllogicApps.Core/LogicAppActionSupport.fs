@@ -255,9 +255,9 @@ let coerce (typ: VariableType) (value: JsonTree) : JsonTree =
     | typ, value -> failwithf "Expected %A, got %A" typ (JsonTree.getType value)
 
 let getVarTypechecked (context: SimulatorContext) var typs =
-    match context.Variables.TryGetValue var with
-    | false, _ -> failwithf "Variable '%s' does not exist" var
-    | true, originalValue ->
+    match context.GetVariable var with
+    | None -> failwithf "Variable '%s' does not exist" var
+    | Some originalValue ->
         let variableType = getVarType originalValue
 
         if not (Seq.contains variableType typs) then

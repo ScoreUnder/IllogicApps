@@ -59,7 +59,9 @@ type If(resolveAction, json) =
     member val Else = JsonTree.getKey "else" json |> actionGraphContainerOfJson resolveAction with get
 
     override this.Execute(context: SimulatorContext) =
-        let conditionResult = this.Expression |> context.EvaluateLanguage |> context.EvaluateCondition in
+        let conditionResult =
+            this.Expression |> context.EvaluateLanguage |> context.EvaluateCondition in
+
         printfn "If Condition: %b" conditionResult
 
         let actions, otherActions =
@@ -230,10 +232,10 @@ type InitializeVariable(json) =
         |> List.iter (fun (name, _, value) ->
             printfn "InitializeVariable: %s = %s" name (Conversions.prettyStringOfJson value)
 
-            if context.Variables.ContainsKey(name) then
+            if context.GetVariable name |> Option.isSome then
                 failwithf "Variable '%s' already exists" name
 
-            context.Variables.[name] <- value)
+            context.SetVariable name value)
 
         let processedVarsArray =
             processedVars
@@ -259,23 +261,23 @@ type SetVariable(json) =
     override this.Execute(context: SimulatorContext) =
         printfn "SetVariable: %s = %O" this.Inputs.name (Conversions.prettyStringOfJson this.Inputs.value)
 
-        if not (context.Variables.ContainsKey(this.Inputs.name)) then
-            failwithf "Variable '%s' does not exist" this.Inputs.name
+        match context.GetVariable this.Inputs.name with
+        | None -> failwithf "Variable '%s' does not exist" this.Inputs.name
+        | Some originalValue ->
+            let value = this.Inputs.value |> context.EvaluateLanguage
 
-        let value = this.Inputs.value |> context.EvaluateLanguage
+            let originalType = getVarType originalValue
+            typecheck originalType value
 
-        let originalType = getVarType context.Variables.[this.Inputs.name]
-        typecheck originalType value
+            context.SetVariable this.Inputs.name <| coerce originalType value
 
-        context.Variables.[this.Inputs.name] <- coerce originalType value
+            let inputs =
+                Conversions.createObject [ "name", String this.Inputs.name; "value", value ]
 
-        let inputs =
-            Conversions.createObject [ "name", String this.Inputs.name; "value", value ]
-
-        { ActionResult.Default with
-            inputs = Some(inputs)
-            outputs = Some(Conversions.createObject [ "body", inputs ])
-            code = Some NotSpecified }
+            { ActionResult.Default with
+                inputs = Some(inputs)
+                outputs = Some(Conversions.createObject [ "body", inputs ])
+                code = Some NotSpecified }
 
 type AppendToStringVariable(json) =
     inherit BaseAction(json)
@@ -285,17 +287,16 @@ type AppendToStringVariable(json) =
     override this.Execute(context: SimulatorContext) =
         printfn "%s: %s = %s" this.ActionType this.Inputs.name (Conversions.prettyStringOfJson this.Inputs.value)
 
-        if not (context.Variables.ContainsKey(this.Inputs.name)) then
-            failwithf "Variable '%s' does not exist" this.Inputs.name
+        match context.GetVariable this.Inputs.name with
+        | None -> failwithf "Variable '%s' does not exist" this.Inputs.name
+        | Some originalValue ->
+            let addend = this.Inputs.value |> context.EvaluateLanguage
+            let newValue = this.Add context originalValue addend
+            context.SetVariable this.Inputs.name newValue
 
-        let originalValue = context.Variables[this.Inputs.name]
-        let addend = this.Inputs.value |> context.EvaluateLanguage
-        let newValue = this.Add context originalValue addend
-        context.Variables.[this.Inputs.name] <- newValue
-
-        { ActionResult.Default with
-            inputs = Some(Conversions.createObject [ "name", String this.Inputs.name; "value", this.Inputs.value ])
-            code = Some NotSpecified }
+            { ActionResult.Default with
+                inputs = Some(Conversions.createObject [ "name", String this.Inputs.name; "value", this.Inputs.value ])
+                code = Some NotSpecified }
 
     abstract member Add: SimulatorContext -> JsonTree -> JsonTree -> JsonTree
 
@@ -328,7 +329,7 @@ type IncrementVariable(json) =
         let value =
             this.Add (originalValue |> Conversions.ensureInteger) (increment |> Conversions.ensureInteger)
 
-        context.Variables.[this.Inputs.name] <- Integer value
+        context.SetVariable this.Inputs.name (Integer value)
 
         { ActionResult.Default with
             inputs =

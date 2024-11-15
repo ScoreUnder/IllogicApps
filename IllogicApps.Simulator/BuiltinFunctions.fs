@@ -889,9 +889,9 @@ let f_variables (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 1 args
     let variableName = Conversions.ensureString <| List.head args
 
-    match sim.Variables.TryGetValue variableName with
-    | true, value -> value
-    | _ -> failwithf "Variable %s not found" variableName
+    match sim.GetVariable variableName with
+    | Some value -> value
+    | None -> failwithf "Variable %s not found" variableName
 
 let f_workflow (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 0 args

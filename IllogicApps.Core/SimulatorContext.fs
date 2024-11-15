@@ -38,8 +38,11 @@ type IGraphExecutable =
     abstract member GetChildren: unit -> (string * IGraphExecutable) list
 
 and [<AbstractClass>] SimulatorContext() =
-    /// All variables active in the current workflow.
-    member val Variables = Dictionary<string, JsonTree>() with get
+    /// Get a variable from the current execution context.
+    abstract member GetVariable: string -> JsonTree option
+
+    /// Set a variable in the current execution context.
+    abstract member SetVariable: string -> JsonTree -> unit
 
     /// Get a value from App Config
     abstract member GetAppConfig: string -> string option
