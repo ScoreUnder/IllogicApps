@@ -254,3 +254,14 @@ let ``Test that parameters cannot use any function other than appsetting`` () =
                 parameters = data }
 
     raises <@ sim.GetParameter "BadFunctionTest" @>
+
+[<Test>]
+let ``Test that appsetting parameters which evaluate to null are valid`` () =
+    let (Lazy parameters) = parsedTestParameters
+
+    let sim =
+        Simulator.CreateUntriggered
+            { SimulatorCreationOptions.Default with
+                parameters = parameters }
+
+    test <@ sim.GetParameter "AppSettingTest" = Some Null @>
