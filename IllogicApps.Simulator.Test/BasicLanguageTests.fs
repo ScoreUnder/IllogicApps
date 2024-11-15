@@ -122,8 +122,31 @@ let ``Case insensitive access test cases`` =
       "@json('{\"abCDef\": 123}').AbcdEF", Integer 123L
       "@json('{\"abCDef\": 123}')['abcdef']", Integer 123L
       "@json('{\"abCDef\": 123}')?['abcdef']", Integer 123L
-      "@json('{\"abCDef\": 123}')['AbcdEF']", Integer 123L ]
+      "@json('{\"abCDef\": 123}')['AbcdEF']", Integer 123L
+      "@json('{\"a\": 1, \"a\": 2}').a", Integer 2L
+      "@json('{\"a\": 1, \"A\": 2}').a", Integer 1L
+      "@json('{\"A\": 1, \"a\": 2}').a", Integer 2L
+      "@json('{\"A\": 1, \"A\": 2}').a", Integer 2L
+      "@json('{\"a\": 1, \"a\": 2}').A", Integer 2L
+      "@json('{\"a\": 1, \"A\": 2}').A", Integer 2L
+      "@json('{\"A\": 1, \"a\": 2}').A", Integer 1L
+      "@json('{\"A\": 1, \"A\": 2}').A", Integer 2L
+      "@json('{\"aAa\": 1, \"AaA\": 2}').aaa", Integer 1L
+      "@json('{\"AaA\": 1, \"aAa\": 2}').aaa", Integer 1L
+      "@json('{\"aAa\": 1, \"AaA\": 2}').AAA", Integer 1L
+      "@json('{\"AaA\": 1, \"aAa\": 2}').AAA", Integer 1L ]
     |> List.map TestCaseData
 
 [<TestCaseSource(nameof ``Case insensitive access test cases``)>]
 let ``Test case insensitive member access`` expr expected = jsonTest expr expected
+
+let ``Case-conflicting JSON parsing test cases`` =
+    [ "@json('{\"a\": 1, \"a\": 2}')", Conversions.createObject [ "a", Integer 2L ]
+      "@json('{\"a\": 1, \"A\": 2}')", Conversions.createObject [ "a", Integer 1L; "A", Integer 2L ]
+      "@json('{\"A\": 1, \"a\": 2}')", Conversions.createObject [ "A", Integer 1L; "a", Integer 2L ]
+      "@json('{\"A\": 1, \"A\": 2}')", Conversions.createObject [ "A", Integer 2L ]
+      "@json('{\"a\": 1, \"b\": -1, \"a\": 2}')", Conversions.createObject [ "b", Integer -1L; "a", Integer 2L ] ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``Case-conflicting JSON parsing test cases``)>]
+let ``Test case-conflicting JSON parsing`` expr expected = jsonTest expr expected

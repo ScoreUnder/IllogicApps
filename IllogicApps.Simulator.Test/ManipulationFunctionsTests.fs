@@ -67,3 +67,17 @@ let ``setProperty binary/xml test cases`` =
 
 [<TestCaseSource(nameof ``setProperty binary/xml test cases``)>]
 let ``Test setProperty with binary and xml`` expr expected = objTest expr expected
+
+let ``setProperty case-conflicting test cases`` =
+    [ "@setProperty(json('{\"a\": 1}'), 'A', 2)", """{ "a": 2 }"""
+      "@setProperty(json('{\"A\": 1}'), 'a', 2)", """{ "A": 2 }"""
+      "@setProperty(json('{\"a\": 1, \"A\": 5}'), 'A', 2)", """{ "a": 1, "A": 2 }"""
+      "@setProperty(json('{\"A\": 1, \"a\": 5}'), 'a', 2)", """{ "A": 1, "a": 2 }"""
+      "@setProperty(json('{\"aAa\": 1, \"AaA\": 2}'), 'aaa', 5)", """{ "AaA": 2, "aAa": 5 }"""
+      "@setProperty(json('{\"aAa\": 1, \"AaA\": 2}'), 'AAA', 5)", """{ "AaA": 2, "aAa": 5 }"""
+      "@setProperty(json('{\"AaA\": 1, \"aAa\": 2}'), 'aaa', 5)", """{ "aAa": 2, "AaA": 5 }"""
+      "@setProperty(json('{\"AaA\": 1, \"aAa\": 2}'), 'AAA', 5)", """{ "aAa": 2, "AaA": 5 }""" ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``setProperty case-conflicting test cases``)>]
+let ``Test setProperty case-conflicting`` expr expected = objTest expr expected
