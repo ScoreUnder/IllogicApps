@@ -318,7 +318,11 @@ let parse (str: string) =
                     | '\t'
                     | '\n'
                     | '\r' -> parse' (index + 1) ObjectStart stack
-                    | '"' -> parse' (index + 1) (StringLiteral(StringBuilder())) (ConstructingObject (OrderedMap.Builder()) :: stack)
+                    | '"' ->
+                        parse'
+                            (index + 1)
+                            (StringLiteral(StringBuilder()))
+                            (ConstructingObject(OrderedMap.Builder()) :: stack)
                     | '}' -> parse' (index + 1) (ValueEnd(JsonTree.Object(OrderedMap.empty))) stack
                     | c -> fail c index state stack
             | ArrayStart ->

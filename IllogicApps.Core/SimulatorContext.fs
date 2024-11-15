@@ -1,7 +1,6 @@
 namespace IllogicApps.Core
 
 open System
-open System.Collections.Generic
 
 open CompletedStepTypes
 open ExternalServiceTypes

@@ -10,13 +10,13 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Jint" Version="4.1.0" />
+        <PackageReference Include="Jint" Version="4.1.0"/>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\IllogicApps.Core\IllogicApps.Core.fsproj" />
-      <ProjectReference Include="..\IllogicApps.Json\IllogicApps.Json.fsproj" />
-      <ProjectReference Include="..\IllogicApps.Simulator\IllogicApps.Simulator.fsproj" />
+        <ProjectReference Include="..\IllogicApps.Core\IllogicApps.Core.fsproj"/>
+        <ProjectReference Include="..\IllogicApps.Json\IllogicApps.Json.fsproj"/>
+        <ProjectReference Include="..\IllogicApps.Simulator\IllogicApps.Simulator.fsproj"/>
     </ItemGroup>
 
 </Project>

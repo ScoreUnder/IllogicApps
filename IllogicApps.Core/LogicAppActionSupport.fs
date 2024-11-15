@@ -1,6 +1,5 @@
 module IllogicApps.Core.LogicAppActionSupport
 
-open System.Collections.Immutable
 open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.LogicAppSpec

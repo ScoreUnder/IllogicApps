@@ -11,13 +11,13 @@
         <Compile Include="BuiltinCondition.fs"/>
         <Compile Include="BuiltinFunctions.fs"/>
         <Compile Include="LanguageEvaluator.fs"/>
-        <Compile Include="ExternalServices.fs" />
-        <Compile Include="Parameters.fs" />
+        <Compile Include="ExternalServices.fs"/>
+        <Compile Include="Parameters.fs"/>
         <Compile Include="Simulator.fs"/>
-        <Compile Include="WorkflowFamily.fs" />
+        <Compile Include="WorkflowFamily.fs"/>
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\IllogicApps.Core\IllogicApps.Core.fsproj"/>
-        <ProjectReference Include="..\IllogicApps.Json\IllogicApps.Json.fsproj" />
+        <ProjectReference Include="..\IllogicApps.Json\IllogicApps.Json.fsproj"/>
     </ItemGroup>
 </Project>

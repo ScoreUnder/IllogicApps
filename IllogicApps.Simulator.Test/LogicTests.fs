@@ -45,8 +45,10 @@ let ``Test cases for short-circuiting "if"`` =
       "@if(false,throwMeAnError(),2)", Ok 2
       "@if(true,throwMeAnError(),2)", Error "The template function 'throwMeAnError' is not defined or not valid"
       "@if(false,1,throwMeAnError())", Error "The template function 'throwMeAnError' is not defined or not valid"
-      "@if(if(true,false,true),if(true,throwMeAnError(),throwAnotherError()),if(true,secretThirdError(),4))", Error "The template function 'secretThirdError' is not defined or not valid"
-      "@if(if(false,false,true),if(false,throwMeAnError(),throwAnotherError()),if(false,secretThirdError(),4))", Error "The template function 'throwAnotherError' is not defined or not valid" ]
+      "@if(if(true,false,true),if(true,throwMeAnError(),throwAnotherError()),if(true,secretThirdError(),4))",
+      Error "The template function 'secretThirdError' is not defined or not valid"
+      "@if(if(false,false,true),if(false,throwMeAnError(),throwAnotherError()),if(false,secretThirdError(),4))",
+      Error "The template function 'throwAnotherError' is not defined or not valid" ]
     |> List.map TestCaseData
 
 [<TestCaseSource(nameof ``Test cases for short-circuiting "if"``)>]

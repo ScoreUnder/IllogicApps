@@ -7,17 +7,17 @@
         <TailCalls>true</TailCalls>
     </PropertyGroup>
     <ItemGroup>
-        <Compile Include="AssemblyInfo.fs" />
+        <Compile Include="AssemblyInfo.fs"/>
         <Compile Include="TestSimUtil.fs"/>
         <Compile Include="XmlConversionTests.fs"/>
         <Compile Include="BasicLanguageTests.fs"/>
         <Compile Include="NumericLimitsTests.fs"/>
         <Compile Include="NumericConversionTests.fs"/>
         <Compile Include="BinaryConversionTests.fs"/>
-        <Compile Include="LogicTests.fs" />
-        <Compile Include="StringFunctionsTests.fs" />
-        <Compile Include="CollectionFunctionsTests.fs" />
-        <Compile Include="ManipulationFunctionsTests.fs" />
+        <Compile Include="LogicTests.fs"/>
+        <Compile Include="StringFunctionsTests.fs"/>
+        <Compile Include="CollectionFunctionsTests.fs"/>
+        <Compile Include="ManipulationFunctionsTests.fs"/>
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="coverlet.collector" Version="6.0.2">

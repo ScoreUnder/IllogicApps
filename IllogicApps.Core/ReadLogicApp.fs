@@ -7,10 +7,10 @@ open IllogicApps.Json
 let actionMap =
     Map.ofList<string, (JsonTree -> BaseAction) -> JsonTree -> BaseAction>
         [ "Request", (fun _ v -> Request v)
-          "Scope", (fun a v -> Scope(a,v))
-          "If", (fun a v -> If(a,v))
-          "Switch", (fun a v -> Switch(a,v))
-          "Until", (fun a v -> Until(a,v))
+          "Scope", (fun a v -> Scope(a, v))
+          "If", (fun a v -> If(a, v))
+          "Switch", (fun a v -> Switch(a, v))
+          "Until", (fun a v -> Until(a, v))
           "Terminate", (fun _ v -> Terminate v)
           "InitializeVariable", (fun _ v -> InitializeVariable v)
           "SetVariable", (fun _ v -> SetVariable v)

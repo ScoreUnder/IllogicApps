@@ -16,6 +16,6 @@
         <Compile Include="ReadLogicApp.fs"/>
     </ItemGroup>
     <ItemGroup>
-      <ProjectReference Include="..\IllogicApps.Json\IllogicApps.Json.fsproj" />
+        <ProjectReference Include="..\IllogicApps.Json\IllogicApps.Json.fsproj"/>
     </ItemGroup>
 </Project>

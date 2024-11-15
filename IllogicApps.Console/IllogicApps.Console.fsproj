@@ -12,7 +12,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\IllogicApps.Core\IllogicApps.Core.fsproj"/>
-        <ProjectReference Include="..\IllogicApps.JavaScript.Jint\IllogicApps.JavaScript.Jint.fsproj" />
+        <ProjectReference Include="..\IllogicApps.JavaScript.Jint\IllogicApps.JavaScript.Jint.fsproj"/>
         <ProjectReference Include="..\IllogicApps.Simulator\IllogicApps.Simulator.fsproj"/>
     </ItemGroup>
 </Project>

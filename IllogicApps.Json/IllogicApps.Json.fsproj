@@ -6,11 +6,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="MutableOrderedMap.fs" />
-        <Compile Include="OrderedMap.fs" />
+        <Compile Include="MutableOrderedMap.fs"/>
+        <Compile Include="OrderedMap.fs"/>
         <Compile Include="CoreTypes.fs"/>
         <Compile Include="Conversions.fs"/>
-        <Compile Include="JsonOrderedMapHelper.fs" />
+        <Compile Include="JsonOrderedMapHelper.fs"/>
         <Compile Include="Parser.fs"/>
     </ItemGroup>
 </Project>

@@ -79,9 +79,7 @@ let makeNewTrackingId () = Guid.NewGuid().ToString()
 let stringOfDateTime (dt: DateTime) =
     dt.ToString("o", CultureInfo.InvariantCulture)
 
-type ActionError =
-    { code: ActionCode
-      message: string }
+type ActionError = { code: ActionCode; message: string }
 
 let jsonOfActionError (error: ActionError) =
     OrderedMap

@@ -157,16 +157,16 @@ let lex rawStr =
         let nextInterpolation = remaining.IndexOf("@{")
 
         if nextInterpolation = -1 then
-            List.rev ([(start, String remaining)] :: acc)
+            List.rev ([ (start, String remaining) ] :: acc)
         elif nextInterpolation <> 0 && remaining.[nextInterpolation - 1] = '@' then
             let str = remaining.[.. nextInterpolation - 1]
-            let acc = [(start, String str)] :: acc
+            let acc = [ (start, String str) ] :: acc
             let start = start + nextInterpolation + 1
             let remaining = remaining.[nextInterpolation + 1 ..]
             lexStringified start acc remaining
         else
             let str = remaining.[.. nextInterpolation - 1]
-            let acc = [(start, String str)] :: acc
+            let acc = [ (start, String str) ] :: acc
             let start = start + nextInterpolation + 2
             let remaining = remaining.[nextInterpolation + 2 ..]
 
@@ -177,4 +177,4 @@ let lex rawStr =
         lexStringified 0 [] rawStr
     else
         let _, lexed, _ = lex' 1 [] rawStr.[1..]
-        [lexed]
+        [ lexed ]

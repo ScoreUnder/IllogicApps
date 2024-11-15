@@ -52,6 +52,6 @@ let ``stringOfJson should serialise large integral floats as floats`` () =
 
 [<Test>]
 let ``stringOfJson should serialise just-too-large integral floats as floats`` () =
-    let json = Float (float System.Int64.MaxValue)
+    let json = Float(float System.Int64.MaxValue)
     let expected = "9.223372036854776E+18"
     test <@ expected = stringOfJson json @>

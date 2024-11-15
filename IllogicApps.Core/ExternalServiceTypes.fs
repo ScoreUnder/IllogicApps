@@ -1,6 +1,5 @@
 module IllogicApps.Core.ExternalServiceTypes
 
-open System.Collections.Generic
 open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Json
 

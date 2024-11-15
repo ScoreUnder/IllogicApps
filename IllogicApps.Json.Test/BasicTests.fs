@@ -1,7 +1,5 @@
 module IllogicApps.Json.Test.BasicTests
 
-open BenchmarkDotNet.Attributes
-open BenchmarkDotNet.Running
 open NUnit.Framework
 open Swensen.Unquote
 open IllogicApps.Json
