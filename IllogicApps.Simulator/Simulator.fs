@@ -119,21 +119,8 @@ module private SimulatorHelper =
     let evaluateLanguageSandboxedForParameter =
         LanguageEvaluator.evaluateSandboxed (Map.ofList [ "appsetting", BuiltinFunctions.f_appsetting ]) Map.empty
 
-    let assertParameterType (param: Parameter) value =
-        if value = Null then
-            failwith "Parameter is null"
-
-        let actual = LogicAppActionSupport.getVarType value
-        let expected = param.type_
-
-        if actual <> expected then
-            failwithf "Parameter's value has type %A, expected %A" actual expected
-
-        value
-
     let evaluateParameter sim v =
         jsonMapStrs (LanguageEvaluator.altEvaluateIfNecessary evaluateLanguageSandboxedForParameter sim) v.value
-        |> assertParameterType v
 
     let getActionType action =
         match box action with

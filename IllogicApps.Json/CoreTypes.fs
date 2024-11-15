@@ -30,6 +30,11 @@ module JsonTree =
         | Object o -> OrderedMap.tryFind key o
         | _ -> None
 
+    let inline tryGetKeyCaseInsensitive (key: string) (json: JsonTree) =
+        match json with
+        | Object o -> OrderedMap.tryFindCaseInsensitive key o
+        | _ -> None
+
     let inline tryGetIndex (index: int) (json: JsonTree) =
         match json with
         | Array a ->
@@ -44,6 +49,11 @@ module JsonTree =
         | Object o -> o.[key]
         | _ -> failwithf "Expected object, got %A" json
 
+    let inline getKeyCaseInsensitive (key: string) (json: JsonTree) =
+        match json with
+        | Object o -> OrderedMap.findCaseInsensitive key o
+        | _ -> Null
+
     let inline getIndex (index: int) (json: JsonTree) =
         match json with
         | Array a -> a.[index]
@@ -53,6 +63,14 @@ module JsonTree =
         match json with
         | Object o ->
             match OrderedMap.tryFind key o with
+            | Some v -> v
+            | None -> Null
+        | _ -> Null
+
+    let inline getKeyCaseInsensitiveOrNull (key: string) (json: JsonTree) =
+        match json with
+        | Object o ->
+            match OrderedMap.tryFindCaseInsensitive key o with
             | Some v -> v
             | None -> Null
         | _ -> Null

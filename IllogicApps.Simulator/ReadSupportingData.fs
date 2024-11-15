@@ -15,7 +15,7 @@ let readAppSettings path =
 let parametersOfJson json =
     json
     |> Conversions.ensureObject
-    |> OrderedMap.map (fun k v -> k, parameterOfJson v)
+    |> OrderedMap.mapValuesOnly (fun v -> assertParameterType (parameterOfJson v))
 
 let readParameters path =
     path |> System.IO.File.ReadAllText |> Parser.parse |> parametersOfJson
