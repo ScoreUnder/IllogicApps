@@ -281,11 +281,11 @@ module OrderedMap =
     let forall (f: 'K -> 'V -> bool) (m: OrderedMap<'K, 'V>) =
         Seq.forall (fun (KeyValue(k, v)) -> f k v) m
 
-    let map (f: 'K -> 'V -> 'K * 'V) (m: OrderedMap<'K, 'V>) =
+    let map (f: 'K -> 'V -> 'K * 'W) (m: OrderedMap<'K, 'V>) =
         Seq.map (fun (KeyValue(k, v)) -> let k', v' = f k v in KeyValuePair(k', v')) m
         |> OrderedMap.CreateRange
 
-    let forgivingMap (f: 'K -> 'V -> ('K * 'V) option) (m: OrderedMap<'K, 'V>) =
+    let forgivingMap (f: 'K -> 'V -> ('K * 'W) option) (m: OrderedMap<'K, 'V>) =
         foldBack
             (fun k v (lst, set) ->
                 match f k v with
@@ -306,12 +306,12 @@ module OrderedMap =
         array |> Seq.iter (fun key -> map.Add(key, f m.[key]))
         OrderedMap.CreateUnsafe<'K, 'W>(map.ToImmutable(), array)
 
-    let collect (f: 'K -> 'V -> ('K * 'V) seq) (m: OrderedMap<'K, 'V>) =
+    let collect (f: 'K -> 'V -> ('K2 * 'V2) seq) (m: OrderedMap<'K, 'V>) =
         m
         |> Seq.collect (fun (KeyValue(k, v)) -> f k v |> Seq.map (fun (k', v') -> KeyValuePair(k', v')))
         |> OrderedMap.CreateRange
 
-    let forgivingCollect (f: 'K -> 'V -> ('K * 'V) seq) (m: OrderedMap<'K, 'V>) =
+    let forgivingCollect (f: 'K -> 'V -> ('K2 * 'V2) seq) (m: OrderedMap<'K, 'V>) =
         m
         |> Seq.collect (fun (KeyValue(k, v)) -> f k v |> Seq.map (fun (k', v') -> KeyValuePair(k', v')))
         |> (fun state ->
