@@ -1,5 +1,6 @@
 module IllogicApps.Simulator.LanguageEvaluator
 
+open IllogicApps.Core
 open IllogicApps.Json
 
 module ErrorMessages =
@@ -39,34 +40,46 @@ let accessMember (parent: JsonTree) (mem: JsonTree) =
     | Null, _ -> ForgivableError "Cannot access property of null"
     | kind, _ -> SeriousError(sprintf "Cannot access property of %A" kind)
 
-let rec evaluate simContext (ast: LanguageParser.Ast) =
-    match ast with
-    | LanguageParser.Literal(lit) -> lit
-    | LanguageParser.Call(name, args) ->
-        match BuiltinFunctions.functions.TryGetValue(name) with
-        | true, func -> args |> List.map (evaluate simContext) |> func simContext
-        | _ ->
-            match BuiltinFunctions.lazyFunctions.TryGetValue(name) with
-            | true, func -> args |> List.map (fun ast -> lazy evaluate simContext ast) |> func simContext
-            | _ -> failwith <| ErrorMessages.badFunctionCall name
-    | LanguageParser.Member(parent, mem) ->
-        accessMember (evaluate simContext parent) (evaluate simContext mem)
-        |> MemberAccessResult.get
-    | LanguageParser.ForgivingMember(parent, mem) ->
-        accessMember (evaluate simContext parent) (evaluate simContext mem)
-        |> MemberAccessResult.defaultWith (fun _ -> Null)
-    | LanguageParser.BuiltinConcat(args) ->
-        args
-        |> List.toSeq
-        |> Seq.map (evaluate simContext)
-        |> Seq.map BuiltinFunctions.objectToString
-        |> String.concat ""
-        |> String
+type FuncsMap = Map<string, BuiltinFunctions.LanguageFunction>
+type LazyFuncsMap = Map<string, BuiltinFunctions.LazyArgsLanguageFunction>
 
-let evaluateIfNecessary simContext (rawStr: string) : JsonTree =
+let evaluateSandboxed (functions: FuncsMap) (lazyFunctions: LazyFuncsMap) simContext (ast: LanguageParser.Ast) =
+    let rec evaluate' simContext (ast: LanguageParser.Ast) =
+        match ast with
+        | LanguageParser.Literal(lit) -> lit
+        | LanguageParser.Call(name, args) ->
+            match functions.TryGetValue(name) with
+            | true, func -> args |> List.map (evaluate' simContext) |> func simContext
+            | _ ->
+                match lazyFunctions.TryGetValue(name) with
+                | true, func -> args |> List.map (fun ast -> lazy evaluate' simContext ast) |> func simContext
+                | _ -> failwith <| ErrorMessages.badFunctionCall name
+        | LanguageParser.Member(parent, mem) ->
+            accessMember (evaluate' simContext parent) (evaluate' simContext mem)
+            |> MemberAccessResult.get
+        | LanguageParser.ForgivingMember(parent, mem) ->
+            accessMember (evaluate' simContext parent) (evaluate' simContext mem)
+            |> MemberAccessResult.defaultWith (fun _ -> Null)
+        | LanguageParser.BuiltinConcat(args) ->
+            args
+            |> List.toSeq
+            |> Seq.map (evaluate' simContext)
+            |> Seq.map BuiltinFunctions.objectToString
+            |> String.concat ""
+            |> String
+
+    evaluate' simContext ast
+
+let inline evaluate simContext (ast: LanguageParser.Ast) =
+    evaluateSandboxed BuiltinFunctions.functions BuiltinFunctions.lazyFunctions simContext ast
+
+let altEvaluateIfNecessary altEvaluate (simContext: SimulatorContext) (rawStr: string) : JsonTree =
     if LanguageLexer.isLiteralStringWithAtSign rawStr then
         String(rawStr.[1..])
     else if LanguageLexer.requiresInterpolation rawStr then
-        rawStr |> LanguageLexer.lex |> LanguageParser.parse |> evaluate simContext
+        rawStr |> LanguageLexer.lex |> LanguageParser.parse |> altEvaluate simContext
     else
         String(rawStr)
+
+let inline evaluateIfNecessary simContext rawStr =
+    altEvaluateIfNecessary evaluate simContext rawStr
