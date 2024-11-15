@@ -179,7 +179,7 @@ let parse (str: string) =
                     | ',' as c ->
                         match stack with
                         | ConstructingObjectValue(k, o) :: stack' ->
-                            parse' (index + 1) ValueStart (ConstructingObject(o.Add(k, v)) :: stack')
+                            parse' (index + 1) ValueStart (ConstructingObject(o.SetAtEnd(k, v)) :: stack')
                         | ConstructingArray a :: stack' ->
                             parse' (index + 1) ValueStart (ConstructingArray(v :: a) :: stack')
                         | _ -> fail c index state stack
@@ -199,7 +199,7 @@ let parse (str: string) =
                     | '}' as c ->
                         match stack with
                         | ConstructingObjectValue(k, o) :: stack' ->
-                            parse' (index + 1) (ValueEnd(JsonTree.Object(o.Add(k, v).Build()))) stack'
+                            parse' (index + 1) (ValueEnd(JsonTree.Object(o.SetAtEnd(k, v).Build()))) stack'
                         | _ -> fail c index state stack
                     | c -> fail c index state stack
             | StringLiteral sb ->

@@ -166,6 +166,26 @@ module OrderedMap =
             backingArray.AddRange(map.Keys)
             this
 
+        member this.Set(key: 'K, value: 'V) =
+            let oldSize = backingMap.Count
+            backingMap.[key] <- value
+
+            if backingMap.Count <> oldSize then
+                backingArray.Add key
+
+            this
+
+        member this.SetAtEnd(key: 'K, value: 'V) =
+            let oldSize = backingMap.Count
+            backingMap.[key] <- value
+
+            if backingMap.Count = oldSize then
+                backingArray.Remove key |> ignore
+
+            backingArray.Add key
+
+            this
+
         member this.Build() =
             OrderedMap.CreateUnsafe<'K, 'V>(backingMap.ToImmutable(), backingArray.DrainToImmutable())
 
