@@ -91,28 +91,19 @@ module private SimulatorHelper =
 
     let mergeStatus overall next =
         match (overall, next) with
-        | (first, Skipped) -> first
-        | (Failed, _) -> Failed
-        | (_, Failed) -> Failed
-        | (TimedOut, _) -> TimedOut
-        | (_, TimedOut) -> TimedOut
-        | (Succeeded, Succeeded) -> Succeeded
+        | first, Skipped -> first
+        | Failed, _ -> Failed
+        | _, Failed -> Failed
+        | TimedOut, _ -> TimedOut
+        | _, TimedOut -> TimedOut
+        | Succeeded, Succeeded -> Succeeded
         | c -> failwithf "Unexpected status combination %A" c
 
     let unpackObject (node: JsonTree) =
-        match node with
-        | Object o -> o |> OrderedMap.toSeq
-        | _ -> failwithf "Expected object, got %O" (JsonTree.getType node)
-
-    let unpackArray (node: JsonTree) =
-        match node with
-        | Array a -> a
-        | _ -> failwithf "Expected array, got %O" (JsonTree.getType node)
+        node |> Conversions.ensureObject |> OrderedMap.toSeq
 
     let arrayOfObjects (node: JsonTree) =
-        match node with
-        | Array a -> a |> Seq.map unpackObject
-        | _ -> failwithf "Expected array of objects, got %O" node
+        node |> Conversions.ensureArray |> Seq.map unpackObject
 
     let rec jsonMapStrs (f: string -> JsonTree) (node: JsonTree) =
         match node with
@@ -387,7 +378,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
             | "and" -> value |> arrayOfObjects |> Seq.forall eval
             | "or" -> value |> arrayOfObjects |> Seq.exists eval
             | "not" -> value |> unpackObject |> eval |> not
-            | LanguageCondition fn -> value |> unpackArray |> List.ofSeq |> fn
+            | LanguageCondition fn -> value |> Conversions.ensureArray |> List.ofSeq |> fn
             | _ -> failwithf "Unexpected expression %A" expr
 
         expr |> unpackObject |> eval
