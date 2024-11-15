@@ -26,17 +26,9 @@ type MemberAccessResult =
 let accessMember (parent: JsonTree) (mem: JsonTree) =
     match parent, mem with
     | Object parent, String propName ->
-        match OrderedMap.tryFind propName parent with
+        match OrderedMap.tryFindCaseInsensitive propName parent with
         | Some value -> AccessOk value
-        | _ ->
-            // Case-insensitive slow path
-            parent
-            |> OrderedMap.tryPick (fun k v ->
-                if k.Equals(propName, System.StringComparison.InvariantCultureIgnoreCase) then
-                    Some(AccessOk v)
-                else
-                    None)
-            |> Option.defaultWith (fun _ -> ForgivableError(sprintf "Property %s not found" propName))
+        | _ -> ForgivableError(sprintf "Property %s not found" propName)
     | Object _, other -> SeriousError(sprintf "Cannot access property of object using %A" (JsonTree.getType other))
     | Array arr, Integer index ->
         if index >= 0 && index < arr.Length then

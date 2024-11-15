@@ -294,12 +294,10 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     member private this.RecordActionResult name result = this.ActionResults.[name] <- result
 
     override this.GetAppConfig name =
-        // TODO this is supposed to be case-insensitive
-        OrderedMap.tryFind name creationOptions.appConfig
+        OrderedMap.tryFindCaseInsensitive name creationOptions.appConfig
 
     override this.GetParameter name =
-        // TODO this is supposed to be case-insensitive
-        OrderedMap.tryFind name evaluatedParameters |> Option.map _.Value
+        OrderedMap.tryFindCaseInsensitive name evaluatedParameters |> Option.map _.Value
 
     override this.ExecuteGraph(actions: OrderedMap<string, 'a> when 'a :> IGraphExecutable) =
         let dependencyGraph = createDependencyGraph actions

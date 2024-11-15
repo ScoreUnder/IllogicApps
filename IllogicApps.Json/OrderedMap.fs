@@ -259,10 +259,18 @@ module OrderedMap =
         | true, v -> Some v
         | _ -> None
 
+    let tryFindCaseInsensitive (key: string) (m: OrderedMap<string, 'V>) =
+        let key = caseInsensitiveKey key m
+        tryFind key m
+
     let tryPick (f: 'K -> 'V -> 'State option) (m: OrderedMap<'K, 'V>) : 'State option =
         Seq.tryPick (fun (KeyValue(k, v)) -> f k v) m
 
     let find (key: 'K) (m: OrderedMap<'K, 'V>) = m.[key]
+
+    let findCaseInsensitive (key: string) (m: OrderedMap<string, 'V>) =
+        let key = caseInsensitiveKey key m
+        find key m
 
     let pick (f: 'K -> 'V -> 'State option) (m: OrderedMap<'K, 'V>) : 'State =
         Seq.pick (fun (KeyValue(k, v)) -> f k v) m
