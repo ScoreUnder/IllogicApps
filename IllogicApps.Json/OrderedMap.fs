@@ -201,6 +201,17 @@ module OrderedMap =
     let inline ofArray array = ofSeq array
     let inline ofMap (map: Map<'K, 'V>) = OrderedMap.CreateRange(map)
 
+    let caseInsensitiveKey (key: string) (m: OrderedMap<string, _>) =
+        if m.ContainsKey key then
+            key
+        else
+            m.Keys
+            |> Seq.tryPick (fun k' ->
+                if key.Equals(k', StringComparison.InvariantCultureIgnoreCase) then
+                    Some k'
+                else
+                    None)
+            |> Option.defaultValue key
 
     let fold (f: 'State -> 'K -> 'V -> 'State) (state: 'State) (m: OrderedMap<'K, 'V>) : 'State =
         Seq.fold (fun acc (KeyValue(k, v)) -> f acc k v) state m
@@ -224,6 +235,10 @@ module OrderedMap =
         let keys = if m.ContainsKey key then m.Keys.Remove(key) else m.Keys
         let keys = keys.Add(key)
         OrderedMap.CreateUnsafe<'K, 'V>(map, keys)
+
+    let setAtEndCaseInsensitive (key: string) (value: 'V) (m: OrderedMap<string, 'V>) =
+        let key = m |> caseInsensitiveKey key
+        m |> setAtEnd key value
 
     let tryAdd (key: 'K) (value: 'V) (m: OrderedMap<'K, 'V>) =
         if m.ContainsKey key then m else unsafeAdd key value m

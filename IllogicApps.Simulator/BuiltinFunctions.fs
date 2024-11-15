@@ -912,7 +912,7 @@ let f_coalesce _ (args: LazyArgs) : JsonTree =
 
 let f_setProperty _ (args: Args) : JsonTree =
     match args with
-    | [ Object o; String k; v ] -> o |> OrderedMap.setAtEnd k v |> Object
+    | [ Object o; String k; v ] -> o |> OrderedMap.setAtEndCaseInsensitive k v |> Object
     | [ Object _; _; _ ] -> failwith "The second argument must be of type string"
     | [ _; _; _ ] -> failwith "The first argument must be of type object"
     | _ -> failwith "This function expects three parameters"
