@@ -11,6 +11,7 @@ open IllogicApps.Json
 open IllogicApps.Simulator.BuiltinCondition
 open CompletedStepTypes
 open IllogicApps.Simulator.ExternalServices
+open IllogicApps.Simulator.Parameters
 
 module private SimulatorHelper =
     let private emptyDependencyList = OrderedMap.ofList [ ("", []) ]
@@ -183,7 +184,9 @@ type SimulatorCreationOptions =
     { workflowName: string
       triggerResult: CompletedTrigger
       externalServiceHandlers: ExternalServiceHandler list
-      isBugForBugAccurate: bool }
+      isBugForBugAccurate: bool
+      appConfig: OrderedMap<string, string>
+      parameters: OrderedMap<string, Parameter> }
 
     static member createSimple (logicApp: LogicAppSpec.Root) triggerOutputs =
         { workflowName = "unnamed_workflow"
@@ -194,7 +197,9 @@ type SimulatorCreationOptions =
                       (stringOfDateTime DateTime.UtcNow) with
                     outputs = triggerOutputs }
           externalServiceHandlers = [ loggingHandler; noOpHandler ]
-          isBugForBugAccurate = true }
+          isBugForBugAccurate = true
+          appConfig = OrderedMap.empty
+          parameters = OrderedMap.empty }
 
 type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     inherit SimulatorContext()
@@ -227,6 +232,10 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
         this.RecordActionResult name result
         result
+
+    let evaluatedParameters =
+        creationOptions.parameters
+        |> OrderedMap.mapValuesOnly (fun v -> lazy evaluateParameter this v)
 
     member val private LoopContextStack = Stack<LoopContextImpl>() with get
     member val private ArrayOperationContextStack = Stack<LoopContextImpl>() with get
@@ -269,6 +278,14 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
             | _ -> None
 
     member private this.RecordActionResult name result = this.ActionResults.[name] <- result
+
+    override this.GetAppConfig name =
+        // TODO are these case sensitive?
+        OrderedMap.tryFind name creationOptions.appConfig
+
+    override this.GetParameter name =
+        // TODO are these case sensitive?
+        OrderedMap.tryFind name evaluatedParameters |> Option.map _.Value
 
     override this.ExecuteGraph(actions: OrderedMap<string, 'a> when 'a :> IGraphExecutable) =
         let dependencyGraph = createDependencyGraph actions

@@ -847,6 +847,14 @@ let f_actions (sim: SimulatorContext) (args: Args) : JsonTree =
     | Some result -> result |> CompletedStepTypes.jsonOfCompletedAction
     | None -> failwithf "Action %s not found" actionName
 
+let f_appsetting (sim: SimulatorContext) (args: Args) : JsonTree =
+    args
+    |> expectSingleArg
+    |> Conversions.ensureString
+    |> sim.GetAppConfig
+    |> Option.map String
+    |> Option.defaultValue Null
+
 let f_body (sim: SimulatorContext) (args: Args) : JsonTree =
     f_actions sim args
     |> JsonTree.tryGetKey "outputs"
@@ -855,6 +863,13 @@ let f_body (sim: SimulatorContext) (args: Args) : JsonTree =
 
 let f_outputs (sim: SimulatorContext) (args: Args) : JsonTree =
     f_actions sim args |> JsonTree.tryGetKey "outputs" |> Conversions.jsonOfOption
+
+let f_parameters (sim: SimulatorContext) (args: Args) : JsonTree =
+    args
+    |> expectSingleArg
+    |> Conversions.ensureString
+    |> sim.GetParameter
+    |> Option.get
 
 let f_trigger (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 0 args
@@ -968,8 +983,10 @@ let functions: Map<string, LanguageFunction> =
       "ticks", f_ticks
       "utcNow", f_utcNow
       "actions", f_actions
+      "appsetting", f_appsetting
       "body", f_body
       "outputs", f_outputs
+      "parameters", f_parameters
       "trigger", f_trigger
       "triggerBody", f_triggerBody
       "triggerOutputs", f_triggerOutputs

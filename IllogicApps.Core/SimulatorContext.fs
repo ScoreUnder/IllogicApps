@@ -41,6 +41,12 @@ and [<AbstractClass>] SimulatorContext() =
     /// All variables active in the current workflow.
     member val Variables = Dictionary<string, JsonTree>() with get
 
+    /// Get a value from App Config
+    abstract member GetAppConfig: string -> string option
+
+    /// Get a value from parameters
+    abstract member GetParameter: string -> JsonTree option
+
     /// Indicates if the simulator is bug-for-bug accurate.
     /// e.g. if large integers should lose precision when parsed with int('...')
     abstract member IsBugForBugAccurate: bool
