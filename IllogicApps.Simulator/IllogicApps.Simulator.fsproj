@@ -13,6 +13,7 @@
         <Compile Include="LanguageEvaluator.fs"/>
         <Compile Include="ExternalServices.fs"/>
         <Compile Include="Parameters.fs"/>
+        <Compile Include="ReadSupportingData.fs"/>
         <Compile Include="Simulator.fs"/>
         <Compile Include="WorkflowFamily.fs"/>
     </ItemGroup>

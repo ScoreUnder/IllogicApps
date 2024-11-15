@@ -247,17 +247,19 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     member val private LoopContextStack = Stack<LoopContextImpl>() with get
     member val private ArrayOperationContextStack = Stack<LoopContextImpl>() with get
 
+    static member CreateUntriggered(creationOptions: SimulatorCreationOptions) = Simulator(creationOptions)
+
+    member this.CompleteWith result =
+        if this.TerminationStatus.IsNone then
+            this.StopExecuting result
+
+        Debug.Assert(this.LoopContextStack.Count = 0)
+        Debug.Assert(this.ArrayOperationContextStack.Count = 0)
+
     static member Trigger (actions: OrderedMap<string, #IGraphExecutable>) (creationOptions: SimulatorCreationOptions) =
-        let sim = Simulator(creationOptions)
-
+        let sim = Simulator.CreateUntriggered(creationOptions)
         let result = sim.ExecuteGraph actions
-
-        if sim.TerminationStatus.IsNone then
-            sim.StopExecuting result
-
-        Debug.Assert(sim.LoopContextStack.Count = 0)
-        Debug.Assert(sim.ArrayOperationContextStack.Count = 0)
-
+        sim.CompleteWith result
         sim
 
     static member TriggerSimple (logicApp: LogicAppSpec.Root) triggerOutputs =
