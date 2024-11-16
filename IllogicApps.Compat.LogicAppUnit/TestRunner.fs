@@ -124,6 +124,14 @@ type TestRunner
                 let pretty = v |> jsonOfCompletedAction |> Conversions.prettyStringOfJson
                 Console.WriteLine($"Action {k} = {pretty}"))
 
+            match sim.TerminationStatus with
+            | Ok Skipped -> Console.WriteLine("Workflow was not run. (???)")
+            | Ok status -> Console.WriteLine($"Workflow completed with status: {stringOfStatus status}")
+            | Error(status, e) ->
+                Console.WriteLine(
+                    $"Workflow terminated with status: {stringOfStatus status} and termination error: {e}"
+                )
+
             Console.WriteLine())
 
         Console.WriteLine("End variables and outputs.")
@@ -204,7 +212,7 @@ type TestRunner
 
     // Let's be nice to those who inherit from us
     abstract Dispose: disposing: bool -> unit
-    override this.Dispose(disposing: bool) = ()
+    override this.Dispose(_: bool) = ()
 
     override this.Finalize() = this.Dispose(false)
 
@@ -292,7 +300,16 @@ type TestRunner
             |> ResultEx.recover id fst
             |> workflowRunStatusOfIllogic
 
-        member this.WorkflowTerminationCode = failwith "todo"
+        member this.WorkflowTerminationCode =
+            mySim().TerminationStatus
+            |> ResultEx.recover (fun _ -> None) Some
+            |> Option.bind snd
+            |> Option.bind _.code
+            |> Option.bind (fun s ->
+                match Int32.TryParse s with
+                | true, i -> Some i
+                | _ -> None)
+            |> Option.toNullable
 
         member this.WorkflowTerminationMessage =
             mySim().TerminationStatus
