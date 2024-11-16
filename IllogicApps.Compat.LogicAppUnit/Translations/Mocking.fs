@@ -155,6 +155,16 @@ type MockRequestMatcher private () =
 
     static member Create() = MockRequestMatcher()
 
+    member this.UsingAnyMethod() =
+        _requestMethods.Clear()
+        this
+
+    member this.UsingGet() = this.UsingMethod(HttpMethod.Get)
+    member this.UsingPost() = this.UsingMethod(HttpMethod.Post)
+    member this.UsingPut() = this.UsingMethod(HttpMethod.Put)
+    member this.UsingPatch() = this.UsingMethod(HttpMethod.Patch)
+    member this.UsingDelete() = this.UsingMethod(HttpMethod.Delete)
+
     member this.UsingMethod([<ParamArray>] methods: HttpMethod array) =
         checkNotEmpty methods (nameof methods)
 
@@ -165,91 +175,102 @@ type MockRequestMatcher private () =
 
         this
 
+    member this.FromAction([<ParamArray>] actionNames) =
+        checkNotEmpty actionNames (nameof actionNames)
+
+        actionNames
+        |> Array.iter (fun actionName ->
+            if not (_actionNames.Contains actionName) then
+                _actionNames.Add actionName)
+
+        this
+
+    member this.WithPath(matchType, [<ParamArray>] paths) =
+        checkNotEmpty paths (nameof paths)
+
+        paths
+        |> Array.iter (fun path -> _requestPaths.Add { MatchType = matchType; Path = path })
+
+        this
+
+    member this.WithHeader(name) = this.WithHeader(name, null)
+
     member this.WithHeader(name, value) =
         ArgumentNullException.ThrowIfNullOrEmpty(name, nameof name)
         _requestHeaders.[name] = value |> ignore
         this
+
+    member this.WithContentType([<ParamArray>] contentTypes) =
+        checkNotEmpty contentTypes (nameof contentTypes)
+
+        contentTypes
+        |> Array.iter (fun contentType ->
+            if not (_requestContentTypes.Contains contentType) then
+                _requestContentTypes.Add contentType)
+
+        this
+
+    member this.WithQueryParam(name) = this.WithQueryParam(name, null)
 
     member this.WithQueryParam(name, value) =
         ArgumentNullException.ThrowIfNullOrEmpty(name, nameof name)
         _requestQueryParams.[name] = value |> ignore
         this
 
+    member this.WithMatchCount([<ParamArray>] matchCounts) =
+        checkNotEmpty matchCounts (nameof matchCounts)
+
+        matchCounts
+        |> Array.iter (fun matchCount ->
+            if not (_requestMatchCounts.Contains matchCount) then
+                _requestMatchCounts.Add matchCount)
+
+        this
+
+    member this.WithNotMatchCount([<ParamArray>] matchCounts) =
+        checkNotEmpty matchCounts (nameof matchCounts)
+
+        matchCounts
+        |> Array.iter (fun matchCount ->
+            if not (_requestMatchCountsNot.Contains matchCount) then
+                _requestMatchCountsNot.Add matchCount)
+
+        this
+
+    member this.WithContentAsString(requestContentMatch: Func<string, bool>) =
+        ArgumentNullException.ThrowIfNull(requestContentMatch, nameof requestContentMatch)
+        _requestContentStringMatcherDelegate <- requestContentMatch
+        this
+
+    member this.WithContentAsJson(requestContentMatch: Func<JToken, bool>) =
+        ArgumentNullException.ThrowIfNull(requestContentMatch, nameof requestContentMatch)
+        _requestContentJsonMatcherDelegate <- requestContentMatch
+        this
+
+
     interface IMockRequestMatcher with
-        member this.UsingAnyMethod() =
-            _requestMethods.Clear()
-            this
-
-        member this.UsingGet() = this.UsingMethod(HttpMethod.Get)
-        member this.UsingPost() = this.UsingMethod(HttpMethod.Post)
-        member this.UsingPut() = this.UsingMethod(HttpMethod.Put)
-        member this.UsingPatch() = this.UsingMethod(HttpMethod.Patch)
-        member this.UsingDelete() = this.UsingMethod(HttpMethod.Delete)
+        member this.UsingAnyMethod() = this.UsingAnyMethod()
+        member this.UsingGet() = this.UsingGet()
+        member this.UsingPost() = this.UsingPost()
+        member this.UsingPut() = this.UsingPut()
+        member this.UsingPatch() = this.UsingPatch()
+        member this.UsingDelete() = this.UsingDelete()
         member this.UsingMethod(methods) = this.UsingMethod(methods)
-
-        member this.FromAction(actionNames) =
-            checkNotEmpty actionNames (nameof actionNames)
-
-            actionNames
-            |> Array.iter (fun actionName ->
-                if not (_actionNames.Contains actionName) then
-                    _actionNames.Add actionName)
-
-            this
-
-        member this.WithPath(matchType, paths) =
-            checkNotEmpty paths (nameof paths)
-
-            paths
-            |> Array.iter (fun path -> _requestPaths.Add { MatchType = matchType; Path = path })
-
-            this
-
-        member this.WithHeader(name) = this.WithHeader(name, null)
+        member this.FromAction(actionNames) = this.FromAction(actionNames)
+        member this.WithPath(matchType, paths) = this.WithPath(matchType, paths)
+        member this.WithHeader(name) = this.WithHeader(name)
         member this.WithHeader(name, value) = this.WithHeader(name, value)
-
-        member this.WithContentType(contentTypes) =
-            checkNotEmpty contentTypes (nameof contentTypes)
-
-            contentTypes
-            |> Array.iter (fun contentType ->
-                if not (_requestContentTypes.Contains contentType) then
-                    _requestContentTypes.Add contentType)
-
-            this
-
-        member this.WithQueryParam(name) = this.WithQueryParam(name, null)
+        member this.WithContentType(contentTypes) = this.WithContentType(contentTypes)
+        member this.WithQueryParam(name) = this.WithQueryParam(name)
         member this.WithQueryParam(name, value) = this.WithQueryParam(name, value)
-
-        member this.WithMatchCount(matchCounts) =
-            checkNotEmpty matchCounts (nameof matchCounts)
-
-            matchCounts
-            |> Array.iter (fun matchCount ->
-                if not (_requestMatchCounts.Contains matchCount) then
-                    _requestMatchCounts.Add matchCount)
-
-            this
-
-        member this.WithNotMatchCount(matchCounts) =
-            checkNotEmpty matchCounts (nameof matchCounts)
-
-            matchCounts
-            |> Array.iter (fun matchCount ->
-                if not (_requestMatchCountsNot.Contains matchCount) then
-                    _requestMatchCountsNot.Add matchCount)
-
-            this
+        member this.WithMatchCount(matchCounts) = this.WithMatchCount(matchCounts)
+        member this.WithNotMatchCount(matchCounts) = this.WithNotMatchCount(matchCounts)
 
         member this.WithContentAsString(requestContentMatch) =
-            ArgumentNullException.ThrowIfNull(requestContentMatch, nameof requestContentMatch)
-            _requestContentStringMatcherDelegate <- requestContentMatch
-            this
+            this.WithContentAsString(requestContentMatch)
 
         member this.WithContentAsJson(requestContentMatch) =
-            ArgumentNullException.ThrowIfNull(requestContentMatch, nameof requestContentMatch)
-            _requestContentJsonMatcherDelegate <- requestContentMatch
-            this
+            this.WithContentAsJson(requestContentMatch)
 
     member internal this.MatchRequestAsync
         (request: HttpRequestMessage, requestCache: MockRequestCache)
@@ -698,121 +719,159 @@ and [<AllowNullLiteral>] MockResponseBuilder private () =
 
         _delayDelegate <- delay
         this
-        : IMockResponseBuilder
 
     member this.WithContent(content: Func<HttpContent>) =
         ArgumentNullException.ThrowIfNull(content, nameof content)
 
         _contentDelegate <- content
         this
-        : IMockResponseBuilder
+
+    member this.WithSuccess() = this.WithStatusCode(HttpStatusCode.OK)
+
+    member this.WithAccepted() =
+        this.WithStatusCode(HttpStatusCode.Accepted)
+
+    member this.WithNoContent() =
+        this.WithStatusCode(HttpStatusCode.NoContent)
+
+    member this.WithUnauthorized() =
+        this.WithStatusCode(HttpStatusCode.Unauthorized)
+
+    member this.WithNotFound() =
+        this.WithStatusCode(HttpStatusCode.NotFound)
+
+    member this.WithInternalServerError() =
+        this.WithStatusCode(HttpStatusCode.InternalServerError)
+
+    member this.WithStatusCode(statusCode) = this.WithStatusCode(statusCode)
+
+    member this.WithHeader(name, value) =
+        ArgumentNullException.ThrowIfNullOrEmpty(name, nameof name)
+        ArgumentNullException.ThrowIfNullOrEmpty(value, nameof value)
+
+        _responseHeaders.[name] <- value
+        this
+
+    member this.AfterDelay(secondsDelay) =
+        this.AfterDelay(Func<TimeSpan>(fun () -> TimeSpan.FromSeconds(float secondsDelay)))
+
+    member this.AfterDelay(delay) =
+        this.AfterDelay(Func<TimeSpan>(fun () -> delay))
+
+    member this.AfterDelay(secondsMin, secondsMax) =
+        if secondsMax <= secondsMin then
+            raise (ArgumentException("The 'min' seconds must be less than the 'max' seconds.", nameof secondsMin))
+
+        this.AfterDelay(
+            Func<TimeSpan>(fun () -> TimeSpan.FromSeconds(MockDefinition.Random.Next(secondsMin, secondsMax)))
+        )
+
+    member this.AfterDelay(min: TimeSpan, max) =
+        if max <= min then
+            raise (ArgumentException("The 'min' timespan must be less than the 'max' timespan.", nameof min))
+
+        this.AfterDelay(
+            Func<TimeSpan>(fun () ->
+                TimeSpan.FromMilliseconds(
+                    MockDefinition.Random.Next(int min.TotalMilliseconds, int max.TotalMilliseconds)
+                ))
+        )
+
+    member this.WithContent(content) = this.WithContent(content)
+
+    member this.WithContentAsJson(jsonString: string) =
+        this.WithContent(Func<HttpContent>(fun () -> ContentHelper.CreateJsonStringContent(jsonString)))
+
+    member this.WithContentAsJson(jsonStream: Stream) =
+        this.WithContent(Func<HttpContent>(fun () -> ContentHelper.CreateJsonStreamContent(jsonStream)))
+
+    member this.WithContentAsJson(body: obj) =
+        this.WithContent(Func<HttpContent>(fun () -> ContentHelper.CreateJsonStringContent(body)))
+
+    member this.WithContentAsJson(resourceName, containingAssembly) =
+        this.WithContent(
+            Func<HttpContent>(fun () ->
+                ContentHelper.CreateJsonStreamContent(
+                    ResourceHelper.GetAssemblyResourceAsStream(resourceName, containingAssembly)
+                ))
+        )
+
+    member this.WithContentAsPlainText(value) =
+        this.WithContent(Func<HttpContent>(fun () -> ContentHelper.CreatePlainStringContent(value)))
+
+    member this.WithContentAsPlainText(stream) =
+        this.WithContent(Func<HttpContent>(fun () -> ContentHelper.CreatePlainStreamContent(stream)))
+
+    member this.WithContentAsPlainText(resourceName, containingAssembly) =
+        this.WithContent(
+            Func<HttpContent>(fun () ->
+                ContentHelper.CreatePlainStreamContent(
+                    ResourceHelper.GetAssemblyResourceAsStream(resourceName, containingAssembly)
+                ))
+        )
+
+    member this.WithContent(value, contentType, encoding) =
+        this.WithContent(Func<HttpContent>(fun () -> ContentHelper.CreateStringContent(value, contentType, encoding)))
+
+    member this.WithContent(stream, contentType) =
+        this.WithContent(Func<HttpContent>(fun () -> ContentHelper.CreateStreamContent(stream, contentType)))
+
+    member this.WithContent(resourceName, containingAssembly, contentType) =
+        this.WithContent(
+            Func<HttpContent>(fun () ->
+                ContentHelper.CreateStreamContent(
+                    ResourceHelper.GetAssemblyResourceAsStream(resourceName, containingAssembly),
+                    contentType
+                ))
+        )
+
+    member this.ThrowsException(exceptionToThrow: Exception) =
+        ArgumentNullException.ThrowIfNull(exceptionToThrow, nameof exceptionToThrow)
+        _exceptionToThrow <- exceptionToThrow
+        this
 
     interface IMockResponseBuilder with
-        member this.WithSuccess() = this.WithStatusCode(HttpStatusCode.OK)
-
-        member this.WithAccepted() =
-            this.WithStatusCode(HttpStatusCode.Accepted)
-
-        member this.WithNoContent() =
-            this.WithStatusCode(HttpStatusCode.NoContent)
-
-        member this.WithUnauthorized() =
-            this.WithStatusCode(HttpStatusCode.Unauthorized)
-
-        member this.WithNotFound() =
-            this.WithStatusCode(HttpStatusCode.NotFound)
-
-        member this.WithInternalServerError() =
-            this.WithStatusCode(HttpStatusCode.InternalServerError)
-
+        member this.WithSuccess() = this.WithSuccess()
+        member this.WithAccepted() = this.WithAccepted()
+        member this.WithNoContent() = this.WithNoContent()
+        member this.WithUnauthorized() = this.WithUnauthorized()
+        member this.WithNotFound() = this.WithNotFound()
+        member this.WithInternalServerError() = this.WithInternalServerError()
         member this.WithStatusCode(statusCode) = this.WithStatusCode(statusCode)
+        member this.WithHeader(name, value) = this.WithHeader(name, value)
+        member this.AfterDelay(secondsDelay: int) : IMockResponseBuilder = this.AfterDelay(secondsDelay)
+        member this.AfterDelay(delay: TimeSpan) : IMockResponseBuilder = this.AfterDelay(delay)
 
-        member this.WithHeader(name, value) =
-            ArgumentNullException.ThrowIfNullOrEmpty(name, nameof name)
-            ArgumentNullException.ThrowIfNullOrEmpty(value, nameof value)
+        member this.AfterDelay(secondsMin: int, secondsMax: int) : IMockResponseBuilder =
+            this.AfterDelay(secondsMin, secondsMax)
 
-            _responseHeaders.[name] <- value
-            this
-
-        member this.AfterDelay(secondsDelay) =
-            this.AfterDelay(Func<TimeSpan>(fun () -> TimeSpan.FromSeconds(float secondsDelay)))
-
-        member this.AfterDelay(delay) =
-            this.AfterDelay(Func<TimeSpan>(fun () -> delay))
-
-        member this.AfterDelay(secondsMin, secondsMax) =
-            if secondsMax <= secondsMin then
-                raise (ArgumentException("The 'min' seconds must be less than the 'max' seconds.", nameof secondsMin))
-
-            this.AfterDelay(
-                Func<TimeSpan>(fun () -> TimeSpan.FromSeconds(MockDefinition.Random.Next(secondsMin, secondsMax)))
-            )
-
-        member this.AfterDelay(min: TimeSpan, max) =
-            if max <= min then
-                raise (ArgumentException("The 'min' timespan must be less than the 'max' timespan.", nameof min))
-
-            this.AfterDelay(
-                Func<TimeSpan>(fun () ->
-                    TimeSpan.FromMilliseconds(
-                        MockDefinition.Random.Next(int min.TotalMilliseconds, int max.TotalMilliseconds)
-                    ))
-            )
-
-        member this.WithContent(content) = this.WithContent(content)
-
-        member this.WithContentAsJson(jsonString: string) =
-            this.WithContent(Func<HttpContent>(fun () -> ContentHelper.CreateJsonStringContent(jsonString)))
-
-        member this.WithContentAsJson(jsonStream: Stream) =
-            this.WithContent(Func<HttpContent>(fun () -> ContentHelper.CreateJsonStreamContent(jsonStream)))
-
-        member this.WithContentAsJson(body: obj) =
-            this.WithContent(Func<HttpContent>(fun () -> ContentHelper.CreateJsonStringContent(body)))
+        member this.AfterDelay(min: TimeSpan, max: TimeSpan) : IMockResponseBuilder = this.AfterDelay(min, max)
+        member this.WithContent(content: Func<HttpContent>) : IMockResponseBuilder = this.WithContent(content)
+        member this.WithContentAsJson(jsonString: string) : IMockResponseBuilder = this.WithContentAsJson(jsonString)
+        member this.WithContentAsJson(jsonStream: Stream) : IMockResponseBuilder = this.WithContentAsJson(jsonStream)
+        member this.WithContentAsJson(body: obj) : IMockResponseBuilder = this.WithContentAsJson(body)
 
         member this.WithContentAsJson(resourceName, containingAssembly) =
-            this.WithContent(
-                Func<HttpContent>(fun () ->
-                    ContentHelper.CreateJsonStreamContent(
-                        ResourceHelper.GetAssemblyResourceAsStream(resourceName, containingAssembly)
-                    ))
-            )
+            this.WithContentAsJson(resourceName, containingAssembly)
 
-        member this.WithContentAsPlainText(value) =
-            this.WithContent(Func<HttpContent>(fun () -> ContentHelper.CreatePlainStringContent(value)))
-
-        member this.WithContentAsPlainText(stream) =
-            this.WithContent(Func<HttpContent>(fun () -> ContentHelper.CreatePlainStreamContent(stream)))
+        member this.WithContentAsPlainText(value: string) : IMockResponseBuilder = this.WithContentAsPlainText(value)
+        member this.WithContentAsPlainText(stream: Stream) : IMockResponseBuilder = this.WithContentAsPlainText(stream)
 
         member this.WithContentAsPlainText(resourceName, containingAssembly) =
-            this.WithContent(
-                Func<HttpContent>(fun () ->
-                    ContentHelper.CreatePlainStreamContent(
-                        ResourceHelper.GetAssemblyResourceAsStream(resourceName, containingAssembly)
-                    ))
-            )
+            this.WithContentAsPlainText(resourceName, containingAssembly)
 
-        member this.WithContent(value, contentType, encoding) =
-            this.WithContent(
-                Func<HttpContent>(fun () -> ContentHelper.CreateStringContent(value, contentType, encoding))
-            )
+        member this.WithContent(value: string, contentType: string, encoding: Encoding) : IMockResponseBuilder =
+            this.WithContent(value, contentType, encoding)
 
-        member this.WithContent(stream, contentType) =
-            this.WithContent(Func<HttpContent>(fun () -> ContentHelper.CreateStreamContent(stream, contentType)))
+        member this.WithContent(stream: Stream, contentType: string) : IMockResponseBuilder =
+            this.WithContent(stream, contentType)
 
-        member this.WithContent(resourceName, containingAssembly, contentType) =
-            this.WithContent(
-                Func<HttpContent>(fun () ->
-                    ContentHelper.CreateStreamContent(
-                        ResourceHelper.GetAssemblyResourceAsStream(resourceName, containingAssembly),
-                        contentType
-                    ))
-            )
+        member this.WithContent
+            (resourceName: string, containingAssembly: Assembly, contentType: string)
+            : IMockResponseBuilder =
+            this.WithContent(resourceName, containingAssembly, contentType)
 
-        member this.ThrowsException(exceptionToThrow) =
-            ArgumentNullException.ThrowIfNull(exceptionToThrow, nameof exceptionToThrow)
-            _exceptionToThrow <- exceptionToThrow
-            this
+        member this.ThrowsException(exceptionToThrow) = this.ThrowsException(exceptionToThrow)
 
     member internal this.BuildResponse(request: HttpRequestMessage) =
         if _exceptionToThrow <> null then
@@ -844,13 +903,16 @@ and MockResponse internal (name: string, mockRequestMatcher: IMockRequestMatcher
 
     member internal _.MockName = _mockName
 
-    interface IMockResponse with
-        member this.RespondWith(mockResponseBuilder) =
-            ArgumentNullException.ThrowIfNull(mockResponseBuilder, nameof mockResponseBuilder)
-            _mockResponseBuilder <- mockResponseBuilder :?> MockResponseBuilder
+    member this.RespondWith(mockResponseBuilder: IMockResponseBuilder) =
+        ArgumentNullException.ThrowIfNull(mockResponseBuilder, nameof mockResponseBuilder)
+        _mockResponseBuilder <- mockResponseBuilder :?> MockResponseBuilder
 
-        member this.RespondWithDefault() =
-            _mockResponseBuilder <- MockResponseBuilder.Create()
+    member this.RespondWithDefault() =
+        _mockResponseBuilder <- MockResponseBuilder.Create()
+
+    interface IMockResponse with
+        member this.RespondWith(mockResponseBuilder) = this.RespondWith(mockResponseBuilder)
+        member this.RespondWithDefault() = this.RespondWithDefault()
 
     member internal this.MatchRequestAndCreateResponseAsync
         (request: HttpRequestMessage, requestCache: MockRequestCache, requestMatchingLog: List<string>)
