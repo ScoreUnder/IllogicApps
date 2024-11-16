@@ -576,7 +576,7 @@ type Http(json) =
         processedInputs.body
         |> JsonTree.getType
         |> ExternalServiceTypeConversions.contentTypeOfJsonType
-        |> Option.iter (fun v -> headers.TryAdd("Content-Type", $"{v}") |> ignore)
+        |> Option.iter (fun v -> headers.TryAdd("Content-Type", v) |> ignore)
 
         // Add action name
         // TODO toggle if requested in json
