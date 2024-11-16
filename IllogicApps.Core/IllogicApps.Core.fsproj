@@ -13,6 +13,7 @@
         <Compile Include="LogicAppSpec.fs"/>
         <Compile Include="LogicAppActionSupport.fs"/>
         <Compile Include="LogicAppActions.fs"/>
+        <Compile Include="LogicAppValidation.fs"/>
         <Compile Include="ReadLogicApp.fs"/>
     </ItemGroup>
     <ItemGroup>

@@ -47,10 +47,7 @@ type Scope(resolveAction, json) =
             code = Some code
             error = error }
 
-    override this.GetChildren() : (string * IGraphExecutable) list =
-        this.Actions
-        |> Seq.map (fun kv -> kv.Key, (kv.Value: IGraphExecutable))
-        |> Seq.toList
+    override this.GetChildren() = this.Actions |> OrderedMap.toSeq
 
 type If(resolveAction, json) =
     inherit Scope(resolveAction, json)
@@ -82,10 +79,8 @@ type If(resolveAction, json) =
           code = Some code
           error = error }
 
-    override this.GetChildren() : (string * IGraphExecutable) list =
-        Seq.append this.Actions this.Else.actions
-        |> Seq.map (fun kv -> kv.Key, (kv.Value: IGraphExecutable))
-        |> Seq.toList
+    override this.GetChildren() =
+        Seq.append (OrderedMap.toSeq this.Actions) (OrderedMap.toSeq this.Else.actions)
 
 type Switch(resolveAction, json) =
     inherit BaseAction(json)
@@ -126,10 +121,8 @@ type Switch(resolveAction, json) =
           error = error }
 
     override this.GetChildren() =
-        this.Cases.Values
-        |> Seq.fold (fun acc case -> Seq.append acc case.actions) this.Default.actions
-        |> Seq.map (fun kv -> kv.Key, (kv.Value: IGraphExecutable))
-        |> Seq.toList
+        OrderedMap.toSeq this.Default.actions
+        |> Seq.append (this.Cases.Values |> Seq.collect (fun c -> OrderedMap.toSeq c.actions))
 
 type Until(resolveAction, json) =
     inherit Scope(resolveAction, json)

@@ -7,7 +7,12 @@ open IllogicApps.Json
 type BaseAction(json: JsonTree) =
     interface IGraphExecutable with
         member this.Execute (name: string) (context: SimulatorContext) = this.Execute name context
-        member this.GetChildren() = this.GetChildren()
+
+        member this.GetChildren() =
+            this.GetChildren()
+            |> Seq.map (fun (n, a) -> n, (a: IGraphExecutable))
+            |> List.ofSeq
+
         member this.RunAfter = this.RunAfter
 
     member val ActionType = JsonTree.getKey "type" json |> Conversions.ensureString with get
@@ -25,19 +30,22 @@ type BaseAction(json: JsonTree) =
         |> Option.defaultValue OrderedMap.empty with get
 
     abstract member Execute: string -> SimulatorContext -> ActionResult
-    abstract member GetChildren: unit -> (string * IGraphExecutable) list
+    abstract member GetChildren: unit -> (string * BaseAction) seq
     default this.GetChildren() = []
 
+    static member GetChildren(a: BaseAction) = a.GetChildren() |> List.ofSeq
 
-let getAllChildren start =
-    let rec aux (from: (string * IGraphExecutable) list) acc =
+let getAllChildrenF fc start =
+    let rec aux from acc =
         from
-        |> List.collect (fun (_, a) -> a.GetChildren())
+        |> List.collect (fun (_, a) -> fc a)
         |> function
             | [] -> from @ acc
             | next -> aux next (from @ acc) in
 
     aux start []
+
+let getAllChildren = getAllChildrenF (fun (a: IGraphExecutable) -> a.GetChildren())
 
 type UnknownAction(json) =
     inherit BaseAction(json)
