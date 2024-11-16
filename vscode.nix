@@ -21,26 +21,26 @@
             {
               name = "vscode-azurelogicapps";
               publisher = "ms-azuretools";
-              version = "4.96.2";
-              sha256 = "sha256-6WncLT4ooYPT2QQ8f0X41S0QMxuaL5ld0Cu3fvIisao=";
+              version = "4.107.4";
+              sha256 = "sha256-Uk1uWZ7DY0E/gkaYj/PK59Ri6SvjrGV/maL1SuRW4p8=";
             }
             {
               name = "vscode-azurefunctions";
               publisher = "ms-azuretools";
-              version = "1.15.4";
-              sha256 = "sha256-k79SPlJR8nkvOoZ+8oZ9lMBes1qeSJgF0VLw8035zx0=";
+              version = "1.16.1";
+              sha256 = "sha256-Vvrpeg6QZAshzRCdzXXGYu2P3hrZVXwf9sZtB7ZX5jM=";
             }
             {
               name = "vscode-azureresourcegroups";
               publisher = "ms-azuretools";
-              version = "0.9.7";
-              sha256 = "sha256-0V45NmIrpilyDmRgYIlO35ugmdXoNGIE5Ju6pm1kGpE=";
+              version = "0.9.9";
+              sha256 = "sha256-f5jHcbUgN2SGaCDvejL8Nnu6IR+LRksNabG4YHZnJiQ=";
             }
             {
               name = "azurite";
               publisher = "azurite";
-              version = "3.32.0";
-              sha256 = "sha256-gYbsQ07jnRiaEhB2kdsPL8+ROIzaWZOT4bydU+iTZoA=";
+              version = "3.33.0";
+              sha256 = "sha256-HnjamoLHQiqFQOpg0pY10CmHJF1b3+Lj2i3NxY/9QD0=";
             }
             {
               name = "azure-account";
