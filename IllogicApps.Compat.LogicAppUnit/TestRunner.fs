@@ -35,8 +35,11 @@ type TestRunner
         workflowName: string,
         appSettings: OrderedMap<string, string>,
         parameters: OrderedMap<string, Parameter>
-    ) as this =
-    let workflows = workflows |> Array.ofSeq
+    ) =
+    [<Literal>]
+    static let MOCK_HOST_URI = "http://mockHost.localhost"
+
+    let workflows = workflows |> Array.ofSeq // Eagerly evaluate the workflows so that exceptions are thrown early
     let mutable mockResponses: MockResponse list = []
     let mutable simulators: Simulator list = []
 
@@ -63,7 +66,7 @@ type TestRunner
             reply.Value <- result |> httpRequestReplyOfNetHttpResponseMessage
             true
         | Workflow(request, reply) ->
-            let uri = $"{this.MockHostUri}/{request.workflowId.TrimStart('/')}"
+            let uri = $"{MOCK_HOST_URI}/{request.workflowId.TrimStart('/')}"
             let requestStr = request |> jsonOfWorkflowRequest |> Conversions.stringOfJson
             let content = new StringContent(requestStr, Encoding.UTF8, "application/json")
             let netHttpRequest = new HttpRequestMessage(HttpMethod.Post, uri, Content = content)
@@ -77,7 +80,7 @@ type TestRunner
             reply.Value <- result |> httpRequestReplyOfNetHttpResponseMessage
             true
         | ServiceProvider(serviceProviderReq, reply) ->
-            let uri = $"{this.MockHostUri}/{serviceProviderReq.actionName}"
+            let uri = $"{MOCK_HOST_URI}/{serviceProviderReq.actionName}"
             let parameters = serviceProviderReq.parameters
             let contentType = parameters |> JsonTree.getType |> contentTypeOfJsonType
             let requestStr = parameters |> Conversions.stringOfJson
@@ -135,7 +138,7 @@ type TestRunner
 
         Console.WriteLine("End variables and outputs.")
 
-    member _.MockHostUri = "http://mockHost.localhost"
+    member _.MockHostUri = MOCK_HOST_URI
 
     member this.TriggerWorkflow
         (queryParams: Dictionary<string, string>, content: HttpContent, requestHeaders: Dictionary<string, string>)
@@ -260,7 +263,7 @@ type TestRunner
 
         member this.MockRequests = mockDefinition.MockRequests
 
-        member this.TriggerWorkflow(method, requestHeaders) =
+        member this.TriggerWorkflow(_method, requestHeaders) =
             this.TriggerWorkflow(null, null, requestHeaders)
 
         member this.TriggerWorkflow
@@ -271,22 +274,22 @@ type TestRunner
         member this.TriggerWorkflow
             (
                 queryParams: Dictionary<string, string>,
-                method: HttpMethod,
-                relativePath: string,
+                _method: HttpMethod,
+                _relativePath: string,
                 requestHeaders: Dictionary<string, string>
             ) : HttpResponseMessage =
             this.TriggerWorkflow(queryParams, null, requestHeaders)
 
         member this.TriggerWorkflow
-            (content: HttpContent, method: HttpMethod, requestHeaders: Dictionary<string, string>)
+            (content: HttpContent, _method: HttpMethod, requestHeaders: Dictionary<string, string>)
             : HttpResponseMessage =
             this.TriggerWorkflow(null, content, requestHeaders)
 
         member this.TriggerWorkflow
-            (content: HttpContent, method: HttpMethod, relativePath: string, requestHeaders: Dictionary<string, string>) : HttpResponseMessage =
+            (content: HttpContent, _method: HttpMethod, _relativePath: string, requestHeaders: Dictionary<string, string>) : HttpResponseMessage =
             this.TriggerWorkflow(null, content, requestHeaders)
 
-        member this.TriggerWorkflow(queryParams, content, method, relativePath, requestHeaders) =
+        member this.TriggerWorkflow(queryParams, content, _method, _relativePath, requestHeaders) =
             this.TriggerWorkflow(queryParams, content, requestHeaders)
 
         member this.WaitForAsynchronousResponse(maxTimeoutSeconds: int) : unit = failwith "todo"
