@@ -40,19 +40,19 @@ let accessMember (parent: JsonTree) (mem: JsonTree) =
     | Null, _ -> ForgivableError "Cannot access property of null"
     | kind, _ -> SeriousError(sprintf "Cannot access property of %A" kind)
 
-type FuncsMap = Map<string, BuiltinFunctions.LanguageFunction>
-type LazyFuncsMap = Map<string, BuiltinFunctions.LazyArgsLanguageFunction>
+type FuncsMap = OrderedMap<string, BuiltinFunctions.LanguageFunction>
+type LazyFuncsMap = OrderedMap<string, BuiltinFunctions.LazyArgsLanguageFunction>
 
 let evaluateSandboxed (functions: FuncsMap) (lazyFunctions: LazyFuncsMap) simContext (ast: LanguageParser.Ast) =
     let rec evaluate' simContext (ast: LanguageParser.Ast) =
         match ast with
         | LanguageParser.Literal(lit) -> lit
         | LanguageParser.Call(name, args) ->
-            match functions.TryGetValue(name) with
-            | true, func -> args |> List.map (evaluate' simContext) |> func simContext
+            match OrderedMap.tryFindCaseInsensitive name functions with
+            | Some func -> args |> List.map (evaluate' simContext) |> func simContext
             | _ ->
-                match lazyFunctions.TryGetValue(name) with
-                | true, func -> args |> List.map (fun ast -> lazy evaluate' simContext ast) |> func simContext
+                match OrderedMap.tryFindCaseInsensitive name lazyFunctions with
+                | Some func -> args |> List.map (fun ast -> lazy evaluate' simContext ast) |> func simContext
                 | _ -> failwith <| ErrorMessages.badFunctionCall name
         | LanguageParser.Member(parent, mem) ->
             accessMember (evaluate' simContext parent) (evaluate' simContext mem)

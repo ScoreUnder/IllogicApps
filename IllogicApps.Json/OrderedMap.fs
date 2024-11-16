@@ -6,7 +6,7 @@ open System.Collections.Generic
 open System.Collections.Immutable
 open Microsoft.FSharp.Collections
 
-type OrderedMap<[<ComparisonConditionalOn>] 'K, [<ComparisonConditionalOn>] 'V> when 'K: equality and 'V: equality
+type OrderedMap<[<ComparisonConditionalOn>] 'K, [<ComparisonConditionalOn; EqualityConditionalOn>] 'V> when 'K: equality
     private (backingMap: ImmutableDictionary<'K, 'V>, backingArray: ImmutableArray<'K>) =
     let values: 'V ImmutableArray Lazy =
         lazy
@@ -66,7 +66,7 @@ type OrderedMap<[<ComparisonConditionalOn>] 'K, [<ComparisonConditionalOn>] 'V> 
         member this.Clear() = failwith "Not supported"
 
         member this.Contains(KeyValue(key, value)) =
-            this.ContainsKey key && this.[key] = value
+            this.ContainsKey key && Unchecked.equals this.[key] value
 
         member this.CopyTo(array, arrayIndex) =
             backingArray
@@ -142,7 +142,7 @@ type OrderedMap<[<ComparisonConditionalOn>] 'K, [<ComparisonConditionalOn>] 'V> 
             |> Option.defaultValue 0
 
 module OrderedMap =
-    type Builder<'K, 'V when 'K: equality and 'V: equality>() =
+    type Builder<'K, 'V when 'K: equality>() =
         let mutable backingMap = ImmutableDictionary.CreateBuilder<'K, 'V>()
         let mutable backingArray = ImmutableArray.CreateBuilder<'K>()
 
@@ -193,7 +193,7 @@ module OrderedMap =
         member this.Build() =
             OrderedMap.CreateUnsafe<'K, 'V>(backingMap.ToImmutable(), backingArray.DrainToImmutable())
 
-    let empty<'K, 'V when 'K: equality and 'V: equality> =
+    let empty<'K, 'V when 'K: equality> =
         OrderedMap<'K, 'V>.CreateRange([])
 
     let inline isEmpty (m: OrderedMap<'a, 'b>) = m.Count = 0

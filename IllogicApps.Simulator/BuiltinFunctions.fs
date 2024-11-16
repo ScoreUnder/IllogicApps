@@ -922,7 +922,7 @@ let f_setProperty _ (args: Args) : JsonTree =
 let private conditionToFunction (condition: BuiltinCondition.LanguageCondition) : LanguageFunction =
     fun _ -> condition >> Boolean
 
-let functions: Map<string, LanguageFunction> =
+let functions: OrderedMap<string, LanguageFunction> =
     let conditions =
         BuiltinCondition.conditions
         |> Map.toSeq
@@ -995,9 +995,9 @@ let functions: Map<string, LanguageFunction> =
       "setProperty", f_setProperty ]
     |> List.toSeq
     |> Seq.append conditions
-    |> Map.ofSeq
+    |> OrderedMap.ofSeq
 
-let lazyFunctions: Map<string, LazyArgsLanguageFunction> =
+let lazyFunctions: OrderedMap<string, LazyArgsLanguageFunction> =
     [ "and", f_and; "if", f_if; "or", f_or; "coalesce", f_coalesce ]
     |> List.toSeq
-    |> Map.ofSeq
+    |> OrderedMap.ofSeq

@@ -117,7 +117,9 @@ module private SimulatorHelper =
         | _ -> node
 
     let evaluateLanguageSandboxedForParameter =
-        LanguageEvaluator.evaluateSandboxed (Map.ofList [ "appsetting", BuiltinFunctions.f_appsetting ]) Map.empty
+        LanguageEvaluator.evaluateSandboxed
+            (OrderedMap.ofList [ "appsetting", BuiltinFunctions.f_appsetting ])
+            OrderedMap.empty
 
     let evaluateParameter sim v =
         jsonMapStrs (LanguageEvaluator.altEvaluateIfNecessary evaluateLanguageSandboxedForParameter sim) v.value
