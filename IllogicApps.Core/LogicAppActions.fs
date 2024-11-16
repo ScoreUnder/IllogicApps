@@ -546,7 +546,7 @@ type Http(json) =
 
     member val Inputs = JsonTree.getKey "inputs" json |> httpInputsOfJson with get
 
-    override this.Execute (_: string) (context: SimulatorContext) =
+    override this.Execute (name: string) (context: SimulatorContext) =
         printfn "HTTP: %A" this.Inputs
 
         let result = ref HttpRequestReply.Default in
@@ -566,11 +566,27 @@ type Http(json) =
               cookie = this.Inputs.cookie |> Option.map evaluateString
               authentication = this.Inputs.authentication |> context.EvaluateLanguage }
 
+        let headers =
+            processedInputs.headers
+            |> Option.map (OrderedMap.Builder().AddRange)
+            |> Option.defaultValue (OrderedMap.Builder())
+
+        // Add content-type if missing
+        // TODO case-insensitivity
+        processedInputs.body
+        |> JsonTree.getType
+        |> ExternalServiceTypeConversions.contentTypeOfJsonType
+        |> Option.iter (fun v -> headers.TryAdd("Content-Type", $"{v}") |> ignore)
+
+        // Add action name
+        // TODO toggle if requested in json
+        headers.TryAdd("x-ms-workflow-operation-name", name) |> ignore
+
         context.ExternalServiceRequest
         <| HttpRequest(
             { method = processedInputs.method
               uri = processedInputs.uri
-              headers = (processedInputs.headers |> Option.defaultValue OrderedMap.empty)
+              headers = headers.Build()
               body =
                 (processedInputs.body
                  |> Conversions.optionOfJson
@@ -581,7 +597,8 @@ type Http(json) =
             result
         )
 
-        let success = ExternalServiceTypeConversions.httpStatusCodeIsSuccess result.Value.statusCode
+        let success =
+            ExternalServiceTypeConversions.httpStatusCodeIsSuccess result.Value.statusCode
         // TODO: retry policy
 
         { ActionResult.Default with

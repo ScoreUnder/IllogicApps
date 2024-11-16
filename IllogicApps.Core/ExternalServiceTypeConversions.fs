@@ -41,7 +41,12 @@ let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
         )
 
     match req.body with
-    | Some content -> netReq.Content <- new Http.StringContent(content)
+    | Some content ->
+        let contentType =
+            OrderedMap.tryFindCaseInsensitive "Content-Type" req.headers
+            |> Option.defaultValue "text/plain"
+
+        netReq.Content <- new Http.StringContent(content, Encoding.UTF8, contentType)
     | None -> ()
 
     req.cookie
@@ -109,7 +114,7 @@ let netHttpResponseMessageOfHttpRequestReply (resp: HttpRequestReply) =
                  |> Option.bind (fun body ->
                      match contentTypeOfJsonType (JsonTree.getType body) with
                      | Some type_ ->
-                         Some(new Http.StringContent(body |> Conversions.stringOfJson, Encoding.UTF8, type_))
+                         Some(new Http.StringContent(body |> Conversions.rawStringOfJson, Encoding.UTF8, type_))
                      | None -> None)
                  |> Option.toObj)
         )
@@ -119,5 +124,4 @@ let netHttpResponseMessageOfHttpRequestReply (resp: HttpRequestReply) =
 
     netResp
 
-let httpStatusCodeIsSuccess (code: int) =
-    code >= 200 && code < 300
+let httpStatusCodeIsSuccess (code: int) = code >= 200 && code < 300
