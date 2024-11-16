@@ -40,14 +40,9 @@ type TestRunner
     static let MOCK_HOST_URI = "http://mockHost.localhost"
 
     let workflows = workflows |> Array.ofSeq // Eagerly evaluate the workflows so that exceptions are thrown early
-    let mutable mockResponses: MockResponse list = []
     let mutable simulators: Simulator list = []
 
     let mySim () = simulators |> List.head
-
-    let addMockResponse mockResponse =
-        mockResponses <- mockResponse :: mockResponses
-        mockResponse
 
     let defaultHandler (overallResponse: HttpResponseMessage option ref) originWorkflowName (_: SimulatorContext) =
         function
@@ -225,11 +220,9 @@ type TestRunner
         member this.AddApiMocks
             with set value = mockDefinition.MockResponseDelegate <- value
 
-        member this.AddMockResponse(mockRequestMatcher) =
-            addMockResponse (MockResponse(null, mockRequestMatcher))
+        member this.AddMockResponse(mockRequestMatcher) = mockDefinition.AddMockResponse(mockRequestMatcher)
 
-        member this.AddMockResponse(name, mockRequestMatcher) =
-            addMockResponse (MockResponse(name, mockRequestMatcher))
+        member this.AddMockResponse(name, mockRequestMatcher) = mockDefinition.AddMockResponse(name, mockRequestMatcher)
 
         member this.ExceptionWrapper(assertion) = assertion.Invoke()
 
