@@ -39,12 +39,6 @@ let ``stringOfJson should handle different JsonTree types`` (expected: string, j
     test <@ expected = stringOfJson json @>
 
 [<Test>]
-let ``stringOfJson is allowed to serialise integral floats as if they were integers`` () =
-    let json = Float 1.0
-    let expected = "1"
-    test <@ expected = stringOfJson json @>
-
-[<Test>]
 let ``stringOfJson should serialise large integral floats as floats`` () =
     let json = Float 1e50
     let expected = "1E+50"

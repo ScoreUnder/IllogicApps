@@ -21,6 +21,15 @@ let escapeStringForJson str =
 
     sb.ToString()
 
+let hackyInsertDecimalPoint (str: string) =
+    if
+        str.Contains('.', System.StringComparison.Ordinal)
+        || str.Contains('e', System.StringComparison.OrdinalIgnoreCase)
+    then
+        str
+    else
+        $"{str}.0"
+
 let stringOfJson json =
     let rec aux acc json =
         match json with
@@ -41,8 +50,8 @@ let stringOfJson json =
         | Float f when System.Double.IsNaN f -> "\"NaN\"" :: acc
         | Float f when System.Double.IsNegativeInfinity f -> "\"-Infinity\"" :: acc
         | Float f when System.Double.IsPositiveInfinity f -> "\"Infinity\"" :: acc
-        | Float f -> string f :: acc
-        | Decimal d -> string d :: acc
+        | Float f -> hackyInsertDecimalPoint (string f) :: acc
+        | Decimal d -> hackyInsertDecimalPoint (string d) :: acc
         | Boolean true -> "true" :: acc
         | Boolean false -> "false" :: acc
 

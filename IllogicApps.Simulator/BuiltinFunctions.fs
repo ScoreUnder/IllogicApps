@@ -123,6 +123,8 @@ let objectToString (node: JsonTree) : string =
     | Base64StringBlob(contentType, content) -> decodeByContentType contentType content
     | Boolean true -> "True"
     | Boolean false -> "False"
+    | Float f -> string f
+    | Decimal d -> string d
     | Null -> ""
     | _ -> Conversions.rawStringOfJson node
 
