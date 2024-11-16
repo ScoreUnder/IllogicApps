@@ -37,7 +37,6 @@ type TestRunner
         parameters: OrderedMap<string, Parameter>
     ) as this =
     let workflows = workflows |> Array.ofSeq
-    let mutable mockRequests: MockRequest list = []
     let mutable mockResponses: MockResponse list = []
     let mutable simulators: Simulator list = []
 
@@ -259,7 +258,7 @@ type TestRunner
         member this.GetWorkflowActionTrackedProperties(actionName) = failwith "todo"
         member this.GetWorkflowActionTrackedProperties(actionName, repetitionNumber) = failwith "todo"
 
-        member this.MockRequests = mockRequests |> List.rev |> List<MockRequest>
+        member this.MockRequests = mockDefinition.MockRequests
 
         member this.TriggerWorkflow(method, requestHeaders) =
             this.TriggerWorkflow(null, null, requestHeaders)
