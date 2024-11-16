@@ -150,3 +150,7 @@ let ``Case-conflicting JSON parsing test cases`` =
 
 [<TestCaseSource(nameof ``Case-conflicting JSON parsing test cases``)>]
 let ``Test case-conflicting JSON parsing`` expr expected = jsonTest expr expected
+
+[<Test>]
+let ``Test case insensitive function calls`` () =
+    test <@ Integer 579L = testExpressionEvaluation "@ADD(INT('123'),INT('456'))" @>
