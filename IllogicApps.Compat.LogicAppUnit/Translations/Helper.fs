@@ -121,7 +121,7 @@ type ContentHelper =
 
 type ResourceHelper =
     static member GetAssemblyResourceAsStream(resourceName: string) : Stream =
-        ResourceHelper.GetAssemblyResourceAsStream(resourceName, Assembly.GetExecutingAssembly())
+        ResourceHelper.GetAssemblyResourceAsStream(resourceName, Assembly.GetCallingAssembly())
 
     static member GetAssemblyResourceAsStream(resourceName: string, containingAssembly: Assembly) : Stream =
         ArgumentNullException.ThrowIfNull(resourceName, nameof resourceName)
@@ -139,7 +139,7 @@ type ResourceHelper =
 
     static member GetAssemblyResourceAsString(resourceName: string) : string =
         ContentHelper.ConvertStreamToString(
-            ResourceHelper.GetAssemblyResourceAsStream(resourceName, Assembly.GetExecutingAssembly())
+            ResourceHelper.GetAssemblyResourceAsStream(resourceName, Assembly.GetCallingAssembly())
         )
 
     static member GetAssemblyResourceAsString(resourceName: string, containingAssembly: Assembly) : string =
