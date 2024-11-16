@@ -2,6 +2,7 @@ module IllogicApps.Core.ExternalServiceTypeConversions
 
 open System
 open System.Net
+open System.Net.Http.Headers
 open System.Text
 open ExternalServiceTypes
 open IllogicApps.Json
@@ -61,7 +62,7 @@ let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
 
 let httpRequestReplyOfNetHttpResponseMessage (resp: Http.HttpResponseMessage) =
     let headers =
-        Seq.append resp.Headers resp.TrailingHeaders
+        Seq.concat [ resp.Headers :> HttpHeaders; resp.Content.Headers; resp.TrailingHeaders ]
         |> Seq.map (fun (KeyValue(k, v)) -> k, String.concat "," v)
         |> OrderedMap.ofSeq
 
