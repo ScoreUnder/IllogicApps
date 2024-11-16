@@ -53,7 +53,6 @@ let private parseInteger index (str: string) =
 let private fail (c: char) (index: int) (state: ParserState) (stack: ConstructingState list) =
     if index = -1 then
         match state, stack with
-        | StringLiteral, _ -> "Unexpected end of input in string literal. Missing closing quote."
         | _, ConstructingObjectValue _ :: _ -> "Unexpected end of input in object. Missing closing brace."
         | _, ConstructingObject _ :: _ -> "Unexpected end of input in object. Missing value and closing brace."
         | _, ConstructingArray _ :: _ -> "Unexpected end of input in array. Missing closing bracket."
@@ -80,7 +79,11 @@ let private failBuildingString
     (stack: ConstructingState list)
     =
     match c with
-    | _ when index = -1 -> sprintf "Unexpected end of input in string literal at index %d. String so far: %O" index sb
+    | _ when index = -1 ->
+        sprintf
+            "Unexpected end of input in string literal at index %d. Missing closing quote. String so far: %O"
+            index
+            sb
     | c when c < char 0x20 ->
         sprintf "Unexpected character '%c' at index %d in string literal. String so far: %O" c index sb
     | _ ->
