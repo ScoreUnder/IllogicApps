@@ -17,7 +17,7 @@ type Request(json) =
 
     member val Kind = JsonTree.getKey "kind" json |> Conversions.ensureString with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         // TODO: Does this ever get called?
 
         let triggerResult = context.TriggerResult
@@ -37,7 +37,7 @@ type Scope(resolveAction, json) =
 
     member val Actions = JsonTree.getKey "actions" json |> actionGraphOfJson resolveAction with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         let result = context.ExecuteGraph this.Actions in
 
         let code, error = codeAndErrorFromScopeResult result
@@ -58,7 +58,7 @@ type If(resolveAction, json) =
     member val Expression = JsonTree.getKey "expression" json with get
     member val Else = JsonTree.getKey "else" json |> actionGraphContainerOfJson resolveAction with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         let conditionResult =
             this.Expression |> context.EvaluateLanguage |> context.EvaluateCondition in
 
@@ -98,7 +98,7 @@ type Switch(resolveAction, json) =
         |> Conversions.ensureObject
         |> OrderedMap.mapValuesOnly (switchCaseOfJson resolveAction) with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         let value = context.EvaluateLanguage this.Expression in
         printfn "Switch Value: %O" value
 
@@ -137,7 +137,7 @@ type Until(resolveAction, json) =
     member val Expression = JsonTree.getKey "expression" json with get
     member val Limit = JsonTree.getKey "limit" json |> untilLimitOfJson with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         let parsedTimeout = XmlConvert.ToTimeSpan(this.Limit.timeout)
         let timeout = System.DateTime.Now.Add(parsedTimeout)
 
@@ -179,7 +179,7 @@ type Terminate(json) =
 
     member val Inputs = JsonTree.getKey "inputs" json |> terminateInputsOfJson with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         printfn "Terminate: %s (%O)" this.Inputs.runStatus this.Inputs.runError
 
         context.Terminate (statusOfString this.Inputs.runStatus) this.Inputs.runError
@@ -207,7 +207,7 @@ type InitializeVariable(json) =
         |> variablesInputsOfJson initializeVariableSingleOfJson
         |> validateJustOneVariable with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         let firstVar = this.Inputs.variables.Head
 
         printfn
@@ -253,7 +253,7 @@ type SetVariable(json) =
 
     member val Inputs = JsonTree.getKey "inputs" json |> setVariableSingleOfJson with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         printfn "SetVariable: %s = %O" this.Inputs.name (Conversions.prettyStringOfJson this.Inputs.value)
 
         match context.GetVariable this.Inputs.name with
@@ -279,7 +279,7 @@ type AppendToStringVariable(json) =
 
     member val Inputs = JsonTree.getKey "inputs" json |> setVariableSingleOfJson with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         printfn "%s: %s = %s" this.ActionType this.Inputs.name (Conversions.prettyStringOfJson this.Inputs.value)
 
         match context.GetVariable this.Inputs.name with
@@ -295,7 +295,7 @@ type AppendToStringVariable(json) =
 
     abstract member Add: SimulatorContext -> JsonTree -> JsonTree -> JsonTree
 
-    override this.Add context a b =
+    override this.Add _ a b =
         String((Conversions.ensureString a) + (Conversions.ensureString b))
 
 type AppendToArrayVariable(json) =
@@ -313,7 +313,7 @@ type AppendToArrayVariable(json) =
 type IncrementVariable(json) =
     inherit SetVariable(json)
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         printfn "%s: %s = %s" this.ActionType this.Inputs.name (Conversions.prettyStringOfJson this.Inputs.value)
 
         let originalValue =
@@ -350,7 +350,7 @@ type Compose(json) =
 
     member val Inputs = JsonTree.getKey "inputs" json with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         printfn "Compose: %s" (Conversions.prettyStringOfJson this.Inputs)
         let result = context.EvaluateLanguage this.Inputs
         printfn "Compose Result: %s" (Conversions.prettyStringOfJson result)
@@ -365,7 +365,7 @@ type ParseJson(json) =
 
     member val Inputs = JsonTree.getKey "inputs" json |> parseJsonInputsOfJson with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         printfn "ParseJson: %O" this.Inputs
         let input = context.EvaluateLanguage this.Inputs.content
 
@@ -387,7 +387,7 @@ type Query(json) =
 
     member val Inputs = JsonTree.getKey "inputs" json |> queryInputsOfJson with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         printfn
             "Query: %s in %s"
             (Conversions.prettyStringOfJson this.Inputs.where)
@@ -423,7 +423,7 @@ type JavaScriptCode(json) =
 
     member val Inputs = JsonTree.getKey "inputs" json |> javaScriptCodeInputsOfJson with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         printfn "JavaScriptCode: %O" this.Inputs
 
         let result = ref (Error "Not executed")
@@ -463,7 +463,7 @@ type ServiceProvider(json) =
 
     member val Inputs = JsonTree.getKey "inputs" json |> serviceProviderInputsOfJson with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (name: string) (context: SimulatorContext) =
         printfn "ServiceProvider: %O" this.Inputs
 
         let result = ref HttpRequestReply.Default
@@ -474,7 +474,8 @@ type ServiceProvider(json) =
 
         context.ExternalServiceRequest
         <| ExternalServiceTypes.ServiceProvider(
-            { parameters = processedInputs.parameters |> context.EvaluateLanguage
+            { actionName = name
+              parameters = processedInputs.parameters |> context.EvaluateLanguage
               serviceProviderConfiguration = processedInputs.serviceProviderConfiguration },
             result
         )
@@ -490,7 +491,7 @@ type Response(json) =
 
     member val Inputs = JsonTree.getKey "inputs" json |> httpResponseInputsOfJson with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         printfn "Response: %O" this.Inputs
 
         let inline stringPairSeqToObject seq =
@@ -546,7 +547,7 @@ type Http(json) =
 
     member val Inputs = JsonTree.getKey "inputs" json |> httpInputsOfJson with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         printfn "HTTP: %A" this.Inputs
 
         let result = ref HttpRequestReply.Default in
@@ -596,7 +597,7 @@ type Workflow(json) =
         JsonTree.tryGetKey "operationOptions" json
         |> Option.map Conversions.ensureString with get
 
-    override this.Execute(context: SimulatorContext) =
+    override this.Execute (_: string) (context: SimulatorContext) =
         printfn "Workflow: %s" (jsonOfWorkflowRequest this.Inputs |> Conversions.prettyStringOfJson)
 
         let headers =

@@ -47,8 +47,7 @@ type TestRunner
         mockResponses <- mockResponse :: mockResponses
         mockResponse
 
-
-    let defaultHandler (overallResponse: HttpResponseMessage option ref) originWorkflowName sim =
+    let defaultHandler (overallResponse: HttpResponseMessage option ref) originWorkflowName (_: SimulatorContext) =
         function
         | HttpResponse(response) when overallResponse.Value.IsNone && workflowName = originWorkflowName ->
             overallResponse.Value <- Some <| netHttpResponseMessageOfHttpRequestReply response
@@ -79,8 +78,7 @@ type TestRunner
             reply.Value <- result |> httpRequestReplyOfNetHttpResponseMessage
             true
         | ServiceProvider(serviceProviderReq, reply) ->
-            let config = serviceProviderReq.serviceProviderConfiguration
-            let uri = $"{this.MockHostUri}/{config.serviceProviderId.TrimStart('/')}"
+            let uri = $"{this.MockHostUri}/{serviceProviderReq.actionName}"
             let parameters = serviceProviderReq.parameters
             let contentType = parameters |> JsonTree.getType |> contentTypeOfJsonType
             let requestStr = parameters |> Conversions.stringOfJson
@@ -89,6 +87,14 @@ type TestRunner
                 new StringContent(requestStr, Encoding.UTF8, contentType |> Option.defaultValue "text/plain")
 
             let netHttpRequest = new HttpRequestMessage(HttpMethod.Post, uri, Content = content)
+
+            netHttpRequest.Headers.TryAddWithoutValidation(
+                "x-illogicapps-serviceproviderconfig",
+                serviceProviderReq.serviceProviderConfiguration
+                |> jsonOfServiceProviderConfiguration
+                |> Conversions.stringOfJson
+            )
+            |> ignore
 
             let result =
                 mockDefinition

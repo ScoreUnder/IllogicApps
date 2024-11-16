@@ -196,22 +196,9 @@ let jsonOfServiceProviderConfiguration (config: ServiceProviderConfiguration) =
     |> JsonTree.Object
 
 type ServiceProviderRequest =
-    { parameters: JsonTree
+    { actionName: string
+      parameters: JsonTree
       serviceProviderConfiguration: ServiceProviderConfiguration }
-
-let serviceProviderRequestOfJson json =
-    { parameters = JsonTree.tryGetKey "parameters" json |> Conversions.jsonOfOption
-      serviceProviderConfiguration =
-        JsonTree.getKey "serviceProviderConfiguration" json
-        |> serviceProviderConfigurationOfJson }
-
-let jsonOfServiceProviderRequest (inputs: ServiceProviderRequest) =
-    OrderedMap
-        .Builder()
-        .MaybeAdd("parameters", inputs.parameters)
-        .Add("serviceProviderConfiguration", jsonOfServiceProviderConfiguration inputs.serviceProviderConfiguration)
-        .Build()
-    |> JsonTree.Object
 
 type ExternalServiceRequest =
     | HttpRequest of HttpRequest * HttpRequestReply ref

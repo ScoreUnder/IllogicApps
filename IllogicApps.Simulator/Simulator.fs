@@ -329,7 +329,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
                         let actionType = getActionType action
                         logActionPreRun actionName actionType
-                        let result = recordResultOf actionName (fun () -> action.Execute this)
+                        let result = recordResultOf actionName (fun () -> action.Execute actionName this)
                         logActionPostRun actionName actionType result
 
                         rest @ (getNextActions actionName)

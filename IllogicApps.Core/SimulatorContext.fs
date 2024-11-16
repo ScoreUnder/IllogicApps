@@ -32,7 +32,7 @@ type LoopContext() =
     abstract member Current: JsonTree
 
 type IGraphExecutable =
-    abstract member Execute: SimulatorContext -> ActionResult
+    abstract member Execute: string -> SimulatorContext -> ActionResult
     abstract member RunAfter: OrderedMap<string, Status list> option with get
     abstract member GetChildren: unit -> (string * IGraphExecutable) list
 
