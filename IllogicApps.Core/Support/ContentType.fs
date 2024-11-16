@@ -30,6 +30,12 @@ let isBinary (contentType: string) =
 let isXml (contentType: string) =
     (mimePart contentType).Equals(Xml, StringComparison.OrdinalIgnoreCase)
 
+let isJson (contentType: string) =
+    (mimePart contentType).Equals(Json, StringComparison.OrdinalIgnoreCase)
+
+let isAnyText (contentType: string) =
+    contentType.StartsWith("text/", StringComparison.OrdinalIgnoreCase)
+
 module Charset =
     [<Literal>]
     let private CharsetEq = "charset="

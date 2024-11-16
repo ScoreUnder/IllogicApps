@@ -5,6 +5,7 @@ open System.Net
 open System.Net.Http.Headers
 open System.Text
 open ExternalServiceTypes
+open IllogicApps.Core.Support
 open IllogicApps.Json
 
 let formUri (str: string) (query: OrderedMap<string, string>) =
@@ -23,10 +24,9 @@ let formUri (str: string) (query: OrderedMap<string, string>) =
     uriBuilder.Uri
 
 let decodeBodyByContentType (contentType: string) (body: string) =
-    if contentType.Equals("application/json", StringComparison.OrdinalIgnoreCase) then
-        Parser.parse body
-    else
-        String body
+    if ContentType.isJson contentType then Parser.parse body
+    elif ContentType.isAnyText contentType then String body
+    else Blob.ofString contentType body
 
 let contentTypeOfJsonType (json: JsonType) =
     match json with
@@ -81,7 +81,7 @@ let httpRequestReplyOfNetHttpResponseMessage (resp: Http.HttpResponseMessage) =
                 None
             else
                 contentStr
-                |> decodeBodyByContentType (Option.defaultValue "text/plain" contentType)
+                |> decodeBodyByContentType (Option.defaultValue "application/octet-stream" contentType)
                 |> Some
 
     { statusCode = int resp.StatusCode
