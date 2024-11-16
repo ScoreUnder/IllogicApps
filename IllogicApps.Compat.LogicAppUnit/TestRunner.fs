@@ -37,7 +37,6 @@ type TestRunner
         parameters: OrderedMap<string, Parameter>
     ) as this =
     let workflows = workflows |> Array.ofSeq
-    let mutable apiMocks: Func<HttpRequestMessage, HttpResponseMessage> = null
     let mutable mockRequests: MockRequest list = []
     let mutable mockResponses: MockResponse list = []
     let mutable simulators: Simulator list = []
@@ -208,7 +207,7 @@ type TestRunner
 
     interface ITestRunner with
         member this.AddApiMocks
-            with set value = apiMocks <- value
+            with set value = mockDefinition.MockResponseDelegate <- value
 
         member this.AddMockResponse(mockRequestMatcher) =
             addMockResponse (MockResponse(null, mockRequestMatcher))
