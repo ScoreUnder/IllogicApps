@@ -10,6 +10,8 @@ let parseQueryString =
     | ""
     | "?" -> OrderedMap.empty
     | query ->
+        let query = if query.StartsWith("?") then query.Substring(1) else query
+
         query.Split('&')
         |> Seq.map (fun part ->
             let parts = part.Split('=', 2)
