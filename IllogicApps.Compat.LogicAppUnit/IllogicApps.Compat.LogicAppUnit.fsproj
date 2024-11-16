@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="InternalHelper.fs"/>
+        <Content Include="Translations\LICENSE_LogicAppUnit.md"/>
+        <Compile Include="Translations\TestException.fs"/>
+        <Compile Include="Translations\Helper.fs"/>
+        <Compile Include="Translations\Mocking.fs"/>
+        <Compile Include="Translations\Wrapper.fs"/>
+        <Compile Include="Translations\ActionStatus.fs"/>
+        <Compile Include="Translations\WorkflowRunStatus.fs"/>
+        <Compile Include="Translations\ITestRunner.fs"/>
+        <Compile Include="Translations\TestConfiguration.fs"/>
+        <Compile Include="Translations\WorkflowType.fs"/>
+        <Compile Include="Translations\WorkflowTestInput.fs"/>
+        <Compile Include="NewtonsoftJsonConversions.fs"/>
+        <Compile Include="LogicAppUnitConversions.fs"/>
+        <Compile Include="TestConfigurationReader.fs"/>
+        <Compile Include="TestRunner.fs"/>
+        <Compile Include="WorkflowTestBase.fs"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3"/>
+        <PackageReference Include="System.Security.Cryptography.Xml" Version="9.0.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\IllogicApps.JavaScript.Jint\IllogicApps.JavaScript.Jint.fsproj"/>
+        <ProjectReference Include="..\IllogicApps.Json\IllogicApps.Json.fsproj"/>
+        <ProjectReference Include="..\IllogicApps.Simulator\IllogicApps.Simulator.fsproj"/>
+    </ItemGroup>
+</Project>

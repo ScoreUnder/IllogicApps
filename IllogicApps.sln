@@ -14,6 +14,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.Json.Test", "Il
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.JavaScript.Jint", "IllogicApps.JavaScript.Jint\IllogicApps.JavaScript.Jint.fsproj", "{FF477A38-8607-4984-ADF1-E756D3898566}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.Compat.LogicAppUnit", "IllogicApps.Compat.LogicAppUnit\IllogicApps.Compat.LogicAppUnit.fsproj", "{ECB311E8-C167-4CCD-9F83-45960562BF7F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -63,5 +65,11 @@ Global
 		{FF477A38-8607-4984-ADF1-E756D3898566}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FF477A38-8607-4984-ADF1-E756D3898566}.Debug except JSON|Any CPU.ActiveCfg = Debug|Any CPU
 		{FF477A38-8607-4984-ADF1-E756D3898566}.Debug except JSON|Any CPU.Build.0 = Debug|Any CPU
+		{ECB311E8-C167-4CCD-9F83-45960562BF7F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ECB311E8-C167-4CCD-9F83-45960562BF7F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ECB311E8-C167-4CCD-9F83-45960562BF7F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ECB311E8-C167-4CCD-9F83-45960562BF7F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ECB311E8-C167-4CCD-9F83-45960562BF7F}.Debug except JSON|Any CPU.ActiveCfg = Debug|Any CPU
+		{ECB311E8-C167-4CCD-9F83-45960562BF7F}.Debug except JSON|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 EndGlobal
