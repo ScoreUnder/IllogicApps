@@ -191,7 +191,8 @@ type TestRunner
         | None ->
             let status =
                 match sims |> List.head |> _.TerminationStatus with
-                | Some Succeeded -> HttpStatusCode.Accepted
+                | Ok Succeeded
+                | Error(Succeeded, _) -> HttpStatusCode.Accepted
                 | _ -> HttpStatusCode.BadGateway
 
             new HttpResponseMessage(status)
@@ -283,9 +284,13 @@ type TestRunner
 
         member this.WorkflowRunStatus =
             mySim().TerminationStatus
-            |> Option.defaultValue Skipped
+            |> ResultEx.recover id fst
             |> workflowRunStatusOfIllogic
 
         member this.WorkflowTerminationCode = failwith "todo"
-        member this.WorkflowTerminationMessage = failwith "todo"
-        member this.WorkflowWasTerminated = failwith "todo"
+
+        member this.WorkflowTerminationMessage =
+            mySim().TerminationStatus
+            |> ResultEx.recover (fun _ -> null) (fun (_, e) -> e |> Option.bind _.message |> Option.toObj)
+
+        member this.WorkflowWasTerminated = mySim().TerminationStatus |> Result.isError

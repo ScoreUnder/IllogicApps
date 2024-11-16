@@ -182,12 +182,7 @@ type Terminate(json) =
     override this.Execute(context: SimulatorContext) =
         printfn "Terminate: %s (%O)" this.Inputs.runStatus this.Inputs.runError
 
-        context.StopExecuting
-        <| match this.Inputs.runStatus with
-           | "Failed" -> Failed
-           | "Succeeded" -> Succeeded
-           | "Cancelled" -> Skipped
-           | _ -> Failed
+        context.Terminate (statusOfString this.Inputs.runStatus) this.Inputs.runError
 
         { ActionResult.Default with
             inputs = Some(jsonOfTerminateInputs this.Inputs)

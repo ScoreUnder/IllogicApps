@@ -21,3 +21,9 @@ let parseQueryString =
         |> Seq.groupBy fst
         |> Seq.map (fun (key, values) -> key, (values |> Seq.map snd |> String.concat ","))
         |> OrderedMap.ofSeq
+
+module ResultEx =
+    let inline recover ([<InlineIfLambda>] fo) ([<InlineIfLambda>] fe) =
+        function
+        | Ok x -> fo x
+        | Error e -> fe e

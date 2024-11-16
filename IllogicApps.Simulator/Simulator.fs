@@ -6,6 +6,7 @@ open System.Collections.Generic
 open System.Diagnostics
 open IllogicApps.Core
 open IllogicApps.Core.ExternalServiceTypes
+open IllogicApps.Core.LogicAppActionSupport
 open IllogicApps.Core.LogicAppBaseAction
 open IllogicApps.Json
 open IllogicApps.Simulator.BuiltinCondition
@@ -249,8 +250,8 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     static member CreateUntriggered(creationOptions: SimulatorCreationOptions) = Simulator(creationOptions)
 
     member this.CompleteWith result =
-        if this.TerminationStatus.IsNone then
-            this.StopExecuting result
+        if this.TerminationStatus = Ok Skipped then
+            this.TerminationStatus <- Ok result
 
         Debug.Assert(this.LoopContextStack.Count = 0)
         Debug.Assert(this.ArrayOperationContextStack.Count = 0)
@@ -264,7 +265,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     static member TriggerSimple (logicApp: LogicAppSpec.Root) triggerOutputs =
         Simulator.Trigger logicApp.definition.actions (SimulatorCreationOptions.createSimple logicApp triggerOutputs)
 
-    member val TerminationStatus: Status option = None with get, set
+    member val TerminationStatus: Result<Status, Status * TerminateRunError option> = Ok Skipped with get, set
     member val ActionResults = MutableOrderedMap<string, CompletedAction>() with get
     member this.Variables = variables
 
@@ -315,7 +316,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
                 | false, _ -> executeNext rest
                 | true, action ->
                     let status, result =
-                        if this.TerminationStatus.IsSome then
+                        if Result.isError this.TerminationStatus then
                             // If we're terminating, just skip everything
                             // (i.e. consider dependencies fulfilled but not in the right state)
                             Completed, skippedTerminatedResult
@@ -347,7 +348,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
         executeNext (getNextActions "")
 
-        if this.TerminationStatus.IsSome then
+        if Result.isError this.TerminationStatus then
             Cancelled
         else
             dependencyGraph.Keys
@@ -375,7 +376,8 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     override this.EvaluateLanguage expr =
         expr |> jsonMapStrs (LanguageEvaluator.evaluateIfNecessary this)
 
-    override this.StopExecuting status = this.TerminationStatus <- Some status
+    override this.Terminate status error =
+        this.TerminationStatus <- Error(status, error)
 
     override this.ExternalServiceRequest request =
         if not (runAllHandlers creationOptions.externalServiceHandlers this request) then

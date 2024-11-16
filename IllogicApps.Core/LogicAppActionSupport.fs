@@ -160,22 +160,6 @@ let untilLimitOfJson json =
     { count = JsonTree.getKey "count" json |> Conversions.ensureInteger
       timeout = JsonTree.getKey "timeout" json |> Conversions.ensureString }
 
-type TerminateRunError =
-    { code: string option
-      message: string option }
-
-let jsonOfTerminateRunError (error: TerminateRunError) =
-    OrderedMap
-        .Builder()
-        .MaybeAdd("code", error.code)
-        .MaybeAdd("message", error.message)
-        .Build()
-    |> JsonTree.Object
-
-let terminateRunErrorOfJson json =
-    { code = JsonTree.tryGetKey "code" json |> Option.map Conversions.ensureString
-      message = JsonTree.tryGetKey "message" json |> Option.map Conversions.ensureString }
-
 type TerminateInputs =
     { runStatus: string
       runError: TerminateRunError option }

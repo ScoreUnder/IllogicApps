@@ -75,7 +75,7 @@ and [<AbstractClass>] SimulatorContext() =
     abstract member ExecuteGraph: OrderedMap<string, #IGraphExecutable> -> Status
 
     /// Stops the execution with a given status. Used by the Terminate action.
-    abstract member StopExecuting: Status -> unit
+    abstract member Terminate: Status -> TerminateRunError option -> unit
 
     /// Evaluates a condition expression.
     /// Example: EvaluateCondition {"and": [{"equals": [1, 2]}]}
