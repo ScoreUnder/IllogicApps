@@ -51,8 +51,13 @@ type UnknownAction(json) =
     inherit BaseAction(json)
     member val Original = json with get
 
-    override this.Execute (name: string) (context: SimulatorContext) =
+    override this.Execute (_: string) (_: SimulatorContext) =
         printfn "Unknown action: %s" <| Conversions.prettyStringOfJson this.Original
 
         { ActionResult.Default with
-            status = Skipped }
+            status = Failed
+            code = Some ActionFailed
+            error =
+                Some
+                    { code = ActionFailed
+                      message = sprintf "Unknown action type %s" this.ActionType } }
