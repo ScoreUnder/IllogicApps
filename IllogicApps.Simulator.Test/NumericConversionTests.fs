@@ -94,3 +94,14 @@ let ExecIsStringifiedFloatTest (expr: string) (expected: string) =
 [<TestCase("@{isFloat(3.14)}")>]
 let ExecIsNotStringifiedFloatTest (expr: string) =
     raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
+
+[<Test>]
+let ``Test directly stringified float-typed integer does not end in .0`` () =
+    let expr = "@{float('5.0')}"
+    let expected = "5"
+    stringTest expr expected
+
+[<TestCase("@{createArray(float('5.0'))}", "[5.0]")>]
+[<TestCase("@{json('{\"f\":5.0}')}", "{\"f\":5.0}")>]
+let ``Test stringified float-typed integer, when part of json expression, ends in .0`` expr expected =
+    stringTest expr expected
