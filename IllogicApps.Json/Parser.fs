@@ -11,8 +11,7 @@ open System.Text
 type private ParserState =
     | ValueStart
     | ValueEnd of JsonTree
-    | StringLiteral of StringBuilder
-    | StringEscape of StringBuilder
+    | StringLiteral
     | NumberZeroOrDigit of StringBuilder
     | NumberDigit of StringBuilder
     | NumberFractionDot of StringBuilder
@@ -54,7 +53,7 @@ let private parseInteger index (str: string) =
 let private fail (c: char) (index: int) (state: ParserState) (stack: ConstructingState list) =
     if index = -1 then
         match state, stack with
-        | StringLiteral _, _ -> "Unexpected end of input in string literal. Missing closing quote."
+        | StringLiteral, _ -> "Unexpected end of input in string literal. Missing closing quote."
         | _, ConstructingObjectValue _ :: _ -> "Unexpected end of input in object. Missing closing brace."
         | _, ConstructingObject _ :: _ -> "Unexpected end of input in object. Missing value and closing brace."
         | _, ConstructingArray _ :: _ -> "Unexpected end of input in array. Missing closing bracket."
@@ -72,6 +71,28 @@ let private fail (c: char) (index: int) (state: ParserState) (stack: Constructin
         | _ -> sprintf "Unexpected character '%c' at index %d in state %A with stack %A" c index state stack
         |> JsonFormatException
         |> raise
+
+let private failBuildingString
+    (sb: StringBuilder)
+    (c: char)
+    (index: int)
+    (isEscape: bool)
+    (stack: ConstructingState list)
+    =
+    match c with
+    | _ when index = -1 -> sprintf "Unexpected end of input in string literal at index %d. String so far: %O" index sb
+    | c when c < char 0x20 ->
+        sprintf "Unexpected character '%c' at index %d in string literal. String so far: %O" c index sb
+    | _ ->
+        sprintf
+            "Unexpected character '%c' when parsing %s at index %d with stack %A. String so far: %O"
+            c
+            (if isEscape then "string" else "escape sequence")
+            index
+            stack
+            sb
+    |> JsonFormatException
+    |> raise
 
 let private parseLiteralIdentifier s c index state stack =
     match s with
@@ -149,7 +170,7 @@ let parse (str: string) =
                     | '\t'
                     | '\n'
                     | '\r' -> parse' (index + 1) ValueStart stack
-                    | '"' -> parse' (index + 1) (StringLiteral(null)) stack
+                    | '"' -> parse' (index + 1) StringLiteral stack
                     | '-' as c -> parse' (index + 1) (NumberZeroOrDigit(StringBuilder().Append(c))) stack
                     | '0' as c -> parse' (index + 1) (NumberFractionDot(StringBuilder().Append(c))) stack
                     | c when Char.IsAsciiDigit(c) -> parse' (index + 1) (NumberDigit(StringBuilder().Append(c))) stack
@@ -202,8 +223,9 @@ let parse (str: string) =
                             parse' (index + 1) (ValueEnd(JsonTree.Object(o.SetAtEnd(k, v).Build()))) stack'
                         | _ -> fail c index state stack
                     | c -> fail c index state stack
-            | StringLiteral _ ->
+            | StringLiteral ->
                 let sb = StringBuilder()
+
                 let rec auxParse start index =
                     let index =
                         if index + Vector256<int16>.Count <= str.Length then
@@ -215,7 +237,7 @@ let parse (str: string) =
                         sb.Append(str.AsSpan(start, index - start)) |> ignore
 
                     if index = str.Length then
-                        fail ' ' -1 (StringLiteral sb) stack
+                        failBuildingString sb ' ' -1 false stack
                     else
                         match str.[index] with
                         | '\\' ->
@@ -226,14 +248,14 @@ let parse (str: string) =
                             parse' (index + 1) (ValueEnd(JsonTree.String(sb.ToString()))) stack
                         | c when c < char 0x20 ->
                             finishStep ()
-                            fail c index (StringLiteral sb) stack
+                            failBuildingString sb c index false stack
                         | _ -> auxParse start (index + 1)
 
                 and startAuxParse i = auxParse i i
 
                 and auxEscape index =
                     if index = str.Length then
-                        fail ' ' -1 state stack
+                        failBuildingString sb ' ' -1 true stack
                     else
                         match str.[index] with
                         | '"'
@@ -261,7 +283,7 @@ let parse (str: string) =
                             let c = char (Int32.Parse(hex, NumberStyles.HexNumber))
                             sb.Append(c) |> ignore
                             startAuxParse (index + 5)
-                        | c -> fail c index (StringEscape sb) stack
+                        | c -> failBuildingString sb c index true stack
 
                 startAuxParse index
             | NumberZeroOrDigit sb ->
@@ -319,11 +341,7 @@ let parse (str: string) =
                     | '\t'
                     | '\n'
                     | '\r' -> parse' (index + 1) ObjectStart stack
-                    | '"' ->
-                        parse'
-                            (index + 1)
-                            (StringLiteral(StringBuilder()))
-                            (ConstructingObject(OrderedMap.Builder()) :: stack)
+                    | '"' -> parse' (index + 1) StringLiteral (ConstructingObject(OrderedMap.Builder()) :: stack)
                     | '}' -> parse' (index + 1) (ValueEnd(JsonTree.Object(OrderedMap.empty))) stack
                     | c -> fail c index state stack
             | ArrayStart ->
@@ -347,6 +365,5 @@ let parse (str: string) =
                 match c with
                 | c when Char.IsAsciiLetter(c) -> parse' (index + 1) (LiteralIdentifier(sb.Append(c))) stack
                 | _ -> parse' index (ValueEnd(parseLiteralIdentifier (sb.ToString()) c index state stack)) stack
-            | state -> failwithf "Shouldn't be here in state %A" state
 
     parse' 0 ValueStart []
