@@ -7,48 +7,13 @@ open System.Text
 open System.Xml
 
 open IllogicApps.Core
+open IllogicApps.Core.Support
 open IllogicApps.Json
 
 type Args = JsonTree list
 type LanguageFunction = SimulatorContext -> Args -> JsonTree
 type LazyArgs = JsonTree Lazy list
 type LazyArgsLanguageFunction = SimulatorContext -> LazyArgs -> JsonTree
-
-module ContentType =
-    let Binary = "application/octet-stream"
-    let Xml = "application/xml"
-    let Json = "application/json"
-    let Text = "text/plain"
-
-    module Charset =
-        let private CharsetEq = "charset="
-
-        let Utf8 = "utf-8"
-
-        let set (contentType: string) (charset: string) = $"{contentType};{CharsetEq}{charset}"
-
-        let get (contentType: string) =
-            let parts = contentType.Split(';')
-
-            parts
-            |> Array.tryPick (fun v ->
-                let v = v.Trim()
-
-                if v.StartsWith(CharsetEq, StringComparison.OrdinalIgnoreCase) then
-                    Some v
-                else
-                    None)
-            |> Option.map _.Substring(CharsetEq.Length)
-            |> Option.map Encoding.GetEncoding
-
-        let getBuggy (contentType: string) =
-            let parts = contentType.Split(';', 3)
-
-            match parts with
-            | [| _; second; _ |]
-            | [| _; second |] when second.StartsWith(CharsetEq, StringComparison.OrdinalIgnoreCase) ->
-                Some(Encoding.GetEncoding(second.Substring CharsetEq.Length))
-            | _ -> None
 
 let expectArgs n (args: Args) =
     if args.Length <> n then
@@ -74,53 +39,15 @@ let ensureStringMsg msg (node: JsonTree) =
 
 let count seq el = Seq.filter ((=) el) seq |> Seq.length
 
-let toBase64 (str: string) =
-    str |> Encoding.UTF8.GetBytes |> Convert.ToBase64String
-
-let fromBase64 (str: string) =
-    str |> Convert.FromBase64String |> Encoding.UTF8.GetString
-
-let base64ToBlob (contentType: string) (base64: string) : JsonTree =
-    Conversions.createObject [ "$content-type", String contentType; "$content", String base64 ]
-
-let strToBase64Blob (contentType: string) (str: string) : JsonTree =
-    str |> toBase64 |> base64ToBlob contentType
-
-let toBinary (str: string) : JsonTree =
-    str |> strToBase64Blob ContentType.Binary
-
-let (|Base64StringBlob|_|) (node: JsonTree) : (string * byte array) option =
-    match node with
-    | Object node ->
-        if node.ContainsKey("$content-type") && node.ContainsKey("$content") then
-            let content =
-                node["$content"] |> Conversions.rawStringOfJson |> Convert.FromBase64String
-
-            Some(Conversions.rawStringOfJson node["$content-type"], content)
-        else
-            None
-    | _ -> None
-
-let decodeByContentType (contentType: string) (content: byte array) =
-    contentType.Split(";")
-    |> Seq.skip 1
-    |> Seq.iter (fun seg ->
-        if count seg '=' = 0 then
-            failwithf "Bad content type segment %s" seg)
-
-    ContentType.Charset.get contentType
-    |> Option.defaultValue Encoding.UTF8
-    |> _.GetString(content)
-
 let (|StringOrEncodedString|_|) (node: JsonTree) : string option =
     match node with
-    | Base64StringBlob(contentType, content) -> Some(decodeByContentType contentType content)
+    | Blob.Blob(contentType, content) -> Some(ContentType.Charset.decodeBytes contentType content)
     | String s -> Some s
     | _ -> None
 
 let objectToString (node: JsonTree) : string =
     match node with
-    | Base64StringBlob(contentType, content) -> decodeByContentType contentType content
+    | Blob.Blob(contentType, content) -> ContentType.Charset.decodeBytes contentType content
     | Boolean true -> "True"
     | Boolean false -> "False"
     | Float f -> string f
@@ -130,7 +57,7 @@ let objectToString (node: JsonTree) : string =
 
 let (|ContentTypedAny|_|) (node: JsonTree) =
     match node with
-    | Base64StringBlob(contentType, content) -> Some(contentType, content)
+    | Blob.Blob(contentType, content) -> Some(contentType, content)
     | Null -> None
     | String s -> Some(ContentType.Charset.set ContentType.Text ContentType.Charset.Utf8, Encoding.UTF8.GetBytes s)
     | n ->
@@ -138,14 +65,6 @@ let (|ContentTypedAny|_|) (node: JsonTree) =
             ContentType.Charset.set ContentType.Json ContentType.Charset.Utf8,
             Encoding.UTF8.GetBytes(objectToString n)
         )
-
-let isXmlContentType (contentType: string) =
-    $"{contentType};"
-        .StartsWith($"{ContentType.Xml};", StringComparison.OrdinalIgnoreCase)
-
-let isBinaryContentType (contentType: string) =
-    $"{contentType};"
-        .StartsWith($"{ContentType.Binary};", StringComparison.OrdinalIgnoreCase)
 
 type Arithmetic2Type =
     | Add
@@ -234,9 +153,9 @@ let parseDataUri (str: string) isForString =
             let metaPartsWithoutBase64 =
                 metaParts |> Seq.ofArray |> Seq.take (metaParts.Length - 1)
 
-            metaPartsWithoutBase64, parts.[1]
+            metaPartsWithoutBase64, parts.[1] |> Base64.mark
         else
-            metaParts, toBase64 (WebUtility.UrlDecode parts.[1])
+            metaParts, Base64.ofString (WebUtility.UrlDecode parts.[1])
 
     let contentType =
         match List.ofSeq contentTypeParts with
@@ -573,27 +492,28 @@ let f_base64 _ (args: Args) : JsonTree =
     expectArgs 1 args
     let str = Conversions.ensureString <| List.head args
 
-    String(toBase64 str)
+    String(Base64.ofString str |> Base64.unmark)
 
 let f_base64ToBinary _ (args: Args) : JsonTree =
     expectArgs 1 args
     let str = Conversions.ensureString <| List.head args
 
     // Try decoding the base64 string to ensure it's valid
-    Convert.FromBase64String str |> ignore
+    let str = Base64.mark str
+    Base64.toBytes str |> ignore
 
-    str |> base64ToBlob ContentType.Binary
+    str |> Blob.ofBase64 ContentType.Binary
 
 let f_base64ToString _ (args: Args) : JsonTree =
     expectArgs 1 args
     let str = Conversions.ensureString <| List.head args
 
-    str |> fromBase64 |> String
+    str |> Base64.mark |> Base64.toString |> String
 
 let f_binary _ (args: Args) : JsonTree =
     match args with
     | [ Null ] -> failwith "Expected non-null argument"
-    | [ a ] -> toBinary (objectToString a)
+    | [ a ] -> Blob.binaryOfString (objectToString a)
     | _ -> failwith "Expected 1 argument"
 
 let f_createArray _ (args: Args) : JsonTree =
@@ -606,7 +526,7 @@ let f_dataUri _ (args: Args) : JsonTree =
 
     match List.head args with
     | ContentTypedAny(contentType, content) ->
-        let base64 = Convert.ToBase64String(content)
+        let base64 = Base64.ofBytes content
         let dataUri = $"data:{contentType};base64,{base64}"
         String dataUri
     | _ -> failwith "Cannot convert to data URI"
@@ -624,7 +544,7 @@ let f_dataUriToBinary _ (args: Args) : JsonTree =
 
     ContentType.Charset.get contentType |> ignore // just want to throw if the charset is wrong
 
-    base64ToBlob contentType text
+    Blob.ofBase64 contentType text
 
 let f_dataUriToString _ (args: Args) : JsonTree =
     expectArgs 1 args
@@ -634,7 +554,7 @@ let f_dataUriToString _ (args: Args) : JsonTree =
     if ContentType.Charset.getBuggy contentType |> Option.exists ((<>) Encoding.UTF8) then
         failwith "dataUriToString only supports utf-8 encoded text"
 
-    String(fromBase64 text)
+    String(Base64.toString text)
 
 let f_decimal _ (args: Args) : JsonTree =
     expectArgs 1 args
@@ -702,9 +622,9 @@ let f_json (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 1 args
 
     match args |> List.head with
-    | Base64StringBlob(contentType, content) ->
-        if isXmlContentType contentType then
-            let xmlStr = decodeByContentType contentType content
+    | Blob.Blob(contentType, content) ->
+        if ContentType.isXml contentType then
+            let xmlStr = ContentType.Charset.decodeBytes contentType content
             use writer = new JsonXmlWriter(sim.IsBugForBugAccurate)
 
             try
@@ -734,8 +654,8 @@ let f_json (sim: SimulatorContext) (args: Args) : JsonTree =
 
             writer.Close()
             writer.Result
-        else if isBinaryContentType contentType then
-            content |> decodeByContentType contentType |> Parser.parse
+        else if ContentType.isBinary contentType then
+            content |> ContentType.Charset.decodeBytes contentType |> Parser.parse
         else
             failwithf "Unknown content type %s" contentType
     | arg -> Conversions.ensureString arg |> Parser.parse
@@ -750,14 +670,11 @@ let f_xml (sim: SimulatorContext) (args: Args) : JsonTree =
     let makeXmlWith f =
         let doc = XmlDocument()
         f doc
-        doc.OuterXml |> strToBase64Blob $"{ContentType.Xml};charset=utf-8"
+        doc.OuterXml |> Blob.ofString ContentType.XmlUtf8
 
     match List.head args with
     | String str -> makeXmlWith _.LoadXml(str)
-    | Base64StringBlob(_, content) ->
-        content
-        |> Convert.ToBase64String
-        |> base64ToBlob $"{ContentType.Xml};charset=utf-8"
+    | Blob.Blob(_, content) -> content |> Base64.ofBytes |> Blob.ofBase64 ContentType.XmlUtf8
     | Object _ as v -> makeXmlWith (JsonToXmlConversion.writeJsonToXml sim.IsBugForBugAccurate v)
     | v -> failwithf "Expected string or object, got %A" (JsonTree.getType v)
 
