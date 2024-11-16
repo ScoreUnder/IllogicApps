@@ -149,7 +149,7 @@ let parse (str: string) =
                     | '\t'
                     | '\n'
                     | '\r' -> parse' (index + 1) ValueStart stack
-                    | '"' -> parse' (index + 1) (StringLiteral(StringBuilder())) stack
+                    | '"' -> parse' (index + 1) (StringLiteral(null)) stack
                     | '-' as c -> parse' (index + 1) (NumberZeroOrDigit(StringBuilder().Append(c))) stack
                     | '0' as c -> parse' (index + 1) (NumberFractionDot(StringBuilder().Append(c))) stack
                     | c when Char.IsAsciiDigit(c) -> parse' (index + 1) (NumberDigit(StringBuilder().Append(c))) stack
@@ -202,7 +202,8 @@ let parse (str: string) =
                             parse' (index + 1) (ValueEnd(JsonTree.Object(o.SetAtEnd(k, v).Build()))) stack'
                         | _ -> fail c index state stack
                     | c -> fail c index state stack
-            | StringLiteral sb ->
+            | StringLiteral _ ->
+                let sb = StringBuilder()
                 let rec auxParse start index =
                     let index =
                         if index + Vector256<int16>.Count <= str.Length then
@@ -214,7 +215,7 @@ let parse (str: string) =
                         sb.Append(str.AsSpan(start, index - start)) |> ignore
 
                     if index = str.Length then
-                        fail ' ' -1 state stack
+                        fail ' ' -1 (StringLiteral sb) stack
                     else
                         match str.[index] with
                         | '\\' ->
@@ -225,7 +226,7 @@ let parse (str: string) =
                             parse' (index + 1) (ValueEnd(JsonTree.String(sb.ToString()))) stack
                         | c when c < char 0x20 ->
                             finishStep ()
-                            fail c index state stack
+                            fail c index (StringLiteral sb) stack
                         | _ -> auxParse start (index + 1)
 
                 and startAuxParse i = auxParse i i
