@@ -197,7 +197,7 @@ type MockRequestMatcher private () =
 
     member this.WithHeader(name, value) =
         ArgumentNullException.ThrowIfNullOrEmpty(name, nameof name)
-        _requestHeaders.[name] = value |> ignore
+        _requestHeaders.[name] <- value
         this
 
     member this.WithContentType([<ParamArray>] contentTypes) =
@@ -214,7 +214,7 @@ type MockRequestMatcher private () =
 
     member this.WithQueryParam(name, value) =
         ArgumentNullException.ThrowIfNullOrEmpty(name, nameof name)
-        _requestQueryParams.[name] = value |> ignore
+        _requestQueryParams.[name] <- value
         this
 
     member this.WithMatchCount([<ParamArray>] matchCounts) =
