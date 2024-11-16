@@ -47,6 +47,7 @@ type TestRunner
     let defaultHandler (overallResponse: HttpResponseMessage option ref) originWorkflowName (_: SimulatorContext) =
         function
         | HttpResponse(response) when overallResponse.Value.IsNone && workflowName = originWorkflowName ->
+            // TODO: `workflowName = originWorkflowName` is not recursion-friendly
             overallResponse.Value <- Some <| netHttpResponseMessageOfHttpRequestReply response
             true
         | HttpRequest(request, reply) ->
@@ -168,6 +169,17 @@ type TestRunner
                 else
                     decodeBodyByContentType contentType contentString |> Some }
 
+        // Figure out if there is a Response action in the main workflow
+        let hasResponseAction =
+            workflows
+            |> Array.pick (fun (name, root) ->
+                if name = workflowName then
+                    Some root.definition.actions
+                else
+                    None)
+            |> LogicAppValidation.containsResponseAction
+
+        // Start test
         let overallResponse = ref None
         mockDefinition.TestRunStarting()
 
@@ -201,6 +213,7 @@ type TestRunner
         | None ->
             let status =
                 match sims |> List.head |> _.TerminationStatus with
+                | _ when not hasResponseAction -> HttpStatusCode.Accepted
                 | Ok Succeeded
                 | Error(Succeeded, _) -> HttpStatusCode.Accepted
                 | _ -> HttpStatusCode.BadGateway
@@ -220,9 +233,11 @@ type TestRunner
         member this.AddApiMocks
             with set value = mockDefinition.MockResponseDelegate <- value
 
-        member this.AddMockResponse(mockRequestMatcher) = mockDefinition.AddMockResponse(mockRequestMatcher)
+        member this.AddMockResponse(mockRequestMatcher) =
+            mockDefinition.AddMockResponse(mockRequestMatcher)
 
-        member this.AddMockResponse(name, mockRequestMatcher) = mockDefinition.AddMockResponse(name, mockRequestMatcher)
+        member this.AddMockResponse(name, mockRequestMatcher) =
+            mockDefinition.AddMockResponse(name, mockRequestMatcher)
 
         member this.ExceptionWrapper(assertion) = assertion.Invoke()
 
@@ -279,7 +294,12 @@ type TestRunner
             this.TriggerWorkflow(null, content, requestHeaders)
 
         member this.TriggerWorkflow
-            (content: HttpContent, _method: HttpMethod, _relativePath: string, requestHeaders: Dictionary<string, string>) : HttpResponseMessage =
+            (
+                content: HttpContent,
+                _method: HttpMethod,
+                _relativePath: string,
+                requestHeaders: Dictionary<string, string>
+            ) : HttpResponseMessage =
             this.TriggerWorkflow(null, content, requestHeaders)
 
         member this.TriggerWorkflow(queryParams, content, _method, _relativePath, requestHeaders) =

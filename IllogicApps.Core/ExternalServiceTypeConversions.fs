@@ -118,3 +118,6 @@ let netHttpResponseMessageOfHttpRequestReply (resp: HttpRequestReply) =
     |> Option.iter (OrderedMap.iter (fun k v -> netResp.Headers.TryAddWithoutValidation(k, v) |> ignore))
 
     netResp
+
+let httpStatusCodeIsSuccess (code: int) =
+    code >= 200 && code < 300

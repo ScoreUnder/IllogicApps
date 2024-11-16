@@ -581,7 +581,11 @@ type Http(json) =
             result
         )
 
+        let success = ExternalServiceTypeConversions.httpStatusCodeIsSuccess result.Value.statusCode
+        // TODO: retry policy
+
         { ActionResult.Default with
+            status = if success then Succeeded else Failed
             inputs = Some(jsonOfHttpInputs processedInputs)
             outputs = Some(jsonOfHttpRequestReply result.Value) }
 
