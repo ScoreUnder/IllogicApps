@@ -8,7 +8,7 @@ type HttpRequest =
       uri: string
       headers: OrderedMap<string, string>
       queryParameters: OrderedMap<string, string>
-      body: string option
+      body: byte array option
       cookie: string option
       authentication: JsonTree }
 

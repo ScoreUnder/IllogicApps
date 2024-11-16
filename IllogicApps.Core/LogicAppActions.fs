@@ -571,12 +571,13 @@ type Http(json) =
             |> Option.map (OrderedMap.Builder().AddRange)
             |> Option.defaultValue (OrderedMap.Builder())
 
+        let processedContent =
+            ExternalServiceTypeConversions.contentOfJson processedInputs.body
+
         // Add content-type if missing
         // TODO case-insensitivity
-        processedInputs.body
-        |> JsonTree.getType
-        |> ExternalServiceTypeConversions.contentTypeOfJsonType
-        |> Option.iter (fun v -> headers.TryAdd("Content-Type", v) |> ignore)
+        processedContent
+        |> Option.iter (fun (type_, _) -> headers.TryAdd("Content-Type", type_) |> ignore)
 
         // Add action name
         // TODO toggle if requested in json
@@ -587,10 +588,7 @@ type Http(json) =
             { method = processedInputs.method
               uri = processedInputs.uri
               headers = headers.Build()
-              body =
-                (processedInputs.body
-                 |> Conversions.optionOfJson
-                 |> Option.map Conversions.rawStringOfJson)
+              body = Option.map snd processedContent
               queryParameters = processedInputs.queries |> Option.defaultValue OrderedMap.empty
               cookie = processedInputs.cookie
               authentication = processedInputs.authentication },

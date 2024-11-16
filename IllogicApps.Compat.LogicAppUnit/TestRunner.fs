@@ -78,13 +78,7 @@ type TestRunner
             true
         | ServiceProvider(serviceProviderReq, reply) ->
             let uri = $"{MOCK_HOST_URI}/{serviceProviderReq.actionName}"
-            let parameters = serviceProviderReq.parameters
-            let contentType = parameters |> JsonTree.getType |> contentTypeOfJsonType
-            let requestStr = parameters |> Conversions.stringOfJson
-
-            let content =
-                new StringContent(requestStr, Encoding.UTF8, contentType |> Option.defaultValue ContentType.Text)
-
+            let content = netHttpContentOfJson serviceProviderReq.parameters
             let netHttpRequest = new HttpRequestMessage(HttpMethod.Post, uri, Content = content)
 
             netHttpRequest.Headers.TryAddWithoutValidation(

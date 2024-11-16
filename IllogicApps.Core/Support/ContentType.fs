@@ -19,6 +19,12 @@ let Text = "text/plain"
 [<Literal>]
 let XmlUtf8 = Xml + ";charset=utf-8"
 
+[<Literal>]
+let JsonUtf8 = Json + ";charset=utf-8"
+
+[<Literal>]
+let TextUtf8 = Text + ";charset=utf-8"
+
 let mimePart (contentType: string) =
     match contentType.IndexOf(';') with
     | -1 -> contentType.AsSpan()

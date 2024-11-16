@@ -28,11 +28,20 @@ let decodeBodyByContentType (contentType: string) (body: string) =
     elif ContentType.isAnyText contentType then String body
     else Blob.ofString contentType body
 
-let contentTypeOfJsonType (json: JsonType) =
-    match json with
-    | JsonType.Null -> None
-    | JsonType.String -> Some ContentType.Text
-    | _ -> Some ContentType.Json
+let contentOfJson =
+    function
+    | Null -> None
+    | String s -> Some(ContentType.TextUtf8, s |> Encoding.UTF8.GetBytes)
+    | Blob.Blob(contentType, content) -> Some(contentType, content)
+    | json -> Some(ContentType.JsonUtf8, json |> Conversions.stringOfJson |> Encoding.UTF8.GetBytes)
+
+let netHttpContentOfJson json =
+    match contentOfJson json with
+    | None -> null
+    | Some(contentType, content) ->
+        let content = new Http.ByteArrayContent(content)
+        content.Headers.ContentType <- MediaTypeHeaderValue.Parse(contentType)
+        content
 
 let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
     let netReq =
@@ -45,9 +54,11 @@ let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
     | Some content ->
         let contentType =
             OrderedMap.tryFindCaseInsensitive "Content-Type" req.headers
-            |> Option.defaultValue ContentType.Text
+            |> Option.defaultValue ContentType.TextUtf8
 
-        netReq.Content <- new Http.StringContent(content, Encoding.UTF8, contentType)
+        let netContent = new Http.ByteArrayContent(content)
+        netContent.Headers.ContentType <- MediaTypeHeaderValue.Parse(contentType)
+        netReq.Content <- netContent
     | None -> ()
 
     req.cookie
@@ -95,9 +106,7 @@ let netHttpRequestMessageOfWorkflowRequest (req: WorkflowRequest) =
             requestUri = Uri($"https://dummyWorkflowInvoker/{req.workflowId}")
         )
 
-    match req.body |> JsonTree.getType |> contentTypeOfJsonType with
-    | None -> ()
-    | Some typ -> netReq.Content <- new Http.StringContent(req.body |> Conversions.stringOfJson, Encoding.UTF8, typ)
+    netReq.Content <- netHttpContentOfJson req.body
 
     req.headers
     |> OrderedMap.iter (fun k v -> netReq.Headers.TryAddWithoutValidation(k, v) |> ignore)
@@ -110,14 +119,7 @@ let netHttpResponseMessageOfHttpRequestReply (resp: HttpRequestReply) =
     let netResp =
         new Http.HttpResponseMessage(
             enum<HttpStatusCode> resp.statusCode,
-            Content =
-                (resp.body
-                 |> Option.bind (fun body ->
-                     match contentTypeOfJsonType (JsonTree.getType body) with
-                     | Some type_ ->
-                         Some(new Http.StringContent(body |> Conversions.rawStringOfJson, Encoding.UTF8, type_))
-                     | None -> None)
-                 |> Option.toObj)
+            Content = (resp.body |> Conversions.jsonOfOption |> netHttpContentOfJson)
         )
 
     resp.headers
