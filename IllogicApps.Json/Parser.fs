@@ -346,5 +346,6 @@ let parse (str: string) =
                 match c with
                 | c when Char.IsAsciiLetter(c) -> parse' (index + 1) (LiteralIdentifier(sb.Append(c))) stack
                 | _ -> parse' index (ValueEnd(parseLiteralIdentifier (sb.ToString()) c index state stack)) stack
+            | state -> failwithf "Shouldn't be here in state %A" state
 
     parse' 0 ValueStart []
