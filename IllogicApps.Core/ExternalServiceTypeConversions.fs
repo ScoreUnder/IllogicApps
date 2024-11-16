@@ -84,7 +84,7 @@ let httpRequestReplyOfNetHttpResponseMessage (resp: Http.HttpResponseMessage) =
             let contentType =
                 content.Headers.ContentType
                 |> Option.ofObj
-                |> Option.bind (fun o -> o.MediaType |> Option.ofObj)
+                |> Option.map string
 
             let contentStr = content.ReadAsStringAsync().Result
 

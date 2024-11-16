@@ -143,7 +143,7 @@ type TestRunner
         let contentType =
             content.Headers.ContentType
             |> Option.ofObj
-            |> Option.map _.MediaType
+            |> Option.map string
             |> Option.defaultWith (fun () ->
                 requestHeaders
                 |> Option.bind (fun h ->
