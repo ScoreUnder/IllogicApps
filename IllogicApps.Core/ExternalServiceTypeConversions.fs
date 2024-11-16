@@ -31,8 +31,8 @@ let decodeBodyByContentType (contentType: string) (body: string) =
 let contentTypeOfJsonType (json: JsonType) =
     match json with
     | JsonType.Null -> None
-    | JsonType.String -> Some "text/plain"
-    | _ -> Some "application/json"
+    | JsonType.String -> Some ContentType.Text
+    | _ -> Some ContentType.Json
 
 let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
     let netReq =
@@ -45,7 +45,7 @@ let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
     | Some content ->
         let contentType =
             OrderedMap.tryFindCaseInsensitive "Content-Type" req.headers
-            |> Option.defaultValue "text/plain"
+            |> Option.defaultValue ContentType.Text
 
         netReq.Content <- new Http.StringContent(content, Encoding.UTF8, contentType)
     | None -> ()
@@ -81,7 +81,7 @@ let httpRequestReplyOfNetHttpResponseMessage (resp: Http.HttpResponseMessage) =
                 None
             else
                 contentStr
-                |> decodeBodyByContentType (Option.defaultValue "application/octet-stream" contentType)
+                |> decodeBodyByContentType (Option.defaultValue ContentType.Binary contentType)
                 |> Some
 
     { statusCode = int resp.StatusCode

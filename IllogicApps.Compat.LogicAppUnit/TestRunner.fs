@@ -13,6 +13,7 @@ open IllogicApps.Core
 open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.ExternalServiceTypeConversions
+open IllogicApps.Core.Support
 open IllogicApps.Json
 open IllogicApps.Simulator
 open IllogicApps.Simulator.Parameters
@@ -64,7 +65,7 @@ type TestRunner
         | Workflow(request, reply) ->
             let uri = $"{MOCK_HOST_URI}/{request.workflowId.TrimStart('/')}"
             let requestStr = request |> jsonOfWorkflowRequest |> Conversions.stringOfJson
-            let content = new StringContent(requestStr, Encoding.UTF8, "application/json")
+            let content = new StringContent(requestStr, Encoding.UTF8, ContentType.Json)
             let netHttpRequest = new HttpRequestMessage(HttpMethod.Post, uri, Content = content)
 
             let result =
@@ -82,7 +83,7 @@ type TestRunner
             let requestStr = parameters |> Conversions.stringOfJson
 
             let content =
-                new StringContent(requestStr, Encoding.UTF8, contentType |> Option.defaultValue "text/plain")
+                new StringContent(requestStr, Encoding.UTF8, contentType |> Option.defaultValue ContentType.Text)
 
             let netHttpRequest = new HttpRequestMessage(HttpMethod.Post, uri, Content = content)
 
@@ -155,7 +156,7 @@ type TestRunner
                     match h.TryGetValue("Content-Type") with
                     | true, x -> Some x
                     | _ -> None)
-                |> Option.defaultValue "text/plain")
+                |> Option.defaultValue ContentType.Text)
 
         let contentString = content.ReadAsStringAsync().GetAwaiter().GetResult()
 
