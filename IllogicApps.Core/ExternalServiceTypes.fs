@@ -89,12 +89,7 @@ let jsonOfWorkflowRequest req =
     OrderedMap
         .Builder()
         .Add("host", Conversions.createObject [ "workflow", Conversions.createObject [ "id", String req.workflowId ] ])
-        .Add(
-            "headers",
-            req.headers
-            |> Seq.map (fun (KeyValue(k, v)) -> k, String v)
-            |> Conversions.createObject
-        )
+        .Add("headers", req.headers |> OrderedMap.mapValuesOnly String |> Object)
         .MaybeAdd("body", req.body |> Conversions.optionOfJson)
         .Add("retryPolicy", jsonOfWorkflowRequestRetryPolicy req.retryPolicy)
         .Build()
