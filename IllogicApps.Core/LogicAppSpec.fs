@@ -15,7 +15,10 @@ type Definition =
 
 let definitionOfJson resolveAction json =
     { actions = JsonTree.getKey "actions" json |> actionGraphOfJson resolveAction
-      outputs = JsonTree.getKey "outputs" json |> Conversions.ensureObject
+      outputs =
+        JsonTree.tryGetKey "outputs" json
+        |> Option.map Conversions.ensureObject
+        |> Option.defaultValue OrderedMap.empty
       triggers = JsonTree.getKey "triggers" json |> actionGraphOfJson resolveAction }
 
 type Root =
