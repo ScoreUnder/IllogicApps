@@ -267,7 +267,16 @@ type TestRunner
             mySim().ActionResults.[actionName].status |> actionStatusOfIllogic
 
         member this.GetWorkflowActionStatus(actionName, repetitionNumber) = failwith "todo"
-        member this.GetWorkflowActionTrackedProperties(actionName) = failwith "todo"
+
+        member this.GetWorkflowActionTrackedProperties(actionName) =
+            mySim().ActionResults.[actionName].trackedProperties
+            |> Option.map (fun map ->
+                map
+                |> OrderedMap.toSeq
+                |> Seq.map (fun (k, v) -> KeyValuePair(k, Conversions.rawStringOfJson v))
+                |> Dictionary<string, string>)
+            |> Option.defaultValue (Dictionary<string, string>())
+
         member this.GetWorkflowActionTrackedProperties(actionName, repetitionNumber) = failwith "todo"
 
         member this.MockRequests = mockDefinition.MockRequests

@@ -211,7 +211,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
     let isBugForBugAccurate = creationOptions.isBugForBugAccurate
 
-    let recordResultOf name (f: unit -> ActionResult) =
+    let recordResultOf name (action: IGraphExecutable) (f: unit -> ActionResult) =
         let startTime = DateTime.UtcNow
 
         let result =
@@ -226,11 +226,23 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
                             { code = ActionFailed
                               message = $"Action threw exception: {e}" } }
 
+        let trackedProperties =
+            match action, result.status with
+            | _, Skipped -> None
+            | :? BaseAction as action, _ ->
+                action.TrackedProperties
+                |> Object
+                |> this.EvaluateLanguage
+                |> Conversions.ensureObject
+                |> Some
+            | _ -> None
+
         let result =
             { CompletedAction.create name (stringOfDateTime startTime) with
                 status = result.status
                 inputs = result.inputs
                 outputs = result.outputs
+                trackedProperties = trackedProperties
                 error = result.error
                 code = result.code
                 clientTrackingId = creationOptions.triggerResult.action.clientTrackingId }
@@ -329,14 +341,17 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
                         let actionType = getActionType action
                         logActionPreRun actionName actionType
-                        let result = recordResultOf actionName (fun () -> action.Execute actionName this)
+
+                        let result =
+                            recordResultOf actionName action (fun () -> action.Execute actionName this)
+
                         logActionPostRun actionName actionType result
 
                         rest @ (getNextActions actionName)
                     | Completed ->
                         // This action's dependencies are in the wrong state, skip it
                         remainingActions.Remove actionName |> ignore
-                        recordResultOf actionName (fun () -> result) |> ignore
+                        recordResultOf actionName action (fun () -> result) |> ignore
                         action.GetChildren() |> this.ForceSkipAll
 
                         rest @ (getNextActions actionName)
@@ -409,4 +424,4 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         |> Seq.map (fun (k, v) -> k, (v: IGraphExecutable))
         |> Seq.toList
         |> getAllChildren
-        |> List.iter (fun (name, _) -> recordResultOf name (fun () -> skippedBranchResult) |> ignore)
+        |> List.iter (fun (name, action) -> recordResultOf name action (fun () -> skippedBranchResult) |> ignore)

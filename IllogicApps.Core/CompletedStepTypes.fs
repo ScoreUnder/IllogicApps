@@ -93,6 +93,7 @@ type CompletedAction =
     { name: string
       inputs: JsonTree option
       outputs: JsonTree option
+      trackedProperties: OrderedMap<string, JsonTree> option
       startTime: string
       endTime: string
       trackingId: string
@@ -106,6 +107,7 @@ module CompletedAction =
         { name = name
           inputs = None
           outputs = None
+          trackedProperties = None
           startTime = startTime
           endTime = stringOfDateTime DateTime.UtcNow
           trackingId = makeNewTrackingId ()
@@ -120,6 +122,7 @@ let orderedMapBuilderOfCompletedAction (ca: CompletedAction) =
         .Add("name", String ca.name)
         .MaybeAdd("inputs", ca.inputs)
         .MaybeAdd("outputs", ca.outputs)
+        .MaybeAdd("trackedProperties", Option.map Object ca.trackedProperties)
         .Add("startTime", String ca.startTime)
         .Add("endTime", String ca.endTime)
         .Add("trackingId", String ca.trackingId)
