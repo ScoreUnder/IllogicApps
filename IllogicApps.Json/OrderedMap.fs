@@ -193,8 +193,7 @@ module OrderedMap =
         member this.Build() =
             OrderedMap.CreateUnsafe<'K, 'V>(backingMap.ToImmutable(), backingArray.DrainToImmutable())
 
-    let empty<'K, 'V when 'K: equality> =
-        OrderedMap<'K, 'V>.CreateRange([])
+    let empty<'K, 'V when 'K: equality> = OrderedMap<'K, 'V>.CreateRange([])
 
     let inline isEmpty (m: OrderedMap<'a, 'b>) = m.Count = 0
 
@@ -307,7 +306,10 @@ module OrderedMap =
     let mapValuesOnly (f: 'V -> 'W) (m: OrderedMap<'K, 'V>) =
         let map = ImmutableDictionary.CreateBuilder<'K, 'W>()
         let array = m.Keys
-        array |> Seq.iter (fun key -> map.Add(key, f m.[key]))
+
+        for key in array do
+            map.Add(key, f m.[key])
+
         OrderedMap.CreateUnsafe<'K, 'W>(map.ToImmutable(), array)
 
     let collect (f: 'K -> 'V -> ('K2 * 'V2) seq) (m: OrderedMap<'K, 'V>) =
