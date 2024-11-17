@@ -204,9 +204,9 @@ module OrderedMap =
     let inline ofArray array = ofSeq array
     let inline ofMap (map: Map<'K, 'V>) = OrderedMap.CreateRange(map)
 
-    let caseInsensitiveKey (key: string) (m: OrderedMap<string, _>) =
+    let tryCaseInsensitiveKey (key: string) (m: OrderedMap<string, _>) =
         if m.ContainsKey key then
-            key
+            Some key
         else
             m.Keys
             |> Seq.tryPick (fun k' ->
@@ -214,7 +214,9 @@ module OrderedMap =
                     Some k'
                 else
                     None)
-            |> Option.defaultValue key
+
+    let caseInsensitiveKey (key: string) (m: OrderedMap<string, _>) =
+        tryCaseInsensitiveKey key m |> Option.defaultValue key
 
     let fold (f: 'State -> 'K -> 'V -> 'State) (state: 'State) (m: OrderedMap<'K, 'V>) : 'State =
         Seq.fold (fun acc (KeyValue(k, v)) -> f acc k v) state m
@@ -227,6 +229,12 @@ module OrderedMap =
         let map = m.BackingMap
 
         OrderedMap.CreateUnsafe<'K, 'V>(map.Add(key, value), keys.Add(key))
+
+    let internal unsafeRemove (key: 'K) (m: OrderedMap<'K, 'V>) =
+        let keys = m.Keys
+        let map = m.BackingMap
+
+        OrderedMap.CreateUnsafe<'K, 'V>(map.Remove key, keys.Remove key)
 
     let set (key: 'K) (value: 'V) (m: OrderedMap<'K, 'V>) =
         let keys = if m.ContainsKey key then m.Keys else m.Keys.Add(key)
@@ -246,6 +254,26 @@ module OrderedMap =
     let tryAdd (key: 'K) (value: 'V) (m: OrderedMap<'K, 'V>) =
         if m.ContainsKey key then m else unsafeAdd key value m
 
+    let tryAddCaseInsensitive (key: string) (value: 'V) (m: OrderedMap<string, 'V>) =
+        match tryCaseInsensitiveKey key m with
+        | Some _ -> m
+        | None -> unsafeAdd key value m
+
+    let tryRemove (key: 'K) (m: OrderedMap<'K, 'V>) =
+        let oldMap = m.BackingMap
+        let newMap = oldMap.Remove key
+        // I think this might be faster than a ContainsKey check but I have no data to back that up
+        if newMap = oldMap then
+            m
+        else
+            let newKeys = m.Keys.Remove key
+            OrderedMap.CreateUnsafe<'K, 'V>(newMap, newKeys)
+
+    let tryRemoveCaseInsensitive (key: string) (m: OrderedMap<string, 'V>) =
+        match tryCaseInsensitiveKey key m with
+        | Some key -> unsafeRemove key m
+        | None -> m
+
     let toSeq (m: OrderedMap<'K, 'V>) =
         m |> Seq.map (fun (KeyValue(k, v)) -> k, v)
 
@@ -263,8 +291,7 @@ module OrderedMap =
         | _ -> None
 
     let tryFindCaseInsensitive (key: string) (m: OrderedMap<string, 'V>) =
-        let key = caseInsensitiveKey key m
-        tryFind key m
+        tryCaseInsensitiveKey key m |> Option.map (fun key -> m.[key])
 
     let tryPick (f: 'K -> 'V -> 'State option) (m: OrderedMap<'K, 'V>) : 'State option =
         Seq.tryPick (fun (KeyValue(k, v)) -> f k v) m

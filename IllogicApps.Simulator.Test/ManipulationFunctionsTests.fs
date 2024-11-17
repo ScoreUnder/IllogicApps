@@ -1,6 +1,7 @@
 module IllogicApps.Simulator.Test.ManipulationFunctionsTests
 
 open NUnit.Framework
+open Swensen.Unquote
 open IllogicApps.Json
 open TestSimUtil
 
@@ -30,6 +31,59 @@ let ``coalesce short-circuiting test cases`` =
 
 [<TestCaseSource(nameof ``coalesce short-circuiting test cases``)>]
 let ``Test coalesce short-circuiting`` expr expected = jsonOrFailTest expr expected
+
+let ``addProperty test cases`` =
+    [ "@addProperty(json('{}'),'a','')", Ok """{ "a": "" }"""
+      "@addProperty(json('{\"a\":1,\"b\":2,\"c\":3,\"d\":4}'),'c',3)", Error "property to not exist in the object"
+      "@addProperty(json('{\"a\":1,\"b\":2,\"c\":3,\"d\":4}'),'c',999)", Error "property to not exist in the object"
+      "@addProperty(json('{\"a\":1,\"b\":2,\"d\":4}'),'c',3)", Ok """{ "a": 1, "b": 2, "d": 4, "c": 3 }"""
+      "@addProperty(json('{\"a\":1,\"b\":2,\"c\":3,\"d\":4}'),'',null)",
+      Ok """{ "a": 1, "b": 2, "c": 3, "d": 4, "": null }"""
+      "@addProperty(json('{\"a\":1,\"b\":2,\"c\":3,\"d\":4}'),null,'')", Error "be of type string"
+      "@addProperty(json('{}'),1,1)", Error "be of type string"
+      "@addProperty(json('{}'),false,1)", Error "be of type string"
+      "@addProperty(json('{}'),json('[]'),1)", Error "be of type string"
+      "@addProperty(json('{}'),json('[\"a\"]'),1)", Error "be of type string"
+      "@addProperty(json('{}'),'value','a','b')", Error "expects three parameters"
+      "@addProperty(json('{}'),'value')", Error "expects three parameters"
+      "@addProperty(null,'x',1)", Error "be of type object"
+      "@addProperty(true,'x',1)", Error "be of type object"
+      "@addProperty(1,'x',1)", Error "be of type object"
+      "@addProperty('abc','x',1)", Error "be of type object"
+      "@addProperty('{}','x',1)", Error "be of type object"
+      "@addProperty(createArray(1,2,3),'x',1)", Error "be of type object" ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``addProperty test cases``)>]
+let ``Test addProperty`` expr expected = objOrFailTest expr expected
+
+let ``addProperty binary/xml test cases`` =
+    [ "@addProperty(binary('test'),'x',1)",
+      """{ "$content-type": "application/octet-stream", "$content": "dGVzdA==", "x": 1 }"""
+      "@addProperty(xml('<test/>'),'x',1)",
+      """{ "$content-type": "application/xml;charset=utf-8", "$content": "PHRlc3QgLz4=", "x": 1 }""" ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``addProperty binary/xml test cases``)>]
+let ``Test addProperty with binary and xml`` expr expected = objTest expr expected
+
+let ``addProperty case-conflicting test cases`` =
+    [ "@addProperty(json('{\"a\": 1}'), 'A', 2)"
+      "@addProperty(json('{\"A\": 1}'), 'a', 2)"
+      "@addProperty(json('{\"a\": 1, \"A\": 5}'), 'A', 2)"
+      "@addProperty(json('{\"A\": 1, \"a\": 5}'), 'a', 2)"
+      "@addProperty(json('{\"aAa\": 1, \"AaA\": 2}'), 'aaa', 5)"
+      "@addProperty(json('{\"aAa\": 1, \"AaA\": 2}'), 'AAA', 5)"
+      "@addProperty(json('{\"AaA\": 1, \"aAa\": 2}'), 'aaa', 5)"
+      "@addProperty(json('{\"AaA\": 1, \"aAa\": 2}'), 'AAA', 5)" ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``addProperty case-conflicting test cases``)>]
+let ``Test addProperty case-conflicting`` expr =
+    let parsed = trap <@ parseExpr (lexExpr expr) @>
+
+    raisesWithOrTraceParsed parsed <@ evaluateParsed parsed @> (fun e ->
+        let message = e.Message in <@ message.Contains("property to not exist in the object") @>)
 
 let ``setProperty test cases`` =
     [ "@setProperty(json('{}'),'a','')", Ok """{ "a": "" }""" // set in empty object
@@ -81,3 +135,19 @@ let ``setProperty case-conflicting test cases`` =
 
 [<TestCaseSource(nameof ``setProperty case-conflicting test cases``)>]
 let ``Test setProperty case-conflicting`` expr expected = objTest expr expected
+
+let ``removeProperty case-conflicting test cases`` =
+    [ "@removeProperty(json('{\"A\": 1}'), 'a')", """{}"""
+      "@removeProperty(json('{\"a\": 1}'), 'A')", """{}"""
+      "@removeProperty(json('{\"A\": 1, \"a\": 2}'), 'a')", """{ "A": 1 }"""
+      "@removeProperty(json('{\"a\": 1, \"A\": 2}'), 'A')", """{ "a": 1 }"""
+      "@removeProperty(json('{\"A\": 1, \"a\": 2}'), 'A')", """{ "a": 2 }"""
+      "@removeProperty(json('{\"a\": 1, \"A\": 2}'), 'a')", """{ "A": 2 }"""
+      "@removeProperty(json('{\"aAa\": 1, \"AaA\": 2}'), 'aaa')", """{ "AaA": 2 }"""
+      "@removeProperty(json('{\"aAa\": 1, \"AaA\": 2}'), 'AAA')", """{ "AaA": 2 }"""
+      "@removeProperty(json('{\"AaA\": 1, \"aAa\": 2}'), 'aaa')", """{ "aAa": 2 }"""
+      "@removeProperty(json('{\"AaA\": 1, \"aAa\": 2}'), 'AAA')", """{ "aAa": 2 }""" ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``removeProperty case-conflicting test cases``)>]
+let ``Test removeProperty case-conflicting`` expr expected = objTest expr expected

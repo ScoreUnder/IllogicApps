@@ -888,6 +888,20 @@ let f_workflow (sim: SimulatorContext) (args: Args) : JsonTree =
 
 // Manipulation functions
 
+let f_addProperty _ (args: Args) : JsonTree =
+    match args with
+    | [ Object o; String k; v ] ->
+        let newMap = o |> OrderedMap.tryAddCaseInsensitive k v
+
+        if newMap = o then
+            let stringObj = o |> Object |> Conversions.stringOfJson
+            failwithf "Expected property to not exist in the object: %s in %s" k stringObj
+        else
+            newMap |> Object
+    | [ Object _; _; _ ] -> failwith "The second argument must be of type string"
+    | [ _; _; _ ] -> failwith "The first argument must be of type object"
+    | _ -> failwith "This function expects three parameters"
+
 let f_coalesce _ (args: LazyArgs) : JsonTree =
     match args with
     | [] -> failwith "This function expects at least one parameter"
@@ -897,6 +911,13 @@ let f_coalesce _ (args: LazyArgs) : JsonTree =
             | Lazy(Null) -> None
             | Lazy(x) -> Some x)
         |> Option.defaultValue Null
+
+let f_removeProperty _ (args: Args) : JsonTree =
+    match args with
+    | [ Object o; String k ] -> o |> OrderedMap.tryRemoveCaseInsensitive k |> Object
+    | [ Object _; _ ] -> failwith "The second argument must be of type string"
+    | [ _; _ ] -> failwith "The first argument must be of type object"
+    | _ -> failwith "This function expects two parameters"
 
 let f_setProperty _ (args: Args) : JsonTree =
     match args with
@@ -985,6 +1006,8 @@ let functions: OrderedMap<string, LanguageFunction> =
       "triggerOutputs", f_triggerOutputs
       "variables", f_variables
       "workflow", f_workflow
+      "addProperty", f_addProperty
+      "removeProperty", f_removeProperty
       "setProperty", f_setProperty ]
     |> List.toSeq
     |> Seq.append conditions
