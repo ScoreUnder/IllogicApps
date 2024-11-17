@@ -565,7 +565,8 @@ type Http(json) =
               body = this.Inputs.body |> context.EvaluateLanguage
               queries = this.Inputs.queries |> Option.map evaluateStringStringMap
               cookie = this.Inputs.cookie |> Option.map evaluateString
-              authentication = this.Inputs.authentication |> context.EvaluateLanguage }
+              authentication = this.Inputs.authentication |> context.EvaluateLanguage
+              retryPolicy = this.Inputs.retryPolicy |> Option.map context.EvaluateLanguage }
 
         let headers =
             processedInputs.headers
