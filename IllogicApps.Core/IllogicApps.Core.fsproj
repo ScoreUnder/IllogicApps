@@ -14,7 +14,6 @@
         <Compile Include="ExternalServiceTypes.fs"/>
         <Compile Include="ExternalServiceTypeConversions.fs"/>
         <Compile Include="SimulatorContext.fs"/>
-        <Compile Include="LogicAppBaseAction.fs"/>
         <Compile Include="LogicAppSpec.fs"/>
         <Compile Include="LogicAppActionSupport.fs"/>
         <Compile Include="LogicAppActions.fs"/>

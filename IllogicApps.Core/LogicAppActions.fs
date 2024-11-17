@@ -3,7 +3,6 @@ namespace IllogicApps.Core.LogicAppActions
 open System.Xml
 
 open IllogicApps.Core
-open IllogicApps.Core.LogicAppBaseAction
 open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Core.LogicAppActionSupport
 open CompletedStepTypes

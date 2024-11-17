@@ -1,9 +1,6 @@
 module IllogicApps.Core.LogicAppSpec
 
-open IllogicApps.Core.LogicAppBaseAction
 open IllogicApps.Json
-
-type ActionGraph = OrderedMap<string, BaseAction>
 
 let actionGraphOfJson resolveAction json =
     json |> Conversions.ensureObject |> OrderedMap.mapValuesOnly resolveAction

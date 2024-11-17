@@ -6,8 +6,7 @@ open System.Collections.Generic
 open System.Diagnostics
 open IllogicApps.Core
 open IllogicApps.Core.ExternalServiceTypes
-open IllogicApps.Core.LogicAppActionSupport
-open IllogicApps.Core.LogicAppBaseAction
+open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Json
 open IllogicApps.Simulator.BuiltinCondition
 open CompletedStepTypes
@@ -17,7 +16,7 @@ open IllogicApps.Simulator.Parameters
 module private SimulatorHelper =
     let private emptyDependencyList = OrderedMap.ofList [ ("", []) ]
 
-    let createDependencyGraph (actions: IReadOnlyDictionary<string, #IGraphExecutable>) =
+    let createDependencyGraph (actions: IReadOnlyDictionary<string, BaseAction>) =
         actions
         |> Seq.collect (fun kv ->
             let name = kv.Key
@@ -43,7 +42,7 @@ module private SimulatorHelper =
         | _, Completed -> Completed
         | Satisfied, Satisfied -> Satisfied
 
-    let calculateDependencyStatus (actionResults: IDictionary<string, CompletedAction>) (action: IGraphExecutable) =
+    let calculateDependencyStatus (actionResults: IDictionary<string, CompletedAction>) (action: BaseAction) =
         let calcSingleDependency dep requiredStatuses =
             match actionResults.TryGetValue(dep) with
             | true, actionResult ->
@@ -63,7 +62,7 @@ module private SimulatorHelper =
             Satisfied
 
     let trimLeaves
-        (actions: IReadOnlyDictionary<string, #IGraphExecutable>)
+        (actions: IReadOnlyDictionary<string, BaseAction>)
         (actionResults: IDictionary<string, CompletedAction>)
         (leafActions: string list)
         =
@@ -124,11 +123,6 @@ module private SimulatorHelper =
 
     let evaluateParameter sim v =
         jsonMapStrs (LanguageEvaluator.altEvaluateIfNecessary evaluateLanguageSandboxedForParameter sim) v.value
-
-    let getActionType action =
-        match box action with
-        | :? BaseAction as action -> action.ActionType
-        | _ -> action.GetType().Name
 
     let logActionPreRun actionName actionType =
         printfn "[Action %s (%s) started]" actionName actionType
@@ -211,7 +205,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
     let isBugForBugAccurate = creationOptions.isBugForBugAccurate
 
-    let recordResultOf name (action: IGraphExecutable) (f: unit -> ActionResult) =
+    let recordResultOf name (action: BaseAction) (f: unit -> ActionResult) =
         let startTime = DateTime.UtcNow
 
         let result =
@@ -227,15 +221,14 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
                               message = $"Action threw exception: {e}" } }
 
         let trackedProperties =
-            match action, result.status with
-            | _, Skipped -> None
-            | :? BaseAction as action, _ ->
+            match result.status with
+            | Skipped -> None
+            | _ ->
                 action.TrackedProperties
                 |> Object
                 |> this.EvaluateLanguage
                 |> Conversions.ensureObject
                 |> Some
-            | _ -> None
 
         let result =
             { CompletedAction.create name (stringOfDateTime startTime) with
@@ -268,7 +261,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         Debug.Assert(this.LoopContextStack.Count = 0)
         Debug.Assert(this.ArrayOperationContextStack.Count = 0)
 
-    static member Trigger (actions: OrderedMap<string, #IGraphExecutable>) (creationOptions: SimulatorCreationOptions) =
+    static member Trigger (actions: ActionGraph) (creationOptions: SimulatorCreationOptions) =
         let sim = Simulator.CreateUntriggered(creationOptions)
         let result = sim.ExecuteGraph actions
         sim.CompleteWith result
@@ -313,9 +306,9 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     override this.GetParameter name =
         OrderedMap.tryFindCaseInsensitive name evaluatedParameters |> Option.map _.Value
 
-    override this.ExecuteGraph(actions: OrderedMap<string, 'a> when 'a :> IGraphExecutable) =
+    override this.ExecuteGraph(actions: ActionGraph) =
         let dependencyGraph = createDependencyGraph actions
-        let remainingActions = Dictionary<string, 'a>(actions)
+        let remainingActions = Dictionary<string, BaseAction>(actions)
 
         let getNextActions name =
             Map.tryFind name dependencyGraph |> Option.defaultValue []
@@ -339,7 +332,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
                     | Satisfied ->
                         remainingActions.Remove actionName |> ignore
 
-                        let actionType = getActionType action
+                        let actionType = action.ActionType
                         logActionPreRun actionName actionType
 
                         let result =
@@ -421,7 +414,6 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
     override this.ForceSkipAll actions =
         actions
-        |> Seq.map (fun (k, v) -> k, (v: IGraphExecutable))
         |> Seq.toList
-        |> getAllChildren
+        |> BaseAction.getAllChildren
         |> List.iter (fun (name, action) -> recordResultOf name action (fun () -> skippedBranchResult) |> ignore)

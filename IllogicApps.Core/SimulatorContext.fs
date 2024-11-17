@@ -31,10 +31,30 @@ type LoopContext() =
     abstract member Advance: unit -> bool
     abstract member Current: JsonTree
 
-type IGraphExecutable =
+
+[<AbstractClass>]
+type BaseAction(json: JsonTree) =
+    member val ActionType = JsonTree.getKey "type" json |> Conversions.ensureString with get
+
+    member val RunAfter =
+        JsonTree.tryGetKey "runAfter" json
+        |> Option.map (fun v ->
+            v
+            |> Conversions.ensureObject
+            |> OrderedMap.mapValuesOnly (fun v -> v |> Conversions.ensureArray |> Seq.map statusOfJson |> List.ofSeq)) with get
+
+    member val TrackedProperties: OrderedMap<string, JsonTree> =
+        JsonTree.tryGetKey "trackedProperties" json
+        |> Option.map Conversions.ensureObject
+        |> Option.defaultValue OrderedMap.empty with get
+
     abstract member Execute: string -> SimulatorContext -> ActionResult
-    abstract member RunAfter: OrderedMap<string, Status list> option with get
-    abstract member GetChildren: unit -> (string * IGraphExecutable) list
+    abstract member GetChildren: unit -> (string * BaseAction) seq
+    default this.GetChildren() = []
+
+    static member GetChildren(a: BaseAction) = a.GetChildren() |> List.ofSeq
+
+and ActionGraph = OrderedMap<string, BaseAction>
 
 and [<AbstractClass>] SimulatorContext() =
     /// Get a variable from the current execution context.
@@ -72,7 +92,7 @@ and [<AbstractClass>] SimulatorContext() =
     abstract member GetActionResult: string -> CompletedAction option
 
     /// Executes a graph of actions.
-    abstract member ExecuteGraph: OrderedMap<string, #IGraphExecutable> -> Status
+    abstract member ExecuteGraph: ActionGraph -> Status
 
     /// Stops the execution with a given status. Used by the Terminate action.
     abstract member Terminate: Status -> TerminateRunError option -> unit
@@ -100,4 +120,15 @@ and [<AbstractClass>] SimulatorContext() =
     abstract member PushArrayOperationContext: JsonTree seq -> LoopContext
 
     /// Mark all provided actions, and their children, as skipped
-    abstract member ForceSkipAll: (string * #IGraphExecutable) seq -> unit
+    abstract member ForceSkipAll: (string * BaseAction) seq -> unit
+
+module BaseAction =
+    let getAllChildren start =
+        let rec aux from acc =
+            from
+            |> List.collect (fun (_, a: BaseAction) -> a.GetChildren() |> List.ofSeq)
+            |> function
+                | [] -> from @ acc
+                | next -> aux next (from @ acc) in
+
+        aux start []

@@ -1,8 +1,23 @@
 module IllogicApps.Core.ReadLogicApp
 
+open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Core.LogicAppActions
-open IllogicApps.Core.LogicAppBaseAction
 open IllogicApps.Json
+
+type UnknownAction(json) =
+    inherit BaseAction(json)
+    member val Original = json with get
+
+    override this.Execute (_: string) (_: SimulatorContext) =
+        printfn "Unknown action: %s" <| Conversions.prettyStringOfJson this.Original
+
+        { ActionResult.Default with
+            status = Failed
+            code = Some ActionFailed
+            error =
+                Some
+                    { code = ActionFailed
+                      message = sprintf "Unknown action type %s" this.ActionType } }
 
 let actionMap =
     Map.ofList<string, (JsonTree -> BaseAction) -> JsonTree -> BaseAction>
