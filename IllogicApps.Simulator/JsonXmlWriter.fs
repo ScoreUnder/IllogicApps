@@ -511,18 +511,17 @@ module JsonToXmlConversion =
                         (EndElement :: rest)
 
                 aux elem next
-            | Element(s, String text) :: rest ->
+            | Element(s, Null) :: rest ->
+                let elem = xmlDoc.CreateElement(sanitizeElementName s)
+                xml.AppendChild(elem) |> ignore
+                aux xml rest
+            | Element(s, json) :: rest ->
+                let text = Conversions.rawStringOfJson json
                 let elem = xmlDoc.CreateElement(sanitizeElementName s)
                 let textNode = xmlDoc.CreateTextNode(text)
                 elem.AppendChild(textNode) |> ignore
                 xml.AppendChild(elem) |> ignore
                 aux xml rest
-            | Element(s, Null) :: rest ->
-                let elem = xmlDoc.CreateElement(sanitizeElementName s)
-                xml.AppendChild(elem) |> ignore
-                aux xml rest
-            | Element(s, json) :: _ ->
-                failwithf "Building XML element from JSON: invalid element (%s: %A)" s (JsonTree.getType json)
             | EndElement :: rest -> aux xml.ParentNode rest
 
         aux xmlDoc [ Element("", json) ]

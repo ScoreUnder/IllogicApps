@@ -5,6 +5,7 @@ open System.Globalization
 open System.Net
 open System.Text
 open System.Xml
+open System.Xml.XPath
 
 open IllogicApps.Core
 open IllogicApps.Core.Support
@@ -926,6 +927,31 @@ let f_setProperty _ (args: Args) : JsonTree =
     | [ _; _; _ ] -> failwith "The first argument must be of type object"
     | _ -> failwith "This function expects three parameters"
 
+let f_xpath _ (args: Args) : JsonTree =
+    expectArgs 2 args
+
+    match args with
+    | [ Blob.Blob(contentType, xml); String xpath ] when ContentType.isXml contentType ->
+        let xml = ContentType.Charset.decodeBytes contentType xml
+        let doc = XmlDocument()
+        doc.LoadXml(xml)
+
+        match doc.CreateNavigator().Evaluate(xpath) with
+        | :? XPathNodeIterator as iter ->
+            iter
+            |> Seq.cast<XPathNavigator>
+            |> Seq.map (fun n ->
+                match n.NodeType with
+                | XPathNodeType.Text -> n.Value |> String
+                | _ -> n.OuterXml |> Blob.ofString ContentType.XmlUtf8)
+            |> Conversions.createArray
+        | :? float as v -> Float v
+        | :? string as v -> String v
+        | :? bool as v -> Boolean v
+        | v -> failwithf "XPath evaluation returned undocumented type %A" (v.GetType())
+    | [ _; String _ ] -> failwith "Expected the first parameter to be an XML object"
+    | _ -> failwith "Expected the second parameter to be a string"
+
 // End function definitions
 
 let private conditionToFunction (condition: BuiltinCondition.LanguageCondition) : LanguageFunction =
@@ -1008,7 +1034,8 @@ let functions: OrderedMap<string, LanguageFunction> =
       "workflow", f_workflow
       "addProperty", f_addProperty
       "removeProperty", f_removeProperty
-      "setProperty", f_setProperty ]
+      "setProperty", f_setProperty
+      "xpath", f_xpath ]
     |> List.toSeq
     |> Seq.append conditions
     |> OrderedMap.ofSeq

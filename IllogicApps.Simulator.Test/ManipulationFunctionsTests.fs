@@ -151,3 +151,40 @@ let ``removeProperty case-conflicting test cases`` =
 
 [<TestCaseSource(nameof ``removeProperty case-conflicting test cases``)>]
 let ``Test removeProperty case-conflicting`` expr expected = objTest expr expected
+
+let ``xpath test cases`` =
+    [ "@xpath('<r><a>this is a</a><b>second</b><c>number c</c></r>','/r/*')", Error "be an XML object"
+      "@xpath(xml(json('{\"r\":{\"v\":[1,2,3,4,5]}}')),'sum(/r/v)')", Ok "15.0"
+      "@xpath(xml(json('{\"r\":{\"v\":[1.0,2,3,4,5]}}')),'sum(/r/v)')", Ok "15.0"
+      "@xpath(xml('<r><a>this is a</a><b>second</b><c>number c</c></r>'),'/r/b')",
+      Ok
+          """
+          [
+            {
+              "$content-type": "application/xml;charset=utf-8",
+              "$content": "PGI+c2Vjb25kPC9iPg=="
+            }
+          ]"""
+      "@xpath(xml('<r><a>this is a</a><b>second</b><c>number c</c></r>'),'/r/*')",
+      Ok
+          """
+          [
+            {
+              "$content-type": "application/xml;charset=utf-8",
+              "$content": "PGE+dGhpcyBpcyBhPC9hPg=="
+            },
+            {
+              "$content-type": "application/xml;charset=utf-8",
+              "$content": "PGI+c2Vjb25kPC9iPg=="
+            },
+            {
+              "$content-type": "application/xml;charset=utf-8",
+              "$content": "PGM+bnVtYmVyIGM8L2M+"
+            }
+          ]"""
+      "@xpath(xml('<r><a>this is a</a><b>second</b><c>number c</c></r>'),'/r/*/text()')",
+      Ok """["this is a","second","number c"]""" ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``xpath test cases``)>]
+let ``Test xpath`` expr expected = objOrFailTest expr expected
