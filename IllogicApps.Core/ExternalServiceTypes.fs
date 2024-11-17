@@ -77,20 +77,33 @@ let workflowRequestRetryPolicyOfJson json =
       minimumInterval = JsonTree.tryGetKey "minimumInterval" json |> Option.map Conversions.ensureString
       maximumInterval = JsonTree.tryGetKey "maximumInterval" json |> Option.map Conversions.ensureString }
 
+/// A request to invoke a workflow from an action in this workflow
 type WorkflowRequest =
-    { actionName: string
-      workflowId: string
-      headers: OrderedMap<string, string>
-      body: JsonTree
-      asyncSupported: bool
-      retryPolicy: WorkflowRequestRetryPolicy }
+    {
+        /// Name of the action which sent the request
+        actionName: string
+        /// Name of the workflow to be invoked
+        workflowId: string
+        /// HTTP headers to be sent with the request
+        headers: OrderedMap<string, string>
+        /// Request body (not serialized)
+        body: JsonTree
+        /// Whether async processing is supported (i.e. HTTP 201 + polling)
+        asyncSupported: bool
+        /// Retry policy for the request
+        /// (Note that this is manual on the receiver's end, unlike with
+        /// HTTP for example)
+        retryPolicy: WorkflowRequestRetryPolicy
+    }
 
 let jsonOfWorkflowRequest req =
     OrderedMap
         .Builder()
+        .Add("actionName", String req.actionName)
         .Add("host", Conversions.createObject [ "workflow", Conversions.createObject [ "id", String req.workflowId ] ])
         .Add("headers", req.headers |> OrderedMap.mapValuesOnly String |> Object)
         .MaybeAdd("body", req.body |> Conversions.optionOfJson)
+        .Add("asyncSupported", Boolean req.asyncSupported)
         .Add("retryPolicy", jsonOfWorkflowRequestRetryPolicy req.retryPolicy)
         .Build()
     |> Object
