@@ -66,6 +66,12 @@ let queryInputsOfJson json =
     { from = JsonTree.getKey "from" json
       where = JsonTree.getKey "where" json }
 
+type SelectInputs = { from: JsonTree; select: JsonTree }
+
+let selectInputsOfJson json =
+    { from = JsonTree.getKey "from" json
+      select = JsonTree.getKey "select" json }
+
 type JavaScriptCodeDependencies =
     { includeTrigger: bool option
       actions: string list option }

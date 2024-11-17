@@ -21,6 +21,7 @@ let actionMap =
           "Compose", (fun _ v -> Compose v)
           "ParseJson", (fun _ v -> ParseJson v)
           "Query", (fun _ v -> Query v)
+          "Select", (fun _ v -> Select v)
           "JavaScriptCode", (fun _ v -> JavaScriptCode v)
           "ServiceProvider", (fun _ v -> ServiceProvider v)
           "Response", (fun _ v -> Response v)

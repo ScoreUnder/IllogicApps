@@ -417,6 +417,37 @@ type Query(json) =
             inputs = Some(from)
             outputs = Some(Conversions.createObject [ "body", result ]) }
 
+type Select(json) =
+    inherit BaseAction(json)
+
+    member val Inputs = JsonTree.getKey "inputs" json |> selectInputsOfJson with get
+
+    override this.Execute (_: string) (context: SimulatorContext) =
+        printfn
+            "Select: %s in %s"
+            (Conversions.prettyStringOfJson this.Inputs.select)
+            (Conversions.prettyStringOfJson this.Inputs.from)
+
+        let from = context.EvaluateLanguage this.Inputs.from
+
+        let arrayVals = from |> Conversions.ensureArray
+        use loopContext = context.PushArrayOperationContext arrayVals
+
+        let rec selectValsRev acc =
+            let selected = this.Inputs.select |> context.EvaluateLanguage
+
+            let next = selected :: acc
+
+            if loopContext.Advance() then selectValsRev next else next
+
+        let result = selectValsRev [] |> List.rev |> Conversions.createArray in
+
+        printfn "Select Result: %s" (Conversions.prettyStringOfJson result)
+
+        { ActionResult.Default with
+            inputs = Some(from)
+            outputs = Some(Conversions.createObject [ "body", result ]) }
+
 // Inline Code actions
 
 type JavaScriptCode(json) =
