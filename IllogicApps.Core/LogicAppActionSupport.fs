@@ -183,7 +183,8 @@ type HttpInputs =
       queries: OrderedMap<string, string> option
       body: JsonTree
       cookie: string option
-      authentication: JsonTree }
+      authentication: JsonTree
+      retryPolicy: JsonTree option }
 
 let jsonOfHttpInputs inputs =
     OrderedMap
@@ -195,6 +196,7 @@ let jsonOfHttpInputs inputs =
         .MaybeAdd("body", inputs.body)
         .MaybeAdd("cookie", inputs.cookie)
         .MaybeAdd("authentication", inputs.authentication)
+        .MaybeAdd("retryPolicy", inputs.retryPolicy)
         .Build()
     |> JsonTree.Object
 
@@ -205,7 +207,8 @@ let httpInputsOfJson json =
       queries = JsonTree.tryGetKey "queries" json |> Option.map Conversions.stringsMapOfJson
       body = JsonTree.getKeyOrNull "body" json
       cookie = JsonTree.tryGetKey "cookie" json |> Option.map Conversions.ensureString
-      authentication = JsonTree.getKeyOrNull "authentication" json }
+      authentication = JsonTree.getKeyOrNull "authentication" json
+      retryPolicy = JsonTree.tryGetKey "retryPolicy" json }
 
 let defaultExpression () : Expression = Conversions.emptyObject
 

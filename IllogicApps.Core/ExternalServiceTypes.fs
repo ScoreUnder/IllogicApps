@@ -1,6 +1,7 @@
 module IllogicApps.Core.ExternalServiceTypes
 
 open IllogicApps.Core.CompletedStepTypes
+open IllogicApps.Core.HttpModel.RetryPolicy
 open IllogicApps.Json
 
 type HttpRequest =
@@ -45,38 +46,6 @@ let jsonOfHttpRequestReply reply =
         .Build()
     |> Object
 
-type WorkflowRequestRetryPolicy =
-    { type_: string
-      count: int64 option
-      interval: string option
-      minimumInterval: string option
-      maximumInterval: string option }
-
-    static member Default =
-        { type_ = "none"
-          count = None
-          interval = None
-          minimumInterval = None
-          maximumInterval = None }
-
-let jsonOfWorkflowRequestRetryPolicy policy =
-    OrderedMap
-        .Builder()
-        .Add("type", String policy.type_)
-        .MaybeAdd("count", policy.count |> Option.map Integer)
-        .MaybeAdd("interval", policy.interval)
-        .MaybeAdd("minimumInterval", policy.minimumInterval)
-        .MaybeAdd("maximumInterval", policy.maximumInterval)
-        .Build()
-    |> Object
-
-let workflowRequestRetryPolicyOfJson json =
-    { type_ = JsonTree.getKey "type" json |> Conversions.ensureString
-      count = JsonTree.tryGetKey "count" json |> Option.map Conversions.ensureInteger
-      interval = JsonTree.tryGetKey "interval" json |> Option.map Conversions.ensureString
-      minimumInterval = JsonTree.tryGetKey "minimumInterval" json |> Option.map Conversions.ensureString
-      maximumInterval = JsonTree.tryGetKey "maximumInterval" json |> Option.map Conversions.ensureString }
-
 /// A request to invoke a workflow from an action in this workflow
 type WorkflowRequest =
     {
@@ -95,7 +64,7 @@ type WorkflowRequest =
         /// Retry policy for the request
         /// (Note that this is manual on the receiver's end, unlike with
         /// HTTP for example)
-        retryPolicy: WorkflowRequestRetryPolicy
+        retryPolicy: RetryPolicy option
     }
 
 let jsonOfWorkflowRequest req =
@@ -106,7 +75,7 @@ let jsonOfWorkflowRequest req =
         .Add("headers", req.headers |> OrderedMap.mapValuesOnly String |> Object)
         .MaybeAdd("body", req.body |> Conversions.optionOfJson)
         .Add("asyncSupported", Boolean req.asyncSupported)
-        .Add("retryPolicy", jsonOfWorkflowRequestRetryPolicy req.retryPolicy)
+        .MaybeAdd("retryPolicy", req.retryPolicy |> Option.map jsonOfRetryPolicy)
         .Build()
     |> Object
 
@@ -134,10 +103,7 @@ let workflowRequestOfJson json =
         JsonTree.tryGetKey "asyncSupported" json
         |> Option.map Conversions.ensureBoolean
         |> Option.defaultValue true
-      retryPolicy =
-        JsonTree.tryGetKey "retryPolicy" json
-        |> Option.map workflowRequestRetryPolicyOfJson
-        |> Option.defaultValue WorkflowRequestRetryPolicy.Default }
+      retryPolicy = JsonTree.tryGetKey "retryPolicy" json |> Option.map retryPolicyOfJson }
 
 type WorkflowRunDetails =
     { id: string
