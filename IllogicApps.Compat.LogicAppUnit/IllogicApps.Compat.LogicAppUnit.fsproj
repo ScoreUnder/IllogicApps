@@ -9,6 +9,7 @@
         <Content Include="Translations\LICENSE_LogicAppUnit.md"/>
         <Compile Include="Translations\TestException.fs"/>
         <Compile Include="Translations\Helper.fs"/>
+        <Compile Include="Translations\MockRequest.fs"/>
         <Compile Include="Translations\Mocking.fs"/>
         <Compile Include="Translations\Wrapper.fs"/>
         <Compile Include="Translations\ActionStatus.fs"/>

@@ -81,14 +81,6 @@ type IMockResponse =
     abstract RespondWith: mockResponseBuilder: IMockResponseBuilder -> unit
     abstract RespondWithDefault: unit -> unit
 
-type MockRequest() =
-    member val Timestamp = DateTime.Now with get, set
-    member val RequestUri: Uri = null with get, set
-    member val Method: HttpMethod = null with get, set
-    member val Headers: Dictionary<string, IEnumerable<string>> = null with get, set
-    member val Content: string = null with get, set
-    member val ContentHeaders: Dictionary<string, IEnumerable<string>> = null with get, set
-
 // From this point onwards I apologise to the author of LogicAppUnit for the quality of the code translation.
 
 type private MockRequestPath =
