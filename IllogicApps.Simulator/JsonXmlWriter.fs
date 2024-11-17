@@ -427,10 +427,9 @@ module JsonToXmlConversion =
 
     let writeJsonToXml bugForBugAccurate (json: JsonTree) (xmlDoc: XmlDocument) =
         let getStringOrDefault k def (o: OrderedMap<string, JsonTree>) =
-            match OrderedMap.tryFind k o with
-            | Some(String s) -> s
-            | Some _ -> failwithf "Expected string for key '%s'" k
-            | _ -> def
+            OrderedMap.tryFind k o
+            |> Option.map Conversions.rawStringOfJson
+            |> Option.defaultValue def
 
         let sanitizeElementName name =
             String.collect
