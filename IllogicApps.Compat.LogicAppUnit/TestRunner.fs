@@ -42,6 +42,8 @@ type TestRunner
 
     let workflows = workflows |> Array.ofSeq // Eagerly evaluate the workflows so that exceptions are thrown early
     let mutable simulators: Simulator list = []
+    // TODO: Implement asyncResponseTimeout
+    let mutable asyncResponseTimeout = None
 
     let mySim () = simulators |> List.head
 
@@ -300,8 +302,10 @@ type TestRunner
         member this.TriggerWorkflow(queryParams, content, _method, _relativePath, requestHeaders) =
             this.TriggerWorkflow(queryParams, content, requestHeaders)
 
-        member this.WaitForAsynchronousResponse(maxTimeoutSeconds: int) : unit = failwith "todo"
-        member this.WaitForAsynchronousResponse(maxTimeout: TimeSpan) : unit = failwith "todo"
+        member this.WaitForAsynchronousResponse(maxTimeoutSeconds: int) : unit =
+            asyncResponseTimeout <- Some(TimeSpan.FromSeconds(float maxTimeoutSeconds))
+
+        member this.WaitForAsynchronousResponse(maxTimeout: TimeSpan) : unit = asyncResponseTimeout <- Some maxTimeout
         member this.WorkflowClientTrackingId = mySim().TriggerResult.originHistoryName
         member this.WorkflowRunId = mySim().WorkflowDetails.run.name
 
