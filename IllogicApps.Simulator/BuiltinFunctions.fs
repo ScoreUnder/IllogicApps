@@ -771,6 +771,42 @@ let f_parseDateTime _ (args: Args) : JsonTree =
     | Some format -> String(DateTime.ParseExact(timestamp, format, locale).ToString("o"))
     | None -> String(DateTime.Parse(timestamp, locale).ToString("o"))
 
+let f_startOfDay _ (args: Args) : JsonTree =
+    let timestamp, format =
+        match args with
+        | [ String timestamp ] -> timestamp, "o"
+        | [ String timestamp; String format ] -> timestamp, format
+        | [ _ ]
+        | [ _; _ ] -> failwith "Expected string and optional string"
+        | _ -> failwith "Expected 1 or 2 arguments"
+
+    let timestamp = DateTime.Parse(timestamp, CultureInfo.InvariantCulture)
+    timestamp.Date.ToString(format) |> String
+
+let f_startOfHour _ (args: Args) : JsonTree =
+    let timestamp, format =
+        match args with
+        | [ String timestamp ] -> timestamp, "o"
+        | [ String timestamp; String format ] -> timestamp, format
+        | [ _ ]
+        | [ _; _ ] -> failwith "Expected string and optional string"
+        | _ -> failwith "Expected 1 or 2 arguments"
+
+    let timestamp = DateTime.Parse(timestamp, CultureInfo.InvariantCulture)
+    timestamp.Date.AddHours(timestamp.Hour).ToString(format) |> String
+
+let f_startOfMonth _ (args: Args) : JsonTree =
+    let timestamp, format =
+        match args with
+        | [ String timestamp ] -> timestamp, "o"
+        | [ String timestamp; String format ] -> timestamp, format
+        | [ _ ]
+        | [ _; _ ] -> failwith "Expected string and optional string"
+        | _ -> failwith "Expected 1 or 2 arguments"
+
+    let timestamp = DateTime.Parse(timestamp, CultureInfo.InvariantCulture)
+    timestamp.Date.AddDays(float (1 - timestamp.Day)).ToString(format) |> String
+
 let f_ticks _ (args: Args) : JsonTree =
     args
     |> expectSingleArg
@@ -934,6 +970,9 @@ let functions: OrderedMap<string, LanguageFunction> =
       "addToTime", f_addToTime
       "formatDateTime", f_formatDateTime
       "parseDateTime", f_parseDateTime
+      "startOfDay", f_startOfDay
+      "startOfHour", f_startOfHour
+      "startOfMonth", f_startOfMonth
       "ticks", f_ticks
       "utcNow", f_utcNow
       "actions", f_actions
