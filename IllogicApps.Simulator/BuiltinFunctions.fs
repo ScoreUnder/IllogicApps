@@ -122,11 +122,11 @@ let arrayReduceArithmetic2 op (args: Args) : JsonTree =
 
 let myRand = lazy (Random())
 
-let dateTimeFunc2f (f: DateTimeOffset -> int -> DateTimeOffset) (args: Args) : JsonTree =
+let dateTimeFunc2f (f: DateTime -> int -> DateTime) (args: Args) : JsonTree =
     let dateTimeFunc2f' (a: JsonTree) (b: JsonTree) (fmt: string) =
         match a, b with
         | String ts1, Integer val2 ->
-            let dt1 = DateTimeOffset.Parse(ts1)
+            let dt1 = DateTime.Parse(ts1)
             let result = f dt1 (int val2)
 
             String(result.ToString(fmt))
@@ -716,7 +716,7 @@ let f_addToTime _ (args: Args) : JsonTree =
     let addToTime' (time: JsonTree) (interval: JsonTree) (unit: JsonTree) (format: string) =
         match time, interval, unit with
         | String datetime, Integer interval, String unit ->
-            let datetime = DateTimeOffset.Parse(datetime)
+            let datetime = DateTime.Parse(datetime)
             let interval = int interval
 
             let result =
@@ -737,6 +737,39 @@ let f_addToTime _ (args: Args) : JsonTree =
     | [ ts1; ts2; unit ] -> addToTime' ts1 ts2 unit "o"
     | [ ts1; ts2; unit; fmt ] -> addToTime' ts1 ts2 unit (fmt |> Conversions.ensureString)
     | _ -> failwith "Expected 3 or 4 arguments"
+
+let f_formatDateTime _ (args: Args) : JsonTree =
+    let timestamp, format, locale =
+        match args with
+        | [ String timestamp ] -> timestamp, "o", "en-us"
+        | [ String timestamp; String format ] -> timestamp, format, "en-us"
+        | [ String timestamp; String format; String locale ] -> timestamp, format, locale
+        | [ _ ]
+        | [ _; _ ]
+        | [ _; _; _ ] -> failwith "Expected all parameters to be strings"
+        | _ -> failwith "Expected 1, 2, or 3 arguments"
+
+    let timestamp = DateTime.Parse(timestamp)
+    let locale = CultureInfo.GetCultureInfo(locale)
+
+    String(timestamp.ToString(format, locale))
+
+let f_parseDateTime _ (args: Args) : JsonTree =
+    let timestamp, locale, format =
+        match args with
+        | [ String timestamp ] -> timestamp, "en-us", None
+        | [ String timestamp; String locale ] -> timestamp, locale, None
+        | [ String timestamp; String locale; String format ] -> timestamp, locale, Some format
+        | [ _ ]
+        | [ _; _ ]
+        | [ _; _; _ ] -> failwith "Expected all parameters to be strings"
+        | _ -> failwith "Expected 1, 2, or 3 arguments"
+
+    let locale = CultureInfo.GetCultureInfo(locale)
+
+    match format with
+    | Some format -> String(DateTime.ParseExact(timestamp, format, locale).ToString("o"))
+    | None -> String(DateTime.Parse(timestamp, locale).ToString("o"))
 
 let f_ticks _ (args: Args) : JsonTree =
     args
@@ -899,6 +932,8 @@ let functions: OrderedMap<string, LanguageFunction> =
       "addMinutes", f_addMinutes
       "addSeconds", f_addSeconds
       "addToTime", f_addToTime
+      "formatDateTime", f_formatDateTime
+      "parseDateTime", f_parseDateTime
       "ticks", f_ticks
       "utcNow", f_utcNow
       "actions", f_actions
