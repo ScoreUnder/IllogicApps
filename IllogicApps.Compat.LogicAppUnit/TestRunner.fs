@@ -57,10 +57,14 @@ type TestRunner
             let request = netHttpRequestMessageOfHttpRequest request
 
             let result =
-                mockDefinition
-                    .MatchRequestAndBuildResponseAsync(request)
-                    .GetAwaiter()
-                    .GetResult()
+                try
+                    mockDefinition
+                        .MatchRequestAndBuildResponseAsync(request)
+                        .GetAwaiter()
+                        .GetResult()
+                with e ->
+                    Console.WriteLine(string e)
+                    new HttpResponseMessage(HttpStatusCode.InternalServerError)
 
             reply.Value <- result |> httpRequestReplyOfNetHttpResponseMessage
             true
