@@ -8,6 +8,7 @@ open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Core.LogicAppActionSupport
 open CompletedStepTypes
 open ExternalServiceTypes
+open IllogicApps.Core.Support
 open IllogicApps.Json
 
 // Triggers
@@ -581,7 +582,7 @@ type Http(json) =
 
         // Add action name
         // TODO toggle if requested in json
-        headers.TryAdd("x-ms-workflow-operation-name", name) |> ignore
+        headers.TryAdd(LogicAppHeaders.ActionName, name) |> ignore
 
         context.ExternalServiceRequest
         <| HttpRequest(
@@ -615,7 +616,7 @@ type Workflow(json) =
         JsonTree.tryGetKey "operationOptions" json
         |> Option.map Conversions.ensureString with get
 
-    override this.Execute (_: string) (context: SimulatorContext) =
+    override this.Execute (name: string) (context: SimulatorContext) =
         printfn "Workflow: %s" (jsonOfWorkflowRequest this.Inputs |> Conversions.prettyStringOfJson)
 
         let headers =
@@ -635,7 +636,8 @@ type Workflow(json) =
                     statusCode = System.Int32.MinValue }
 
         let request =
-            { workflowId = this.Inputs.workflowId
+            { actionName = name
+              workflowId = this.Inputs.workflowId
               headers = headers
               body = body
               asyncSupported = asyncSupported

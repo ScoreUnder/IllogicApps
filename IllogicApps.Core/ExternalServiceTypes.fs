@@ -78,7 +78,8 @@ let workflowRequestRetryPolicyOfJson json =
       maximumInterval = JsonTree.tryGetKey "maximumInterval" json |> Option.map Conversions.ensureString }
 
 type WorkflowRequest =
-    { workflowId: string
+    { actionName: string
+      workflowId: string
       headers: OrderedMap<string, string>
       body: JsonTree
       asyncSupported: bool
@@ -100,7 +101,8 @@ let jsonOfWorkflowRequest req =
     |> Object
 
 let workflowRequestOfJson json =
-    { workflowId =
+    { actionName = ""
+      workflowId =
         JsonTree.getKey "host" json
         |> JsonTree.getKey "workflow"
         |> JsonTree.getKey "id"

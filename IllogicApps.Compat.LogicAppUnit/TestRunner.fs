@@ -69,7 +69,7 @@ type TestRunner
             reply.Value <- result |> httpRequestReplyOfNetHttpResponseMessage
             true
         | Workflow(request, reply) ->
-            let uri = $"{MOCK_HOST_URI}/{request.workflowId.TrimStart('/')}"
+            let uri = $"{MOCK_HOST_URI}/{request.actionName}"
             let requestStr = request |> jsonOfWorkflowRequest |> Conversions.stringOfJson
             let content = new StringContent(requestStr, Encoding.UTF8, ContentType.Json)
             let netHttpRequest = new HttpRequestMessage(HttpMethod.Post, uri, Content = content)

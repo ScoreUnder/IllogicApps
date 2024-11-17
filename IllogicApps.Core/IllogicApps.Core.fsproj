@@ -8,6 +8,7 @@
         <Compile Include="Support\MeasuredString.fs"/>
         <Compile Include="Support\ContentType.fs"/>
         <Compile Include="Support\Blob.fs"/>
+        <Compile Include="Support\LogicAppHeaders.fs"/>
         <Compile Include="CompletedStepTypes.fs"/>
         <Compile Include="ExternalServiceTypes.fs"/>
         <Compile Include="ExternalServiceTypeConversions.fs"/>
