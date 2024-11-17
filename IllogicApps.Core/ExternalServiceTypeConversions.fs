@@ -35,13 +35,16 @@ let contentOfJson =
     | Blob.Blob(contentType, content) -> Some(contentType, content)
     | json -> Some(ContentType.JsonUtf8, json |> Conversions.stringOfJson |> Encoding.UTF8.GetBytes)
 
-let netHttpContentOfJson json =
-    match contentOfJson json with
-    | None -> null
+let netHttpContentOfContentTypeAndContent =
+    function
+    | None -> new Http.ByteArrayContent(Array.empty)
     | Some(contentType, content) ->
         let content = new Http.ByteArrayContent(content)
         content.Headers.ContentType <- MediaTypeHeaderValue.Parse(contentType)
         content
+
+let netHttpContentOfJson json =
+    json |> contentOfJson |> netHttpContentOfContentTypeAndContent
 
 let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
     let netReq =
@@ -50,16 +53,15 @@ let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
             requestUri = formUri req.uri req.queryParameters
         )
 
-    match req.body with
-    | Some content ->
-        let contentType =
-            OrderedMap.tryFindCaseInsensitive "Content-Type" req.headers
-            |> Option.defaultValue ContentType.TextUtf8
+    netReq.Content <-
+        req.body
+        |> Option.map (fun b ->
+            let contentType =
+                OrderedMap.tryFindCaseInsensitive "Content-Type" req.headers
+                |> Option.defaultValue ContentType.TextUtf8
 
-        let netContent = new Http.ByteArrayContent(content)
-        netContent.Headers.ContentType <- MediaTypeHeaderValue.Parse(contentType)
-        netReq.Content <- netContent
-    | None -> ()
+            contentType, b)
+        |> netHttpContentOfContentTypeAndContent
 
     req.cookie
     |> Option.iter (fun v -> netReq.Headers.TryAddWithoutValidation("Cookie", v) |> ignore)
@@ -81,10 +83,7 @@ let httpRequestReplyOfNetHttpResponseMessage (resp: Http.HttpResponseMessage) =
         match resp.Content with
         | null -> None
         | content ->
-            let contentType =
-                content.Headers.ContentType
-                |> Option.ofObj
-                |> Option.map string
+            let contentType = content.Headers.ContentType |> Option.ofObj |> Option.map string
 
             let contentStr = content.ReadAsStringAsync().Result
 
