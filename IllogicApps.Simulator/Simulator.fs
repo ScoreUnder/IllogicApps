@@ -157,21 +157,17 @@ module private SimulatorHelper =
 
 open SimulatorHelper
 
-type private LoopContextImpl(values: JsonTree list, disposeHook: LoopContext -> unit) as this =
-    inherit LoopContext()
+type private ArrayOperationContextImpl(values: JsonTree list, disposeHook: ArrayOperationContext -> unit) =
+    let mutable values = values
 
-    [<DefaultValue>]
-    val mutable values: JsonTree list
+    interface ArrayOperationContext with
+        member this.Dispose() = disposeHook this
 
-    do this.values <- values
+        member this.Advance() =
+            values <- values.Tail
+            values.IsEmpty |> not
 
-    override this.Dispose() = disposeHook this
-
-    override this.Advance() =
-        this.values <- this.values.Tail
-        this.values.IsEmpty |> not
-
-    override this.Current = this.values.Head
+        member this.Current = values.Head
 
 [<Struct>]
 type SimulatorCreationOptions =
@@ -249,8 +245,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
     let variables = Dictionary<string, JsonTree>()
 
-    member val private LoopContextStack = Stack<LoopContextImpl>() with get
-    member val private ArrayOperationContextStack = Stack<LoopContextImpl>() with get
+    member val private ArrayOperationContextStack = Stack<ArrayOperationContextImpl>() with get
 
     static member CreateUntriggered(creationOptions: SimulatorCreationOptions) = Simulator(creationOptions)
 
@@ -258,7 +253,6 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         if this.TerminationStatus = Ok Skipped then
             this.TerminationStatus <- Ok result
 
-        Debug.Assert(this.LoopContextStack.Count = 0)
         Debug.Assert(this.ArrayOperationContextStack.Count = 0)
 
     static member Trigger (actions: ActionGraph) (creationOptions: SimulatorCreationOptions) =
@@ -280,7 +274,6 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         | _ -> None
 
     override this.SetVariable name value = variables.[name] <- value
-    override this.LoopContext = this.LoopContextStack.Peek()
     override this.ArrayOperationContext = this.ArrayOperationContextStack.Peek()
     override this.TriggerResult = creationOptions.triggerResult
     override this.IsBugForBugAccurate = isBugForBugAccurate
@@ -391,21 +384,18 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         if not (runAllHandlers creationOptions.externalServiceHandlers this request) then
             failwithf "No handler for external service request: %A" request
 
-    override this.PushLoopContext(arg1: JsonTree seq) : LoopContext =
-        this.PushLoopContext(this.LoopContextStack, arg1)
-
-    override this.PushArrayOperationContext(arg1: JsonTree seq) : LoopContext =
+    override this.PushArrayOperationContext(arg1: JsonTree seq) : ArrayOperationContext =
         this.PushLoopContext(this.ArrayOperationContextStack, arg1)
 
-    member private this.PushLoopContext(stack: Stack<LoopContextImpl>, values: JsonTree seq) =
+    member private this.PushLoopContext(stack: Stack<ArrayOperationContextImpl>, values: JsonTree seq) =
         let loopContext =
-            new LoopContextImpl(List.ofSeq values, this.PopAndCompareLoopContext stack)
+            new ArrayOperationContextImpl(List.ofSeq values, this.PopAndCompareLoopContext stack)
 
         stack.Push(loopContext)
         loopContext
 
-    member private this.PopAndCompareLoopContext (stack: Stack<LoopContextImpl>) context =
-        let top = stack.Peek(): LoopContext
+    member private this.PopAndCompareLoopContext (stack: Stack<ArrayOperationContextImpl>) context =
+        let top = stack.Peek(): ArrayOperationContext
 
         if top = context then
             stack.Pop() |> ignore

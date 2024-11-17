@@ -22,14 +22,10 @@ type ActionResult =
           inputs = None
           outputs = None }
 
-[<AbstractClass>]
-type LoopContext() =
-    interface IDisposable with
-        member this.Dispose() : unit = this.Dispose()
-
-    abstract member Dispose: unit -> unit
-    abstract member Advance: unit -> bool
-    abstract member Current: JsonTree
+type ArrayOperationContext =
+    inherit IDisposable
+    abstract Advance: unit -> bool
+    abstract Current: JsonTree
 
 
 [<AbstractClass>]
@@ -73,11 +69,8 @@ and [<AbstractClass>] SimulatorContext() =
     /// e.g. if large integers should lose precision when parsed with int('...')
     abstract member IsBugForBugAccurate: bool
 
-    /// Gets the current loop context.
-    abstract member LoopContext: LoopContext
-
     /// Gets the current array operation context.
-    abstract member ArrayOperationContext: LoopContext
+    abstract member ArrayOperationContext: ArrayOperationContext
 
     /// Gets the result of the trigger which invoked this workflow.
     abstract member TriggerResult: CompletedTrigger
@@ -112,12 +105,9 @@ and [<AbstractClass>] SimulatorContext() =
     /// Other workflow invocations, HTTP requests, filesystem access, etc.
     abstract member ExternalServiceRequest: ExternalServiceRequest -> unit
 
-    /// Pushes a new loop context (i.e. sets a new default context for the items() expression).
+    /// Pushes a new array operation context (i.e. sets a new context for the item()/items() expression)
     /// Remember to call Dispose() on the returned context when done.
-    abstract member PushLoopContext: JsonTree seq -> LoopContext
-
-    /// Pushes a new array operation context (i.e. sets a new context for the item() expression)
-    abstract member PushArrayOperationContext: JsonTree seq -> LoopContext
+    abstract member PushArrayOperationContext: JsonTree seq -> ArrayOperationContext
 
     /// Mark all provided actions, and their children, as skipped
     abstract member ForceSkipAll: (string * BaseAction) seq -> unit
