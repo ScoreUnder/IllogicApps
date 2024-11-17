@@ -81,6 +81,7 @@ let workflowRequestRetryPolicyOfJson json =
 type WorkflowRequest =
     {
         /// Name of the action which sent the request
+        /// Set on execution; not present in the workflow json
         actionName: string
         /// Name of the workflow to be invoked
         workflowId: string
@@ -89,6 +90,7 @@ type WorkflowRequest =
         /// Request body (not serialized)
         body: JsonTree
         /// Whether async processing is supported (i.e. HTTP 201 + polling)
+        /// Set on execution; not present in the workflow json
         asyncSupported: bool
         /// Retry policy for the request
         /// (Note that this is manual on the receiver's end, unlike with
@@ -109,7 +111,10 @@ let jsonOfWorkflowRequest req =
     |> Object
 
 let workflowRequestOfJson json =
-    { actionName = ""
+    { actionName =
+        JsonTree.tryGetKey "actionName" json
+        |> Option.map Conversions.ensureString
+        |> Option.defaultValue ""
       workflowId =
         JsonTree.getKey "host" json
         |> JsonTree.getKey "workflow"
@@ -125,7 +130,10 @@ let workflowRequestOfJson json =
             |> OrderedMap.mapValuesOnly Conversions.rawStringOfJson)
         |> Option.defaultValue OrderedMap.empty
       body = JsonTree.tryGetKey "body" json |> Conversions.jsonOfOption
-      asyncSupported = true
+      asyncSupported =
+        JsonTree.tryGetKey "asyncSupported" json
+        |> Option.map Conversions.ensureBoolean
+        |> Option.defaultValue true
       retryPolicy =
         JsonTree.tryGetKey "retryPolicy" json
         |> Option.map workflowRequestRetryPolicyOfJson
