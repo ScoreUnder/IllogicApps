@@ -110,7 +110,9 @@ let workflowRequestOfJson json =
         |> Option.map (fun headers ->
             headers
             |> Conversions.ensureObject
-            |> OrderedMap.mapValuesOnly Conversions.ensureString)
+            // TODO: The designer should stringify all header values, but non-stringified ones
+            // are still valid. Needs looking into re. specifics
+            |> OrderedMap.mapValuesOnly Conversions.rawStringOfJson)
         |> Option.defaultValue OrderedMap.empty
       body = JsonTree.tryGetKey "body" json |> Conversions.jsonOfOption
       asyncSupported = true
