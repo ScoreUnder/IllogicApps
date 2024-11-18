@@ -44,6 +44,11 @@ let makeRequest actions code result =
         result
     )
 
+let getError result =
+    match result with
+    | Error e -> e
+    | _ -> failwith "Expected error"
+
 [<Test>]
 let ``Test that integer and float can be added together`` () =
     let actions = makeActions [ "action1", Float 1.5; "action2", Integer 1 ]
@@ -60,3 +65,15 @@ let ``Test that integer and float can be added together`` () =
 
     test <@ jintJavascriptHandler (mockSim ()) request = true @>
     test <@ result.Value = Ok(Float 2.5) @>
+
+[<TestCase("""throw new Error("Ouch!");""", "Ouch!")>]
+[<TestCase("""x.x.x.x.x""", "x is not defined")>]
+[<TestCase(""")""", "Unexpected token")>]
+// TODO: you can easily overflow the stack and bring down the whole test host.
+// We should run the JavaScript interpreter in a thread with its own stack.
+let ``Test that script execution exceptions do not propagate`` code (errorText: string) =
+    let result = makeResult ()
+    let request = makeRequest OrderedMap.empty code result
+
+    test <@ jintJavascriptHandler (mockSim ()) request = true @>
+    test <@ (getError result.Value).Contains errorText @>
