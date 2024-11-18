@@ -107,7 +107,10 @@ and [<AbstractClass>] SimulatorContext() =
 
     /// Pushes a new array operation context (i.e. sets a new context for the item()/items() expression)
     /// Remember to call Dispose() on the returned context when done.
-    abstract member PushArrayOperationContext: JsonTree seq -> ArrayOperationContext
+    abstract member PushArrayOperationContext: string option -> JsonTree seq -> ArrayOperationContext
+
+    /// Gets a current array operation context by name.
+    abstract member GetArrayOperationContextByName: string -> ArrayOperationContext option
 
     /// Mark all provided actions, and their children, as skipped
     abstract member ForceSkipAll: (string * BaseAction) seq -> unit

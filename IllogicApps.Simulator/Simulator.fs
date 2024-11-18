@@ -157,7 +157,7 @@ module private SimulatorHelper =
 
 open SimulatorHelper
 
-type private ArrayOperationContextImpl(values: JsonTree list, disposeHook: ArrayOperationContext -> unit) =
+type private ArrayOperationContextImpl(values: JsonTree list, disposeHook: ArrayOperationContextImpl -> unit) =
     let mutable values = values
 
     interface ArrayOperationContext with
@@ -245,7 +245,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
     let variables = Dictionary<string, JsonTree>()
 
-    member val private ArrayOperationContextStack = Stack<ArrayOperationContextImpl>() with get
+    let arrayOperationContextStack = Stack<string option * ArrayOperationContextImpl>()
 
     static member CreateUntriggered(creationOptions: SimulatorCreationOptions) = Simulator(creationOptions)
 
@@ -253,7 +253,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         if this.TerminationStatus = Ok Skipped then
             this.TerminationStatus <- Ok result
 
-        Debug.Assert(this.ArrayOperationContextStack.Count = 0)
+        Debug.Assert(arrayOperationContextStack.Count = 0)
 
     static member Trigger (actions: ActionGraph) (creationOptions: SimulatorCreationOptions) =
         let sim = Simulator.CreateUntriggered(creationOptions)
@@ -274,7 +274,10 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         | _ -> None
 
     override this.SetVariable name value = variables.[name] <- value
-    override this.ArrayOperationContext = this.ArrayOperationContextStack.Peek()
+
+    override this.ArrayOperationContext =
+        arrayOperationContextStack.Peek() |> snd :> ArrayOperationContext
+
     override this.TriggerResult = creationOptions.triggerResult
     override this.IsBugForBugAccurate = isBugForBugAccurate
     override this.AllActionResults = this.ActionResults |> OrderedMap.CreateRange
@@ -384,23 +387,29 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         if not (runAllHandlers creationOptions.externalServiceHandlers this request) then
             failwithf "No handler for external service request: %A" request
 
-    override this.PushArrayOperationContext(arg1: JsonTree seq) : ArrayOperationContext =
-        this.PushLoopContext(this.ArrayOperationContextStack, arg1)
+    override this.PushArrayOperationContext (actionName: string option) (array: JsonTree seq) : ArrayOperationContext =
+        this.PushLoopContext(arrayOperationContextStack, actionName, array)
 
-    member private this.PushLoopContext(stack: Stack<ArrayOperationContextImpl>, values: JsonTree seq) =
+    member private this.PushLoopContext
+        (stack: Stack<string option * ArrayOperationContextImpl>, actionName: string option, values: JsonTree seq)
+        =
         let loopContext =
             new ArrayOperationContextImpl(List.ofSeq values, this.PopAndCompareLoopContext stack)
 
-        stack.Push(loopContext)
+        stack.Push((actionName, loopContext))
         loopContext
 
-    member private this.PopAndCompareLoopContext (stack: Stack<ArrayOperationContextImpl>) context =
-        let top = stack.Peek(): ArrayOperationContext
+    member private this.PopAndCompareLoopContext (stack: Stack<string option * ArrayOperationContextImpl>) context =
+        let top = stack.Peek()
 
-        if top = context then
+        if LanguagePrimitives.PhysicalEquality (snd top) context then
             stack.Pop() |> ignore
         else
-            raise <| new InvalidOperationException("Loop context push/pop mismatch")
+            raise <| InvalidOperationException("Loop context push/pop mismatch")
+
+    override this.GetArrayOperationContextByName(name) =
+        arrayOperationContextStack
+        |> Seq.tryPick (fun (n, v) -> n |> Option.filter ((=) name) |> Option.map (fun _ -> v))
 
     override this.ForceSkipAll actions =
         actions

@@ -87,13 +87,13 @@ type ForEach(resolveAction, json) =
 
     member val ForEach = JsonTree.getKey "foreach" json with get
 
-    override this.Execute (_: string) (context: SimulatorContext) =
+    override this.Execute (name: string) (context: SimulatorContext) =
         printfn "ForEach: %s" (Conversions.prettyStringOfJson this.ForEach)
 
         let elems = this.ForEach |> context.EvaluateLanguage
 
         use loopContext =
-            elems |> Conversions.ensureArray |> context.PushArrayOperationContext
+            elems |> Conversions.ensureArray |> context.PushArrayOperationContext(Some name)
 
         // TODO: this is going into the simulator as soon as possible
         let mergeStatuses =
@@ -429,7 +429,7 @@ type Query(json) =
 
     member val Inputs = JsonTree.getKey "inputs" json |> queryInputsOfJson with get
 
-    override this.Execute (_: string) (context: SimulatorContext) =
+    override this.Execute (name: string) (context: SimulatorContext) =
         printfn
             "Query: %s in %s"
             (Conversions.prettyStringOfJson this.Inputs.where)
@@ -438,7 +438,8 @@ type Query(json) =
         let from = context.EvaluateLanguage this.Inputs.from
 
         let arrayVals = from |> Conversions.ensureArray
-        use loopContext = context.PushArrayOperationContext arrayVals
+        let nameOpt = if context.IsBugForBugAccurate then None else Some name
+        use loopContext = context.PushArrayOperationContext nameOpt arrayVals
 
         let rec filterValsRev acc =
             let current = loopContext.Current
@@ -463,7 +464,7 @@ type Select(json) =
 
     member val Inputs = JsonTree.getKey "inputs" json |> selectInputsOfJson with get
 
-    override this.Execute (_: string) (context: SimulatorContext) =
+    override this.Execute (name: string) (context: SimulatorContext) =
         printfn
             "Select: %s in %s"
             (Conversions.prettyStringOfJson this.Inputs.select)
@@ -472,7 +473,8 @@ type Select(json) =
         let from = context.EvaluateLanguage this.Inputs.from
 
         let arrayVals = from |> Conversions.ensureArray
-        use loopContext = context.PushArrayOperationContext arrayVals
+        let nameOpt = if context.IsBugForBugAccurate then None else Some name
+        use loopContext = context.PushArrayOperationContext nameOpt arrayVals
 
         let rec selectValsRev acc =
             let selected = this.Inputs.select |> context.EvaluateLanguage

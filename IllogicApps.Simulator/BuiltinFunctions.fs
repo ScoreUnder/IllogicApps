@@ -850,6 +850,14 @@ let f_body (sim: SimulatorContext) (args: Args) : JsonTree =
     |> Option.bind (JsonTree.tryGetKey "body")
     |> Conversions.jsonOfOption
 
+let f_items (sim: SimulatorContext) (args: Args) : JsonTree =
+    expectArgs 1 args
+    let actionName = Conversions.ensureString <| List.head args
+
+    match sim.GetArrayOperationContextByName actionName with
+    | Some value -> value.Current
+    | None -> failwithf "Array context action %s not found" actionName
+
 let f_outputs (sim: SimulatorContext) (args: Args) : JsonTree =
     f_actions sim args |> JsonTree.tryGetKey "outputs" |> Conversions.jsonOfOption
 
@@ -1025,6 +1033,7 @@ let functions: OrderedMap<string, LanguageFunction> =
       "actions", f_actions
       "appsetting", f_appsetting
       "body", f_body
+      "items", f_items
       "outputs", f_outputs
       "parameters", f_parameters
       "trigger", f_trigger
