@@ -12,16 +12,19 @@ module Base64 =
 
     let inline unmark (str: string<Base64 * 'm>) = MeasuredString.unmark<Base64, 'm> str
 
-    let inline ofBytes (bytes: byte[]) = Convert.ToBase64String bytes |> mark
+    let inline ofBytes bytes =
+        bytes |> MeasuredString.ofByteArray Convert.ToBase64String |> mark
 
-    let inline toBytes (str: string<Base64>) =
-        str |> unmark |> Convert.FromBase64String
+    let inline toBytes str =
+        str |> unmark |> MeasuredString.toByteArray Convert.FromBase64String
 
-    let ofString (str: string) =
-        str |> Encoding.UTF8.GetBytes |> ofBytes
+    let ofString str =
+        str |> MeasuredString.toByteArray (fun v -> Encoding.UTF8.GetBytes v) |> ofBytes
 
-    let toString (str: string<Base64>) : string =
-        str |> toBytes |> Encoding.UTF8.GetString
+    let toString str =
+        str
+        |> toBytes
+        |> MeasuredString.ofByteArray (fun v -> Encoding.UTF8.GetString v)
 
 module Blob =
     let ofBase64 (contentType: string) (base64: string<Base64>) : JsonTree =
