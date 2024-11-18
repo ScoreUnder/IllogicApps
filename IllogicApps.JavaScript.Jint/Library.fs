@@ -10,7 +10,7 @@ open CompletedStepTypes
 let rec jsValueOfJson engine (json: JsonTree) : JsValue =
     match json with
     | JsonTree.String s -> JsString(s)
-    | JsonTree.Integer i -> JsBigInt(i)
+    | JsonTree.Integer i -> JsNumber(i)
     | JsonTree.Float f -> JsNumber(f)
     | JsonTree.Decimal d -> JsNumber(float d)
     | JsonTree.Boolean b -> if b then JsBoolean.True else JsBoolean.False
