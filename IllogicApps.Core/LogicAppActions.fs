@@ -82,6 +82,48 @@ type If(resolveAction, json) =
     override this.GetChildren() =
         Seq.append (OrderedMap.toSeq this.Actions) (OrderedMap.toSeq this.Else.actions)
 
+type ForEach(resolveAction, json) =
+    inherit Scope(resolveAction, json)
+
+    member val ForEach = JsonTree.getKey "foreach" json with get
+
+    override this.Execute (_: string) (context: SimulatorContext) =
+        printfn "ForEach: %s" (Conversions.prettyStringOfJson this.ForEach)
+
+        let elems = this.ForEach |> context.EvaluateLanguage
+
+        use loopContext =
+            elems |> Conversions.ensureArray |> context.PushArrayOperationContext
+
+        // TODO: this is going into the simulator as soon as possible
+        let mergeStatuses =
+            function
+            | _, Failed
+            | Failed, _ -> Failed
+            | _, TimedOut
+            | TimedOut, _ -> TimedOut
+            | _, Cancelled
+            | Cancelled, _ -> Cancelled
+            | _, n -> n
+
+        let rec executeInnerScope acc =
+            let result = context.ExecuteGraph this.Actions
+            let result = mergeStatuses (acc, result)
+
+            if loopContext.Advance() then
+                executeInnerScope result
+            else
+                result
+
+        let result = executeInnerScope Succeeded
+        let code, error = codeAndErrorFromScopeResult result
+
+        { ActionResult.Default with
+            status = result
+            inputs = Some(elems)
+            code = Some code
+            error = error }
+
 type Switch(resolveAction, json) =
     inherit BaseAction(json)
 

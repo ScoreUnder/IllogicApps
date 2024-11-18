@@ -24,6 +24,7 @@ let actionMap =
         [ "Request", (fun _ v -> Request v)
           "Scope", (fun a v -> Scope(a, v))
           "If", (fun a v -> If(a, v))
+          "Foreach", (fun a v -> ForEach(a, v))
           "Switch", (fun a v -> Switch(a, v))
           "Until", (fun a v -> Until(a, v))
           "Terminate", (fun _ v -> Terminate v)
