@@ -197,8 +197,6 @@ type SimulatorCreationOptions =
             externalServiceHandlers = [ loggingHandler; noOpHandler ] }
 
 type Simulator private (creationOptions: SimulatorCreationOptions) as this =
-    inherit SimulatorContext()
-
     let isBugForBugAccurate = creationOptions.isBugForBugAccurate
 
     let recordResultOf name (action: BaseAction) (f: unit -> ActionResult) =
@@ -268,29 +266,29 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     member val ActionResults = MutableOrderedMap<string, CompletedAction>() with get
     member this.Variables = variables
 
-    override this.GetVariable name =
+    member this.GetVariable name =
         match variables.TryGetValue name with
         | true, value -> Some value
         | _ -> None
 
-    override this.SetVariable name value = variables.[name] <- value
+    member this.SetVariable name value = variables.[name] <- value
 
-    override this.ArrayOperationContext =
+    member this.ArrayOperationContext =
         match arrayOperationContextStack.TryPeek() with
-        | true, (_, context) -> Some context
+        | true, (_, context) -> Some(context: ArrayOperationContext)
         | _ -> None
 
-    override this.TriggerResult = creationOptions.triggerResult
-    override this.IsBugForBugAccurate = isBugForBugAccurate
-    override this.AllActionResults = this.ActionResults |> OrderedMap.CreateRange
+    member this.TriggerResult = creationOptions.triggerResult
+    member this.IsBugForBugAccurate = isBugForBugAccurate
+    member this.AllActionResults = this.ActionResults |> OrderedMap.CreateRange
 
-    override this.WorkflowDetails =
+    member this.WorkflowDetails =
         WorkflowDetails.Create
             $"dummyWorkflowId_{creationOptions.workflowName}"
             creationOptions.workflowName
             creationOptions.triggerResult.action.clientTrackingId
 
-    override this.GetActionResult name =
+    member this.GetActionResult name =
         this.ActionResults.TryGetValue name
         |> function
             | true, result -> Some result
@@ -298,13 +296,13 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
     member private this.RecordActionResult name result = this.ActionResults.[name] <- result
 
-    override this.GetAppConfig name =
+    member this.GetAppConfig name =
         OrderedMap.tryFindCaseInsensitive name creationOptions.appConfig
 
-    override this.GetParameter name =
+    member this.GetParameter name =
         OrderedMap.tryFindCaseInsensitive name evaluatedParameters |> Option.map _.Value
 
-    override this.ExecuteGraph(actions: ActionGraph) =
+    member this.ExecuteGraph(actions: ActionGraph) =
         let dependencyGraph = createDependencyGraph actions
         let remainingActions = Dictionary<string, BaseAction>(actions)
 
@@ -365,7 +363,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
             |> Seq.map (fun name -> this.ActionResults.[name].status)
             |> Seq.fold mergeStatus Succeeded
 
-    override this.EvaluateCondition expr =
+    member this.EvaluateCondition expr =
         let rec eval expr =
             let kv = expr |> Seq.exactlyOne
             let key, value = kv
@@ -379,17 +377,17 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
         expr |> unpackObject |> eval
 
-    override this.EvaluateLanguage expr =
+    member this.EvaluateLanguage expr =
         expr |> jsonMapStrs (LanguageEvaluator.evaluateIfNecessary this)
 
-    override this.Terminate status error =
+    member this.Terminate status error =
         this.TerminationStatus <- Error(status, error)
 
-    override this.ExternalServiceRequest request =
+    member this.ExternalServiceRequest request =
         if not (runAllHandlers creationOptions.externalServiceHandlers this request) then
             failwithf "No handler for external service request: %A" request
 
-    override this.PushArrayOperationContext (actionName: string option) (array: JsonTree seq) : ArrayOperationContext =
+    member this.PushArrayOperationContext (actionName: string option) (array: JsonTree seq) : ArrayOperationContext =
         this.PushLoopContext(arrayOperationContextStack, actionName, array)
 
     member private this.PushLoopContext
@@ -409,12 +407,37 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         else
             raise <| InvalidOperationException("Loop context push/pop mismatch")
 
-    override this.GetArrayOperationContextByName(name) =
+    member this.GetArrayOperationContextByName(name) =
         arrayOperationContextStack
-        |> Seq.tryPick (fun (n, v) -> n |> Option.filter ((=) name) |> Option.map (fun _ -> v))
+        |> Seq.tryPick (fun (n, v) -> n |> Option.filter ((=) name) |> Option.map (fun _ -> v: ArrayOperationContext))
 
-    override this.ForceSkipAll actions =
+    member this.ForceSkipAll actions =
         actions
         |> Seq.toList
         |> BaseAction.getAllChildren
         |> List.iter (fun (name, action) -> recordResultOf name action (fun () -> skippedBranchResult) |> ignore)
+
+    interface SimulatorContext with
+        member this.GetVariable name = this.GetVariable name
+        member this.SetVariable name value = this.SetVariable name value
+        member this.GetAppConfig name = this.GetAppConfig name
+        member this.GetParameter name = this.GetParameter name
+        member this.IsBugForBugAccurate = this.IsBugForBugAccurate
+        member this.ArrayOperationContext = this.ArrayOperationContext
+        member this.TriggerResult = this.TriggerResult
+        member this.AllActionResults = this.AllActionResults
+        member this.WorkflowDetails = this.WorkflowDetails
+        member this.GetActionResult name = this.GetActionResult name
+        member this.ExecuteGraph actions = this.ExecuteGraph actions
+        member this.Terminate status error = this.Terminate status error
+        member this.EvaluateCondition expr = this.EvaluateCondition expr
+        member this.EvaluateLanguage expr = this.EvaluateLanguage expr
+        member this.ExternalServiceRequest request = this.ExternalServiceRequest request
+
+        member this.PushArrayOperationContext actionName array =
+            this.PushArrayOperationContext actionName array
+
+        member this.GetArrayOperationContextByName name =
+            this.GetArrayOperationContextByName name
+
+        member this.ForceSkipAll actions = this.ForceSkipAll actions

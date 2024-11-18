@@ -44,76 +44,76 @@ type BaseAction(json: JsonTree) =
         |> Option.map Conversions.ensureObject
         |> Option.defaultValue OrderedMap.empty with get
 
-    abstract member Execute: string -> SimulatorContext -> ActionResult
-    abstract member GetChildren: unit -> (string * BaseAction) seq
+    abstract Execute: string -> SimulatorContext -> ActionResult
+    abstract GetChildren: unit -> (string * BaseAction) seq
     default this.GetChildren() = []
 
     static member GetChildren(a: BaseAction) = a.GetChildren() |> List.ofSeq
 
 and ActionGraph = OrderedMap<string, BaseAction>
 
-and [<AbstractClass>] SimulatorContext() =
+and SimulatorContext =
     /// Get a variable from the current execution context.
-    abstract member GetVariable: string -> JsonTree option
+    abstract GetVariable: string -> JsonTree option
 
     /// Set a variable in the current execution context.
-    abstract member SetVariable: string -> JsonTree -> unit
+    abstract SetVariable: string -> JsonTree -> unit
 
     /// Get a value from App Config
-    abstract member GetAppConfig: string -> string option
+    abstract GetAppConfig: string -> string option
 
     /// Get a value from parameters
-    abstract member GetParameter: string -> JsonTree option
+    abstract GetParameter: string -> JsonTree option
 
     /// Indicates if the simulator is bug-for-bug accurate.
     /// e.g. if large integers should lose precision when parsed with int('...')
-    abstract member IsBugForBugAccurate: bool
+    abstract IsBugForBugAccurate: bool
 
     /// Gets the current array operation context.
-    abstract member ArrayOperationContext: ArrayOperationContext option
+    abstract ArrayOperationContext: ArrayOperationContext option
 
     /// Gets the result of the trigger which invoked this workflow.
-    abstract member TriggerResult: CompletedTrigger
+    abstract TriggerResult: CompletedTrigger
 
     /// Gets the results of all actions executed so far.
-    abstract member AllActionResults: OrderedMap<string, CompletedAction>
+    abstract AllActionResults: OrderedMap<string, CompletedAction>
 
     /// Gets the details of the workflow. Mostly crap & made for compatibility but I bet nobody will care lol
-    abstract member WorkflowDetails: WorkflowDetails
+    abstract WorkflowDetails: WorkflowDetails
 
     /// Gets the result of an action by its name.
-    abstract member GetActionResult: string -> CompletedAction option
+    abstract GetActionResult: string -> CompletedAction option
 
     /// Executes a graph of actions.
-    abstract member ExecuteGraph: ActionGraph -> Status
+    abstract ExecuteGraph: ActionGraph -> Status
 
     /// Stops the execution with a given status. Used by the Terminate action.
-    abstract member Terminate: Status -> TerminateRunError option -> unit
+    abstract Terminate: Status -> TerminateRunError option -> unit
 
     /// Evaluates a condition expression.
     /// Example: EvaluateCondition {"and": [{"equals": [1, 2]}]}
     /// Result: false
-    abstract member EvaluateCondition: Expression -> bool
+    abstract EvaluateCondition: Expression -> bool
 
     /// Evaluates a language expression.
     /// Example: EvaluateLanguage {"@concat('hello', ' world')": "@add(1, 2)"}
     /// Result: {"hello world": 3}
-    abstract member EvaluateLanguage: JsonTree -> JsonTree
+    abstract EvaluateLanguage: JsonTree -> JsonTree
 
     /// Sends an external service request.
     /// This refers to anything outside the current workflow:
     /// Other workflow invocations, HTTP requests, filesystem access, etc.
-    abstract member ExternalServiceRequest: ExternalServiceRequest -> unit
+    abstract ExternalServiceRequest: ExternalServiceRequest -> unit
 
     /// Pushes a new array operation context (i.e. sets a new context for the item()/items() expression)
     /// Remember to call Dispose() on the returned context when done.
-    abstract member PushArrayOperationContext: string option -> JsonTree seq -> ArrayOperationContext
+    abstract PushArrayOperationContext: string option -> JsonTree seq -> ArrayOperationContext
 
     /// Gets a current array operation context by name.
-    abstract member GetArrayOperationContextByName: string -> ArrayOperationContext option
+    abstract GetArrayOperationContextByName: string -> ArrayOperationContext option
 
     /// Mark all provided actions, and their children, as skipped
-    abstract member ForceSkipAll: (string * BaseAction) seq -> unit
+    abstract ForceSkipAll: (string * BaseAction) seq -> unit
 
 module BaseAction =
     let getAllChildren start =
