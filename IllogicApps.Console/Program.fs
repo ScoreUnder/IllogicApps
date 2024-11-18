@@ -1,15 +1,23 @@
 module IllogicApps.Core.Program
 
+open System.IO
+
 open IllogicApps.Json
 open ReadLogicApp
 open IllogicApps.Simulator
 
-let logicAppNames =
-    [ "Stateful1"; "Stateful2"; "SkippingTest"; "FailurePropagationTest" ]
+let workflowFiles =
+    "TestWorkflows"
+    |> Directory.EnumerateDirectories
+    |> Seq.map (fun dir -> Path.Combine(dir, "workflow.json"))
+    |> Seq.filter File.Exists
+    |> Array.ofSeq
+
+let getLogicAppName (path: string) =
+    path |> Path.GetDirectoryName |> Path.GetFileName
 
 let logicApps =
-    logicAppNames
-    |> List.map (fun name -> name, readLogicApp $"TestWorkflows/{name}/workflow.json")
+    workflowFiles |> Seq.map (fun path -> getLogicAppName path, readLogicApp path)
 
 let runWorkflow =
     WorkflowFamily.buildWorkflowFamily
@@ -23,7 +31,9 @@ let runWorkflow =
                       ExternalServices.noOpHandler ] })
         logicApps
 
-let logicAppNamesStr = logicAppNames |> String.concat ", "
+let logicAppNamesStr =
+    workflowFiles |> Seq.map getLogicAppName |> String.concat ", "
+
 System.Console.WriteLine($"Enter workflow name (one of {logicAppNamesStr}):")
 let userInput = System.Console.In.ReadLine()
 
