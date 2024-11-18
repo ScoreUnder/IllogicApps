@@ -19,6 +19,7 @@
         <Compile Include="CollectionFunctionsTests.fs"/>
         <Compile Include="ManipulationFunctionsTests.fs"/>
         <Compile Include="SettingsFilesTests.fs"/>
+        <Compile Include="SimulatorInternalsTests.fs"/>
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="coverlet.collector" Version="6.0.2">

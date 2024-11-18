@@ -242,6 +242,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         |> OrderedMap.mapValuesOnly (fun v -> lazy evaluateParameter this v)
 
     let variables = Dictionary<string, JsonTree>()
+    let canonicalVarCase = Dictionary<string, string>()
 
     let arrayOperationContextStack = Stack<string option * ArrayOperationContextImpl>()
 
@@ -266,12 +267,14 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     member val ActionResults = MutableOrderedMap<string, CompletedAction>() with get
     member this.Variables = variables
 
-    member this.GetVariable name =
-        match variables.TryGetValue name with
-        | true, value -> Some value
+    member this.GetVariable(name: string) =
+        match canonicalVarCase.TryGetValue(name.ToLowerInvariant()) with
+        | true, key -> Some variables.[key]
         | _ -> None
 
-    member this.SetVariable name value = variables.[name] <- value
+    member this.SetVariable name value =
+        variables.[name] <- value
+        canonicalVarCase.[name.ToLowerInvariant()] <- name
 
     member this.ArrayOperationContext =
         match arrayOperationContextStack.TryPeek() with
