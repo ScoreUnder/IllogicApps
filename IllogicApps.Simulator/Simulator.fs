@@ -276,7 +276,9 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     override this.SetVariable name value = variables.[name] <- value
 
     override this.ArrayOperationContext =
-        arrayOperationContextStack.Peek() |> snd :> ArrayOperationContext
+        match arrayOperationContextStack.TryPeek() with
+        | true, (_, context) -> Some context
+        | _ -> None
 
     override this.TriggerResult = creationOptions.triggerResult
     override this.IsBugForBugAccurate = isBugForBugAccurate

@@ -422,7 +422,7 @@ let f_first _ (args: Args) : JsonTree =
 let f_item (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 0 args
 
-    sim.ArrayOperationContext.Current
+    sim.ArrayOperationContext |> Option.map _.Current |> Conversions.jsonOfOption
 
 let f_join _ (args: Args) : JsonTree =
     match args with

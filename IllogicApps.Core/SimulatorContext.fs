@@ -70,7 +70,7 @@ and [<AbstractClass>] SimulatorContext() =
     abstract member IsBugForBugAccurate: bool
 
     /// Gets the current array operation context.
-    abstract member ArrayOperationContext: ArrayOperationContext
+    abstract member ArrayOperationContext: ArrayOperationContext option
 
     /// Gets the result of the trigger which invoked this workflow.
     abstract member TriggerResult: CompletedTrigger
