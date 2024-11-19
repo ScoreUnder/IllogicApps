@@ -26,7 +26,7 @@ let runWorkflow =
                 isBugForBugAccurate = true
                 externalServiceHandlers =
                     [ workflowHandler
-                      IllogicApps.JavaScript.Jint.jintJavascriptHandler
+                      IllogicApps.JavaScript.Jint.Handler.jintJavascriptHandler
                       ExternalServices.loggingHandler
                       ExternalServices.noOpHandler ] })
         logicApps

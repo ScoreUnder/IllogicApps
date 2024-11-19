@@ -7,6 +7,7 @@ open Swensen.Unquote
 
 open IllogicApps.Core
 open IllogicApps.Core.ExternalServiceTypes
+open IllogicApps.JavaScript.Jint.Handler
 
 let mockSim () = Foq.Mock<SimulatorContext>().Create()
 

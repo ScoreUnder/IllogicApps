@@ -199,7 +199,7 @@ type TestRunner
                         externalServiceHandlers =
                             [ handler
                               defaultHandler overallResponse options.workflowName
-                              IllogicApps.JavaScript.Jint.jintJavascriptHandler
+                              IllogicApps.JavaScript.Jint.Handler.jintJavascriptHandler
                               ExternalServices.loggingHandler ] })
                 workflows
                 workflowName
