@@ -67,6 +67,8 @@ let jintJavascriptHandler (_sim: SimulatorContext) (request: ExternalServiceRequ
         )
         |> ignore
 
+        engine.SetValue("console", Console.makeConsoleObj engine) |> ignore
+
         result.Value <-
             try
                 Ok(script |> engine.Evaluate |> jsonOfJsValue)
