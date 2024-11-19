@@ -2,7 +2,7 @@
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <IsPackable>false</IsPackable>
-        <GenerateProgramFile>true</GenerateProgramFile>
+        <GenerateProgramFile>false</GenerateProgramFile>
         <IsTestProject>true</IsTestProject>
         <TailCalls>true</TailCalls>
     </PropertyGroup>
@@ -20,8 +20,10 @@
         <Compile Include="ManipulationFunctionsTests.fs"/>
         <Compile Include="SettingsFilesTests.fs"/>
         <Compile Include="SimulatorInternalsTests.fs"/>
+        <Compile Include="Program.fs"/>
     </ItemGroup>
     <ItemGroup>
+        <PackageReference Include="BenchmarkDotNet" Version="0.14.0"/>
         <PackageReference Include="coverlet.collector" Version="6.0.2">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
