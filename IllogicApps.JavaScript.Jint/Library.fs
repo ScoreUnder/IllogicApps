@@ -35,7 +35,7 @@ let rec jsonOfJsValue (value: JsValue) : JsonTree =
         JsonTree.Float(value.AsNumber())
     elif value.IsBoolean() then
         JsonTree.Boolean(value.AsBoolean())
-    elif value.IsNull() then
+    elif value.IsNull() || value.IsUndefined() then
         JsonTree.Null
     elif value.IsObject() then
         value.AsObject().GetOwnProperties()
