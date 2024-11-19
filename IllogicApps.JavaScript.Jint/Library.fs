@@ -3,7 +3,7 @@
 open IllogicApps.Core
 open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Json
-open Jint
+open global.Jint
 open Jint.Native
 open CompletedStepTypes
 
@@ -67,7 +67,7 @@ let jintJavascriptHandler (_sim: SimulatorContext) (request: ExternalServiceRequ
         )
         |> ignore
 
-        engine.SetValue("console", Console.makeConsoleObj engine) |> ignore
+        engine.SetValue("console", Jint.Console.makeConsoleObj engine) |> ignore
 
         result.Value <-
             try
