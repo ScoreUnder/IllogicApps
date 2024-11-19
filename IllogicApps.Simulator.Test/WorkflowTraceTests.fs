@@ -1,0 +1,283 @@
+module IllogicApps.Simulator.Test.WorkflowTraceTests
+
+open System
+open System.IO
+open System.Reflection
+open System.Text
+open DEdge.Diffract
+open IllogicApps.Core.LogicAppActions
+open NUnit.Framework
+open Swensen.Unquote
+
+open IllogicApps.Core
+open IllogicApps.Core.CompletedStepTypes
+open IllogicApps.Json
+open IllogicApps.Simulator
+
+// To generate a trace, run:
+// curl -s -g --trace trace-whatever.txt 'http://your-trigger-url'
+// plus any extra parameters you might want like -XPOST
+
+let decodeHexdumpLine (line: ReadOnlySpan<char>) : byte array =
+    let hexChars = line.Slice(6, 48).ToString() // in a just world I would not need to say .ToString()
+    let length = [ 16..-1..1 ] |> Seq.find (fun i -> hexChars[i * 3 - 2] <> ' ')
+    Array.init length (fun i -> Byte.Parse(hexChars.AsSpan(i * 3, 2), System.Globalization.NumberStyles.HexNumber))
+
+type CurlTraceParseState =
+    | RequestHeader
+    | RequestBody
+    | ResponseHeader
+    | ResponseBody
+
+[<RequireQualifiedAccess>]
+type CurlTraceIntermediate =
+    { state: CurlTraceParseState
+      requestHeader: byte array list
+      requestBody: byte array list
+      responseHeader: byte array list
+      responseBody: byte array list }
+
+    static member Empty =
+        { state = RequestHeader
+          requestHeader = []
+          requestBody = []
+          responseHeader = []
+          responseBody = [] }
+
+type CurlTraceRaw =
+    { requestHeader: byte array
+      requestBody: byte array
+      responseHeader: byte array
+      responseBody: byte array }
+
+let readRawCurlTrace (trace: Stream) =
+    use reader = new StreamReader(trace)
+
+    Seq.unfold (fun _ -> reader.ReadLine() |> Option.ofObj |> Option.map (fun l -> l, ())) ()
+    |> Seq.filter (fun l -> l.Length > 8 && (l.[0] <> '=' || l.[1] <> '='))
+    |> Seq.fold
+        (fun (acc: CurlTraceIntermediate) el ->
+            match el.[0], el[8] with
+            | '=', 'h' -> { acc with state = RequestHeader }
+            | '=', 'd' -> { acc with state = RequestBody }
+            | '<', 'h' -> { acc with state = ResponseHeader }
+            | '<', 'd' -> { acc with state = ResponseBody }
+            | _ ->
+                let line = decodeHexdumpLine (el.AsSpan())
+
+                match acc.state with
+                | RequestHeader ->
+                    { acc with
+                        requestHeader = line :: acc.requestHeader }
+                | RequestBody ->
+                    { acc with
+                        requestBody = line :: acc.requestBody }
+                | ResponseHeader ->
+                    { acc with
+                        responseHeader = line :: acc.responseHeader }
+                | ResponseBody ->
+                    { acc with
+                        responseBody = line :: acc.responseBody })
+        CurlTraceIntermediate.Empty
+    |> fun acc ->
+        { requestHeader = acc.requestHeader |> List.rev |> Seq.concat |> Array.ofSeq
+          requestBody = acc.requestBody |> List.rev |> Seq.concat |> Array.ofSeq
+          responseHeader = acc.responseHeader |> List.rev |> Seq.concat |> Array.ofSeq
+          responseBody = acc.responseBody |> List.rev |> Seq.concat |> Array.ofSeq }
+
+type CurlTraceRequest =
+    { httpMethod: string
+      relativePath: string
+      httpVersion: string
+      headers: (string * string) list
+      body: byte array }
+
+type CurlTraceResponse =
+    { httpVersion: string
+      statusCode: int
+      statusMessage: string
+      headers: (string * string) list
+      body: byte array }
+
+#nowarn "0025" // Incomplete pattern match; yes I know, it doesn't need to be robust
+
+let parseCurlTrace (raw: CurlTraceRaw) : CurlTraceRequest * CurlTraceResponse =
+    let requestHeader = Encoding.UTF8.GetString(raw.requestHeader)
+    let responseHeader = Encoding.UTF8.GetString(raw.responseHeader)
+
+    let requestLines =
+        requestHeader.Split("\r\n", StringSplitOptions.RemoveEmptyEntries)
+
+    let responseLines =
+        responseHeader.Split("\r\n", StringSplitOptions.RemoveEmptyEntries)
+
+    let [| requestMethod; relativePath; requestHttpVersion |] =
+        requestLines.[0].Split([| ' ' |], 3)
+
+    let [| responseHttpVersion; statusCode; statusMessage |] =
+        responseLines.[0].Split([| ' ' |], 3)
+
+    let parseHeaders (lines: string seq) =
+        lines
+        |> Seq.skip 1
+        |> Seq.map (fun l ->
+            let parts = l.Split([| ':' |], 2)
+            parts.[0], parts.[1].Trim())
+        |> List.ofSeq
+
+    { httpMethod = requestMethod
+      relativePath = relativePath
+      httpVersion = requestHttpVersion
+      headers = parseHeaders requestLines
+      body = raw.requestBody },
+    { httpVersion = responseHttpVersion
+      statusCode = int statusCode
+      statusMessage = statusMessage
+      headers = parseHeaders responseLines
+      body = raw.responseBody }
+
+let assembly = Assembly.GetExecutingAssembly()
+
+let readResource name =
+    assembly.GetManifestResourceStream(name)
+
+let readTestCase (workflowName, traceName) =
+    let workflow = readResource (workflowName)
+    let trace = readResource (traceName)
+
+    let rawTrace = readRawCurlTrace trace
+    let request, response = parseCurlTrace rawTrace
+
+    let workflowName = request.relativePath.Split('/', 4)[2]
+
+    let workflowJson =
+        use workflowJson = new StreamReader(workflow)
+        workflowJson.ReadToEnd()
+
+    let logicApp = ReadLogicApp.decodeLogicApp workflowJson
+
+    workflowName, logicApp, request, response
+
+let namedTestCases names =
+    let resources = assembly.GetManifestResourceNames()
+    let assemblyName = assembly.GetName().Name
+
+    let expectedPrefix = $"{assemblyName}.TestData."
+    let expectedSuffix = ".workflow.json"
+
+    resources
+    |> Seq.choose (fun n ->
+        if n.StartsWith(expectedPrefix) && n.EndsWith(expectedSuffix) then
+            Some(n.Substring(expectedPrefix.Length, n.Length - expectedPrefix.Length - expectedSuffix.Length))
+        else
+            None)
+    |> Seq.filter (fun name -> names |> List.contains name)
+    |> Seq.collect (fun name ->
+        let tracePrefix = $"{expectedPrefix}{name}.trace-"
+
+        resources
+        |> Seq.filter (fun n -> n.StartsWith(tracePrefix) && n.EndsWith(".txt"))
+        |> Seq.map (fun traceName -> $"{expectedPrefix}{name}{expectedSuffix}", traceName))
+    |> Seq.map TestCaseData
+    |> List.ofSeq
+
+let ``Test cases for workflows that respond with trigger`` =
+    namedTestCases [ "simpleRelativePath" ]
+
+[<TestCaseSource(nameof ``Test cases for workflows that respond with trigger``)>]
+let ``Test IllogicApps output matches logic app trace for workflows that respond with trigger`` workflowName traceName =
+    let workflowName, logicApp, request, expectedResponse =
+        readTestCase (workflowName, traceName)
+
+    let expectedResponseStr = Encoding.UTF8.GetString(expectedResponse.body)
+    let parsedExpectedResponse = Parser.parse expectedResponseStr
+
+    // We can't reasonably be expected to match these without faking it:
+    let workflowRunId =
+        parsedExpectedResponse
+        |> JsonTree.getKey "originHistoryName"
+        |> Conversions.ensureString
+
+    let clientTrackingId =
+        parsedExpectedResponse
+        |> JsonTree.getKey "clientTrackingId"
+        |> Conversions.ensureString
+
+    let trackingId =
+        parsedExpectedResponse
+        |> JsonTree.getKey "trackingId"
+        |> Conversions.ensureString
+
+    let startTime =
+        parsedExpectedResponse
+        |> JsonTree.getKey "startTime"
+        |> Conversions.ensureString
+
+    let endTime =
+        parsedExpectedResponse |> JsonTree.getKey "endTime" |> Conversions.ensureString
+
+    let triggerName = logicApp.definition.triggers.Keys |> Seq.head
+    let triggerAction = logicApp.definition.triggers.Values |> Seq.head
+    let actualResponse = ref None
+
+    let responseHandler _sim request =
+        match request with
+        | ExternalServiceTypes.HttpResponse(resp) when actualResponse.Value = None ->
+            actualResponse.Value <- Some resp
+            true
+        | _ -> false
+
+    let triggerOutputs = Some Conversions.emptyObject // TODO
+
+    let triggerResult =
+        { CompletedTrigger.create
+              { CompletedAction.create triggerName (stringOfDateTime DateTime.UtcNow) with
+                  inputs = Some Conversions.emptyObject //(triggerAction :?> Request)... TODO
+                  outputs = triggerOutputs
+                  startTime = startTime
+                  endTime = endTime
+                  clientTrackingId = clientTrackingId
+                  trackingId = trackingId } with
+            originHistoryName = workflowRunId }
+
+    let simCreationOptions =
+        { SimulatorCreationOptions.Default with
+            workflowName = workflowName
+            externalServiceHandlers = [ responseHandler ]
+            triggerResult = triggerResult }
+
+    let sim = Simulator.Trigger logicApp.definition.actions simCreationOptions
+
+    let actualResponse = trap <@ actualResponse.Value.Value @>
+    let actualResponseBody = trap <@ actualResponse.body.Value @>
+
+    test <@ expectedResponse.statusCode = actualResponse.statusCode @>
+
+    Differ.Assert(
+        parsedExpectedResponse,
+        actualResponseBody,
+        param =
+            { Differ.AssertPrintParams with
+                neutralName = "Response body object" }
+    )
+
+    Differ.Assert(
+        expectedResponseStr,
+        Conversions.stringOfJson actualResponseBody,
+        param =
+            { Differ.AssertPrintParams with
+                neutralName = "Response body string" }
+    )
+
+    Differ.Assert(
+        expectedResponse.headers,
+        // TODO: the headers are probably not going to be right without at least adding in some synthetic ones
+        // which I don't intend to be part of the actual HttpRequestReply object
+        // (though which should appear during conversion to HttpResponseMessage)
+        actualResponse.headers
+        |> Option.defaultValue OrderedMap.empty
+        |> OrderedMap.toList,
+        param =
+            { Differ.AssertPrintParams with
+                neutralName = "Response headers" }
+    )
