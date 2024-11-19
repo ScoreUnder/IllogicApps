@@ -291,6 +291,8 @@ type SetVariable(json) =
         | VariableType.Float, VariableType.Integer -> ()
         | a, b when a = b -> ()
         | VariableType.String, VariableType.Object when newValue = Null -> ()
+        | VariableType.Array, VariableType.Object when newValue = Null -> ()
+        | a, _ when newValue = Null -> failwithf "Variable is of type %A, cannot set to null" a
         | a, b -> failwithf "Variable is of type %A, cannot set to %A" a b
 
     member val Inputs = JsonTree.getKey "inputs" json |> setVariableSingleOfJson with get
