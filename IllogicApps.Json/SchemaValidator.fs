@@ -102,6 +102,8 @@ let typesMatch (schemaType: SchemaType) (json: JsonTree) =
     | SchemaType.Number, Float _ -> true
     | SchemaType.Number, Decimal _ -> true
     | SchemaType.Integer, Integer _ -> true
+    | SchemaType.Integer, Float f when Double.IsInteger(f) -> true
+    | SchemaType.Integer, Decimal d when Decimal.Truncate(d) = d -> true
     | SchemaType.String, String _ -> true
     | _ -> false
 
