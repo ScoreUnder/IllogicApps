@@ -738,6 +738,11 @@ type Workflow(json) =
                           message = "The server did not receive a response from an upstream server." } }
         else
             { ActionResult.Default with
+                status =
+                    if ExternalServiceTypeConversions.httpStatusCodeIsSuccess result.Value.statusCode then
+                        Succeeded
+                    else
+                        Failed
                 inputs = Some(jsonOfWorkflowRequest request)
                 outputs = Some(jsonOfHttpRequestReply result.Value)
                 code = Some Accepted }
