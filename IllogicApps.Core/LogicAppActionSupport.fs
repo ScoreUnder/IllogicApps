@@ -108,19 +108,26 @@ type JavaScriptCodeInputs =
     { code: string
       explicitDependencies: JavaScriptCodeDependencies option }
 
+    member inputs.ToJson() =
+        OrderedMap
+            .Builder()
+            .Add("code", JsonTree.String inputs.code)
+            .MaybeAdd(
+                "explicitDependencies",
+                inputs.explicitDependencies |> Option.map jsonOfJavaScriptCodeDependencies
+            )
+            .Build()
+        |> JsonTree.Object
+
+    override this.ToString() = this.ToJson().ToString()
+
 let javaScriptCodeInputsOfJson json =
     { code = JsonTree.getKey "code" json |> Conversions.ensureString
       explicitDependencies =
         JsonTree.tryGetKey "explicitDependencies" json
         |> Option.map javaScriptCodeDependenciesOfJson }
 
-let jsonOfJavaScriptCodeInputs (inputs: JavaScriptCodeInputs) =
-    OrderedMap
-        .Builder()
-        .Add("code", JsonTree.String inputs.code)
-        .MaybeAdd("explicitDependencies", inputs.explicitDependencies |> Option.map jsonOfJavaScriptCodeDependencies)
-        .Build()
-    |> JsonTree.Object
+let inline jsonOfJavaScriptCodeInputs (inputs: JavaScriptCodeInputs) = inputs.ToJson()
 
 type ServiceProviderInputs =
     { parameters: JsonTree

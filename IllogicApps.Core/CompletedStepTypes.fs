@@ -51,24 +51,26 @@ type ActionCode =
     | BadRequest // (code) Failure to run template expression?
     | Terminated // (code) Was sequenced after workflow termination
 
-let stringOfActionCode =
-    function
-    | NotSpecified -> "NotSpecified"
-    | OK -> "OK"
-    | ActionSkipped -> "ActionSkipped"
-    | ActionFailed -> "ActionFailed"
-    | ActionBranchingConditionNotSatisfied -> "ActionBranchingConditionNotSatisfied"
-    | ActionConditionFailed -> "ActionConditionFailed"
-    | ActionDependencyFailed -> "ActionDependencyFailed"
-    | ActionResponseSkipped -> "ActionResponseSkipped"
-    | InlineCodeScriptRuntimeFailure -> "InlineCodeScriptRuntimeFailure"
-    | InvalidTemplate -> "InvalidTemplate"
-    | NestedWorkflowDoesNotContainResponseAction -> "NestedWorkflowDoesNotContainResponseAction"
-    | NoResponse -> "NoResponse"
-    | Accepted -> "Accepted"
-    | BadGateway -> "BadGateway"
-    | BadRequest -> "BadRequest"
-    | Terminated -> "Terminated"
+    override this.ToString() =
+        match this with
+        | NotSpecified -> "NotSpecified"
+        | OK -> "OK"
+        | ActionSkipped -> "ActionSkipped"
+        | ActionFailed -> "ActionFailed"
+        | ActionBranchingConditionNotSatisfied -> "ActionBranchingConditionNotSatisfied"
+        | ActionConditionFailed -> "ActionConditionFailed"
+        | ActionDependencyFailed -> "ActionDependencyFailed"
+        | ActionResponseSkipped -> "ActionResponseSkipped"
+        | InlineCodeScriptRuntimeFailure -> "InlineCodeScriptRuntimeFailure"
+        | InvalidTemplate -> "InvalidTemplate"
+        | NestedWorkflowDoesNotContainResponseAction -> "NestedWorkflowDoesNotContainResponseAction"
+        | NoResponse -> "NoResponse"
+        | Accepted -> "Accepted"
+        | BadGateway -> "BadGateway"
+        | BadRequest -> "BadRequest"
+        | Terminated -> "Terminated"
+
+let inline stringOfActionCode (code: ActionCode) = code.ToString()
 
 let statusOfJson (json: JsonTree) =
     json |> Conversions.ensureString |> statusOfString
@@ -82,15 +84,21 @@ let makeNewTrackingId () = Guid.NewGuid().ToString()
 let stringOfDateTime (dt: DateTime) =
     dt.ToString("o", CultureInfo.InvariantCulture)
 
-type ActionError = { code: ActionCode; message: string }
+type ActionError =
+    { code: ActionCode
+      message: string }
 
-let jsonOfActionError (error: ActionError) =
-    OrderedMap
-        .Builder()
-        .Add("code", String(error.code |> stringOfActionCode))
-        .Add("message", String error.message)
-        .Build()
-    |> JsonTree.Object
+    member error.ToJson() =
+        OrderedMap
+            .Builder()
+            .Add("code", String(error.code |> stringOfActionCode))
+            .Add("message", String error.message)
+            .Build()
+        |> JsonTree.Object
+
+    override this.ToString() = this.ToJson().ToString()
+
+let inline jsonOfActionError (error: ActionError) = error.ToJson()
 
 type CompletedAction =
     { name: string
