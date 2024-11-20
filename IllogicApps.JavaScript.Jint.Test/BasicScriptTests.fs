@@ -89,14 +89,15 @@ let ``Test that console.log works`` () =
 
 let ``Return type test cases`` =
     [ """return "hello";""", String "hello"
-      """return 1""", Float 1.0
+      """return 1""", Integer 1L
+      """return 1.5""", Float 1.5
       """return true""", Boolean true
       """return null""", Null
       """void 0;""", Null // undefined-to-null conversion
-      """return [1,2,3]""", Conversions.createArray [ Float 1.0; Float 2.0; Float 3.0 ] // array
-      """return [1,2,3].filter(x => x % 2 == 0)""", Conversions.createArray [ Float 2.0 ] // array from filter
-      """return {a: 1, b: 2}""", Conversions.createObject [ "a", Float 1.0; "b", Float 2.0 ]
-      """return JSON.parse("1")""", Float 1.0
+      """return [1,2,3]""", Conversions.createArray [ Integer 1L; Integer 2L; Integer 3L ] // array
+      """return [1,2,3].filter(x => x % 2 == 0)""", Conversions.createArray [ Integer 2L ] // array from filter
+      """return {a: 1, b: 2}""", Conversions.createObject [ "a", Integer 1L; "b", Integer 2L ]
+      """return JSON.parse("1")""", Integer 1L
       """return JSON.parse("{}")""", Conversions.emptyObject ]
     |> List.map TestCaseData
 
