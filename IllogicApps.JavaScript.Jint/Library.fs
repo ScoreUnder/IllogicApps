@@ -34,12 +34,12 @@ let rec jsonOfJsValue (value: JsValue) : JsonTree =
     | value when value.IsNumber() -> JsonTree.Float(value.AsNumber())
     | value when value.IsBoolean() -> JsonTree.Boolean(value.AsBoolean())
     | value when value.IsNull() || value.IsUndefined() -> JsonTree.Null
+    | value when value.IsArray() -> value.AsArray() |> Seq.map jsonOfJsValue |> Conversions.createArray
     | value when value.IsObject() ->
         value.AsObject().GetOwnProperties()
         |> Seq.filter (fun (KeyValue(_, value)) -> value.Enumerable)
         |> Seq.map (fun (KeyValue(key, value)) -> key.AsString(), jsonOfJsValue value.Value)
         |> Conversions.createObject
-    | value when value.IsArray() -> value.AsArray() |> Seq.map jsonOfJsValue |> Conversions.createArray
     | value -> failwithf "Unsupported JsValue: %A" value
 
 let jintJavascriptHandler (_sim: SimulatorContext) (request: ExternalServiceRequest) =
