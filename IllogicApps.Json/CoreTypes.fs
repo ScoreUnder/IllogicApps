@@ -3,6 +3,8 @@ module IllogicApps.Json.CoreTypes
 
 open System.Collections.Immutable
 
+open IllogicApps.Json.SerialisationHelper
+
 type JsonTree =
     | Null
     | Object of OrderedMap<string, JsonTree>
@@ -12,6 +14,33 @@ type JsonTree =
     | Float of float
     | Decimal of decimal
     | Boolean of bool
+
+    override json.ToString() =
+        let rec aux acc json =
+            match json with
+            | Null -> "null" :: acc
+            | Array a when a.IsEmpty -> "[]" :: acc
+            | Array a -> "[" :: List.tail (Seq.foldBack (fun el acc -> "," :: aux acc el) a ("]" :: acc))
+            | Object o when OrderedMap.isEmpty o -> "{}" :: acc
+            | Object o ->
+                "{"
+                :: List.tail (
+                    OrderedMap.foldBack
+                        (fun k v acc -> "," :: "\"" :: (escapeStringForJson k) :: "\":" :: aux acc v)
+                        o
+                        ("}" :: acc)
+                )
+            | String s -> "\"" :: (escapeStringForJson s) :: "\"" :: acc
+            | Integer i -> string i :: acc
+            | Float f when System.Double.IsNaN f -> "\"NaN\"" :: acc
+            | Float f when System.Double.IsNegativeInfinity f -> "\"-Infinity\"" :: acc
+            | Float f when System.Double.IsPositiveInfinity f -> "\"Infinity\"" :: acc
+            | Float f -> hackyInsertDecimalPoint (string f) :: acc
+            | Decimal d -> hackyInsertDecimalPoint (string d) :: acc
+            | Boolean true -> "true" :: acc
+            | Boolean false -> "false" :: acc
+
+        aux [] json |> String.concat ""
 
 [<RequireQualifiedAccess>]
 type JsonType =
