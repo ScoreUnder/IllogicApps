@@ -12,5 +12,6 @@
         <Compile Include="Conversions.fs"/>
         <Compile Include="JsonOrderedMapHelper.fs"/>
         <Compile Include="Parser.fs"/>
+        <Compile Include="SchemaValidator.fs" />
     </ItemGroup>
 </Project>

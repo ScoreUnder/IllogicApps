@@ -408,18 +408,22 @@ type ParseJson(json) =
 
     override this.Execute (_: string) (context: SimulatorContext) =
         printfn "ParseJson: %O" this.Inputs
-        let input = context.EvaluateLanguage this.Inputs.content
+        let evaluatedContent = context.EvaluateLanguage this.Inputs.content
+        let evaluatedSchema = context.EvaluateLanguage this.Inputs.schema
 
         let result =
-            match input with
+            match evaluatedContent with
             | String input -> input |> Parser.parse
             | json -> json
-        // TODO: schema
-        // TODO: can we do freaky variable stuff in the schema?
+
         printfn "ParseJson Result: %s" (Conversions.prettyStringOfJson result)
 
+        let parsedSchema = SchemaValidator.jsonSchemaOfJson evaluatedSchema
+        let validationResult = SchemaValidator.validateJsonSchema parsedSchema result
+
         { ActionResult.Default with
-            inputs = Some(Conversions.createObject [ "content", input; "schema", this.Inputs.schema ])
+            status = if validationResult then Succeeded else Failed
+            inputs = Some(Conversions.createObject [ "content", evaluatedContent; "schema", evaluatedSchema ])
             outputs = Some(Conversions.createObject [ "body", result ])
             code = Some OK }
 
