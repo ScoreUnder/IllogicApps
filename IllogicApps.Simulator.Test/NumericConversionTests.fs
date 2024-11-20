@@ -101,7 +101,23 @@ let ``Test directly stringified float-typed integer does not end in .0`` () =
     let expected = "5"
     stringTest expr expected
 
+[<TestCase("""@{decimal('5.0')}""", """5.0""")>]
+[<TestCase("""@{decimal('5')}""", """5""")>]
+[<TestCase("""@{decimal('5.0000')}""", """5.0000""")>]
+let ``Test directly stringified decimal-typed integer ends in original number of decimal places`` expr expected =
+    stringTest expr expected
+
 [<TestCase("@{createArray(float('5.0'))}", "[5.0]")>]
 [<TestCase("@{json('{\"f\":5.0}')}", "{\"f\":5.0}")>]
 let ``Test stringified float-typed integer, when part of json expression, ends in .0`` expr expected =
+    stringTest expr expected
+
+[<TestCase("""@{createArray(decimal('5'))}""", """[5.0]""")>]
+[<TestCase("""@{createArray(decimal('5.0000'))}""", """[5.0000]""")>]
+[<TestCase("""@{setProperty(json('{}'),'f',decimal('5'))}""", """{"f":5.0}""")>]
+[<TestCase("""@{setProperty(json('{}'),'f',decimal('5.0000'))}""", """{"f":5.0000}""")>]
+let ``Test decimal, when part of json expression, ends in at least .0 or original number of decimal places``
+    expr
+    expected
+    =
     stringTest expr expected
