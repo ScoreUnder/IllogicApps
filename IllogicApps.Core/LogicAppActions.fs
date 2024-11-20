@@ -107,13 +107,11 @@ type ForEach(resolveAction, json) =
             | _, n -> n
 
         let rec executeInnerScope acc =
-            let result = context.ExecuteGraph this.Actions
-            let result = mergeStatuses (acc, result)
-
             if loopContext.Advance() then
-                executeInnerScope result
+                let result = context.ExecuteGraph this.Actions
+                executeInnerScope (mergeStatuses (acc, result))
             else
-                result
+                acc
 
         let result = executeInnerScope Succeeded
         let code, error = codeAndErrorFromScopeResult result
@@ -443,14 +441,17 @@ type Query(json) =
         use loopContext = context.PushArrayOperationContext nameOpt arrayVals
 
         let rec filterValsRev acc =
-            let current = loopContext.Current
+            if loopContext.Advance() then
+                let current = loopContext.Current
 
-            let condition =
-                this.Inputs.where |> context.EvaluateLanguage |> Conversions.ensureBoolean
+                let condition =
+                    this.Inputs.where |> context.EvaluateLanguage |> Conversions.ensureBoolean
 
-            let next = if condition then current :: acc else acc
+                let next = if condition then current :: acc else acc
 
-            if loopContext.Advance() then filterValsRev next else next
+                filterValsRev next
+            else
+                acc
 
         let result = filterValsRev [] |> List.rev |> Conversions.createArray in
 
@@ -478,11 +479,11 @@ type Select(json) =
         use loopContext = context.PushArrayOperationContext nameOpt arrayVals
 
         let rec selectValsRev acc =
-            let selected = this.Inputs.select |> context.EvaluateLanguage
-
-            let next = selected :: acc
-
-            if loopContext.Advance() then selectValsRev next else next
+            if loopContext.Advance() then
+                let selected = this.Inputs.select |> context.EvaluateLanguage
+                selectValsRev (selected :: acc)
+            else
+                acc
 
         let result = selectValsRev [] |> List.rev |> Conversions.createArray in
 

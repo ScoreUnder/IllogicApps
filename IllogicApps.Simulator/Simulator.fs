@@ -159,15 +159,24 @@ open SimulatorHelper
 
 type private ArrayOperationContextImpl(values: JsonTree list, disposeHook: ArrayOperationContextImpl -> unit) =
     let mutable values = values
+    let mutable started = false
 
     interface ArrayOperationContext with
         member this.Dispose() = disposeHook this
 
         member this.Advance() =
-            values <- values.Tail
-            values.IsEmpty |> not
+            if not started then
+                started <- true
+                true
+            else
+                values <- values.Tail
+                values.IsEmpty |> not
 
-        member this.Current = values.Head
+        member this.Current =
+            if not started then
+                failwith "ArrayOperationContext not advanced before accessing Current"
+
+            values.Head
 
 [<Struct>]
 type SimulatorCreationOptions =
