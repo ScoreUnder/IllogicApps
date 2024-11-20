@@ -74,8 +74,8 @@ type If(resolveAction, json) =
         let code, error = codeAndErrorFromScopeResult result
 
         { status = result
-          inputs = None
-          outputs = Some(Conversions.createObject [ "expression", Boolean conditionResult ])
+          inputs = Some(Conversions.createObject [ "expressionResult", Boolean conditionResult ])
+          outputs = None
           code = Some code
           error = error }
 
