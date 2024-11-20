@@ -11,13 +11,16 @@ type Status =
     | TimedOut
     | Cancelled
 
-let stringOfStatus =
-    function
-    | Succeeded -> "Succeeded"
-    | Failed -> "Failed"
-    | Skipped -> "Skipped"
-    | TimedOut -> "TimedOut"
-    | Cancelled -> "Cancelled"
+    override this.ToString() =
+        match this with
+        | Succeeded -> "Succeeded"
+        | Failed -> "Failed"
+        | Skipped -> "Skipped"
+        | TimedOut -> "TimedOut"
+        | Cancelled -> "Cancelled"
+
+
+let inline stringOfStatus status = status.ToString()
 
 let statusOfString (s: string) =
     match s.ToLowerInvariant() with
