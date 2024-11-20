@@ -2,6 +2,7 @@
 module IllogicApps.Json.CoreTypes
 
 open System.Collections.Immutable
+open System.Text
 
 open IllogicApps.Json.SerialisationHelper
 
@@ -16,31 +17,44 @@ type JsonTree =
     | Boolean of bool
 
     override json.ToString() =
-        let rec aux acc json =
+        let rec aux json (acc: StringBuilder) =
             match json with
-            | Null -> "null" :: acc
-            | Array a when a.IsEmpty -> "[]" :: acc
-            | Array a -> "[" :: List.tail (Seq.foldBack (fun el acc -> "," :: aux acc el) a ("]" :: acc))
-            | Object o when OrderedMap.isEmpty o -> "{}" :: acc
-            | Object o ->
-                "{"
-                :: List.tail (
-                    OrderedMap.foldBack
-                        (fun k v acc -> "," :: "\"" :: (escapeStringForJson k) :: "\":" :: aux acc v)
-                        o
-                        ("}" :: acc)
-                )
-            | String s -> "\"" :: (escapeStringForJson s) :: "\"" :: acc
-            | Integer i -> string i :: acc
-            | Float f when System.Double.IsNaN f -> "\"NaN\"" :: acc
-            | Float f when System.Double.IsNegativeInfinity f -> "\"-Infinity\"" :: acc
-            | Float f when System.Double.IsPositiveInfinity f -> "\"Infinity\"" :: acc
-            | Float f -> hackyInsertDecimalPoint (string f) :: acc
-            | Decimal d -> hackyInsertDecimalPoint (string d) :: acc
-            | Boolean true -> "true" :: acc
-            | Boolean false -> "false" :: acc
+            | Null -> "null" |> acc.Append
+            | Array a when a.IsEmpty -> "[]" |> acc.Append
+            | Array a ->
+                let mutable prefix = '['
 
-        aux [] json |> String.concat ""
+                for item in a do
+                    aux item (acc.Append(prefix)) |> ignore
+                    prefix <- ','
+
+                acc.Append ']'
+            | Object o when OrderedMap.isEmpty o -> "{}" |> acc.Append
+            | Object o ->
+                let mutable prefix = '{'
+
+                for KeyValue(k, v) in o do
+                    acc.Append(prefix)
+                    |> _.Append('"')
+                    |> _.Append(escapeStringForJson k)
+                    |> _.Append("\":")
+                    |> aux v
+                    |> ignore
+
+                    prefix <- ','
+
+                acc.Append '}'
+            | String s -> acc.Append('"').Append(escapeStringForJson s).Append('"')
+            | Integer i -> string i |> acc.Append
+            | Float f when System.Double.IsNaN f -> "\"NaN\"" |> acc.Append
+            | Float f when System.Double.IsNegativeInfinity f -> "\"-Infinity\"" |> acc.Append
+            | Float f when System.Double.IsPositiveInfinity f -> "\"Infinity\"" |> acc.Append
+            | Float f -> hackyInsertDecimalPoint (string f) |> acc.Append
+            | Decimal d -> hackyInsertDecimalPoint (string d) |> acc.Append
+            | Boolean true -> "true" |> acc.Append
+            | Boolean false -> "false" |> acc.Append
+
+        aux json (StringBuilder()) |> _.ToString()
 
 [<RequireQualifiedAccess>]
 type JsonType =
