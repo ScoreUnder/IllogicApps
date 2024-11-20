@@ -29,23 +29,18 @@ let rec jsValueOfJson engine (json: JsonTree) : JsValue =
     | JsonTree.Null -> JsValue.Null
 
 let rec jsonOfJsValue (value: JsValue) : JsonTree =
-    if value.IsString() then
-        JsonTree.String(value.AsString())
-    elif value.IsNumber() then
-        JsonTree.Float(value.AsNumber())
-    elif value.IsBoolean() then
-        JsonTree.Boolean(value.AsBoolean())
-    elif value.IsNull() || value.IsUndefined() then
-        JsonTree.Null
-    elif value.IsObject() then
+    match value with
+    | value when value.IsString() -> JsonTree.String(value.AsString())
+    | value when value.IsNumber() -> JsonTree.Float(value.AsNumber())
+    | value when value.IsBoolean() -> JsonTree.Boolean(value.AsBoolean())
+    | value when value.IsNull() || value.IsUndefined() -> JsonTree.Null
+    | value when value.IsObject() ->
         value.AsObject().GetOwnProperties()
         |> Seq.filter (fun (KeyValue(_, value)) -> value.Enumerable)
         |> Seq.map (fun (KeyValue(key, value)) -> key.AsString(), jsonOfJsValue value.Value)
         |> Conversions.createObject
-    elif value.IsArray() then
-        value.AsArray() |> Seq.map jsonOfJsValue |> Conversions.createArray
-    else
-        failwithf "Unsupported JsValue: %A" value
+    | value when value.IsArray() -> value.AsArray() |> Seq.map jsonOfJsValue |> Conversions.createArray
+    | value -> failwithf "Unsupported JsValue: %A" value
 
 let jintJavascriptHandler (_sim: SimulatorContext) (request: ExternalServiceRequest) =
     match request with
