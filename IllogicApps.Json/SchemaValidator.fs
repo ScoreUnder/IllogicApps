@@ -14,6 +14,7 @@ type SchemaType =
     | Object
     | Array
     | Number
+    | Integer
     | String
 
 let schemaTypeOfString =
@@ -23,6 +24,7 @@ let schemaTypeOfString =
     | "object" -> SchemaType.Object
     | "array" -> SchemaType.Array
     | "number" -> SchemaType.Number
+    | "integer" -> SchemaType.Integer
     | "string" -> SchemaType.String
     | v -> failwithf "Unknown schema type: %s" v
 
@@ -99,6 +101,7 @@ let typesMatch (schemaType: SchemaType) (json: JsonTree) =
     | SchemaType.Number, Integer _ -> true
     | SchemaType.Number, Float _ -> true
     | SchemaType.Number, Decimal _ -> true
+    | SchemaType.Integer, Integer _ -> true
     | SchemaType.String, String _ -> true
     | _ -> false
 
