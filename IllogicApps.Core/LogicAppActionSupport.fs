@@ -126,6 +126,16 @@ type ServiceProviderInputs =
     { parameters: JsonTree
       serviceProviderConfiguration: ServiceProviderConfiguration }
 
+    member inputs.ToJson() =
+        OrderedMap
+            .Builder()
+            .MaybeAdd("parameters", inputs.parameters)
+            .Add("serviceProviderConfiguration", jsonOfServiceProviderConfiguration inputs.serviceProviderConfiguration)
+            .Build()
+        |> JsonTree.Object
+
+    override this.ToString() = this.ToJson().ToString()
+
 let serviceProviderInputsOfJson json =
     { parameters = JsonTree.tryGetKey "parameters" json |> Conversions.jsonOfOption
       serviceProviderConfiguration =
@@ -145,14 +155,18 @@ type HttpResponseInputs =
       headers: OrderedMap<string, string> option
       statusCode: JsonTree }
 
-let jsonOfHttpResponseInputs (inputs: HttpResponseInputs) =
-    OrderedMap
-        .Builder()
-        .Add("statusCode", inputs.statusCode)
-        .MaybeAdd("headers", inputs.headers)
-        .MaybeAdd("body", inputs.body)
-        .Build()
-    |> JsonTree.Object
+    member inputs.ToJson() =
+        OrderedMap
+            .Builder()
+            .Add("statusCode", inputs.statusCode)
+            .MaybeAdd("headers", inputs.headers)
+            .MaybeAdd("body", inputs.body)
+            .Build()
+        |> JsonTree.Object
+
+    override this.ToString() = this.ToJson().ToString()
+
+let inline jsonOfHttpResponseInputs (inputs: HttpResponseInputs) = inputs.ToJson()
 
 let httpResponseInputsOfJson json =
     { body = JsonTree.getKeyOrNull "body" json
