@@ -95,11 +95,9 @@ let ExecIsStringifiedFloatTest (expr: string) (expected: string) =
 let ExecIsNotStringifiedFloatTest (expr: string) =
     raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
 
-[<Test>]
-let ``Test directly stringified float-typed integer does not end in .0`` () =
-    let expr = "@{float('5.0')}"
-    let expected = "5"
-    stringTest expr expected
+[<TestCase("@{float('5.0')}", "5")>]
+[<TestCase("@string(float('5.0'))", "5")>]
+let ``Test directly stringified float-typed integer does not end in .0`` expr expected = stringTest expr expected
 
 [<TestCase("""@{decimal('5.0')}""", """5.0""")>]
 [<TestCase("""@{decimal('5')}""", """5""")>]
@@ -120,4 +118,11 @@ let ``Test decimal, when part of json expression, ends in at least .0 or origina
     expr
     expected
     =
+    stringTest expr expected
+
+[<TestCase("""@string(decimal(float('0')))""", "0")>]
+let ``Test decimal-of-float does not add decimal places`` expr expected = stringTest expr expected
+
+[<TestCase("""@string(add(decimal(float('0')),float('3')))""", "3")>]
+let ``Test decimal-of-float does not add decimal places in arithmetic operations`` expr expected =
     stringTest expr expected

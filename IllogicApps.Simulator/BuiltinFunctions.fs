@@ -559,11 +559,16 @@ let f_dataUriToString _ (args: Args) : JsonTree =
 
 let f_decimal _ (args: Args) : JsonTree =
     expectArgs 1 args
-    let str = List.head args |> Conversions.rawStringOfJson
 
-    match System.Decimal.TryParse(str, NumberStyles.Number, CultureInfo.InvariantCulture) with
-    | true, result -> Decimal result
-    | _ -> failwithf "Could not parse %s as decimal" str
+    match List.head args with
+    | Decimal _ as d -> d
+    | Integer i -> Decimal(decimal i)
+    | Float f -> Decimal(decimal f)
+    | String str ->
+        match System.Decimal.TryParse(str, NumberStyles.Number, CultureInfo.InvariantCulture) with
+        | true, result -> Decimal result
+        | _ -> failwithf "Could not parse %s as decimal" str
+    | arg -> failwithf "Expected number or string, got %A" (JsonTree.getType arg)
 
 let f_float _ (args: Args) : JsonTree =
     let convertFrom, culture =
