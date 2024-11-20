@@ -1,4 +1,4 @@
-module IllogicApps.JavaScript.Jint.Test
+module IllogicApps.JavaScript.Jint.BasicScriptTests
 
 open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Json
@@ -78,6 +78,14 @@ let ``Test that script execution exceptions do not propagate`` code (errorText: 
 
     test <@ jintJavascriptHandler (mockSim ()) request = true @>
     test <@ (getError result.Value).Contains errorText @>
+
+[<Test>]
+let ``Test that console.log works`` () =
+    let result = makeResult ()
+    let request = makeRequest OrderedMap.empty "console.log('Hello, world!');" result
+
+    test <@ jintJavascriptHandler (mockSim ()) request = true @>
+    test <@ result.Value = Ok(Null) @>
 
 let ``Return type test cases`` =
     [ """return "hello";""", String "hello"

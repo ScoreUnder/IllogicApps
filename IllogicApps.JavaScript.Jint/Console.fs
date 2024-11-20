@@ -24,3 +24,5 @@ let makeConsoleObj engine =
             false
         )
     )
+
+    obj
