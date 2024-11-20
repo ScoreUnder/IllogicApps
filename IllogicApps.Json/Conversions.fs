@@ -94,14 +94,14 @@ let numberAsDecimal json =
     | Decimal d -> d
     | Float f -> decimal f
     | Integer i -> decimal i
-    | _ -> failwithf "Expected number, got %A" (JsonTree.getType json)
+    | _ -> failwithf "Expected number, got %O" (JsonTree.getType json)
 
 let numberAsFloat json =
     match json with
     | Decimal d -> float d
     | Float f -> f
     | Integer i -> float i
-    | _ -> failwithf "Expected number, got %A" (JsonTree.getType json)
+    | _ -> failwithf "Expected number, got %O" (JsonTree.getType json)
 
 let (|NumbersAsDecimal|NumbersAsFloat|NumbersAsInteger|NotNumbers|) tuple =
     match tuple with
@@ -115,27 +115,27 @@ let (|NumbersAsDecimal|NumbersAsFloat|NumbersAsInteger|NotNumbers|) tuple =
 let ensureArray =
     function
     | Array a -> a
-    | v -> failwithf "Expected array, got %A" (JsonTree.getType v)
+    | v -> failwithf "Expected array, got %O" (JsonTree.getType v)
 
 let ensureObject =
     function
     | Object o -> o
-    | v -> failwithf "Expected object, got %A" (JsonTree.getType v)
+    | v -> failwithf "Expected object, got %O" (JsonTree.getType v)
 
 let ensureString =
     function
     | String s -> s
-    | v -> failwithf "Expected string, got %A" (JsonTree.getType v)
+    | v -> failwithf "Expected string, got %O" (JsonTree.getType v)
 
 let ensureInteger =
     function
     | Integer i -> i
-    | v -> failwithf "Expected integer, got %A" (JsonTree.getType v)
+    | v -> failwithf "Expected integer, got %O" (JsonTree.getType v)
 
 let ensureBoolean =
     function
     | Boolean b -> b
-    | v -> failwithf "Expected boolean, got %A" (JsonTree.getType v)
+    | v -> failwithf "Expected boolean, got %O" (JsonTree.getType v)
 
 let rawStringOfJson json =
     match json with

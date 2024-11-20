@@ -102,7 +102,7 @@ let performArithmeticOnJson op num1 num2 =
     | Conversions.NumbersAsDecimal(a, b) -> Decimal(performArithmeticOnNumber op a b)
     | Conversions.NumbersAsFloat(a, b) -> Float(performArithmeticOnNumber op a b)
     | Conversions.NumbersAsInteger(a, b) -> Integer(performArithmeticOnNumber op a b)
-    | _ -> failwithf "Expected numbers, got %A and %A" (JsonTree.getType num1) (JsonTree.getType num2)
+    | _ -> failwithf "Expected numbers, got %O and %O" (JsonTree.getType num1) (JsonTree.getType num2)
 
 let arithmetic2Function (op: Arithmetic2Type) (args: Args) : JsonTree =
     match args with
@@ -131,7 +131,7 @@ let dateTimeFunc2f (f: DateTime -> int -> DateTime) (args: Args) : JsonTree =
             let result = f dt1 (int val2)
 
             String(result.ToString(fmt))
-        | _ -> failwithf "Expected string and integer, got %A and %A" (JsonTree.getType a) (JsonTree.getType b)
+        | _ -> failwithf "Expected string and integer, got %O and %O" (JsonTree.getType a) (JsonTree.getType b)
 
     match args with
     | [ ts1; ts2 ] -> dateTimeFunc2f' ts1 ts2 "o"
@@ -209,7 +209,7 @@ let f_formatNumber _ (args: Args) : JsonTree =
     | Integer i -> String(i.ToString(format, locale))
     | Float f -> String(f.ToString(format, locale))
     | Decimal d -> String(d.ToString(format, locale))
-    | _ -> failwithf "Expected number, got %A" (JsonTree.getType num)
+    | _ -> failwithf "Expected number, got %O" (JsonTree.getType num)
 
 let f_guid _ (args: Args) : JsonTree =
     let format =
@@ -224,7 +224,7 @@ let f_guid _ (args: Args) : JsonTree =
 let f_indexOf _ (args: Args) : JsonTree =
     match args with
     | [ String haystack; String needle ] -> haystack.IndexOf(needle) |> int64 |> Integer
-    | [ a; b ] -> failwithf "Expected two strings; got %A and %A" (JsonTree.getType a) (JsonTree.getType b)
+    | [ a; b ] -> failwithf "Expected two strings; got %O and %O" (JsonTree.getType a) (JsonTree.getType b)
     | _ -> failwith "Expected two arguments"
 
 let f_isFloat _ (args: Args) : JsonTree =
@@ -258,7 +258,7 @@ let f_isInt _ (args: Args) : JsonTree =
 let f_lastIndexOf _ (args: Args) : JsonTree =
     match args with
     | [ String haystack; String needle ] -> haystack.LastIndexOf(needle) |> int64 |> Integer
-    | [ a; b ] -> failwithf "Expected two strings; got %A and %A" (JsonTree.getType a) (JsonTree.getType b)
+    | [ a; b ] -> failwithf "Expected two strings; got %O and %O" (JsonTree.getType a) (JsonTree.getType b)
     | _ -> failwith "Expected two arguments"
 
 let f_length _ (args: Args) : JsonTree =
@@ -301,7 +301,7 @@ let f_nthIndexOf _ (args: Args) : JsonTree =
             |> Integer
     | [ a; b; c ] ->
         failwithf
-            "Expected three strings; got %A, %A, and %A"
+            "Expected three strings; got %O, %O, and %O"
             (JsonTree.getType a)
             (JsonTree.getType b)
             (JsonTree.getType c)
@@ -315,7 +315,7 @@ let f_replace _ (args: Args) : JsonTree =
         | _ -> s.Replace(search, replace) |> String
     | [ a; b; c ] ->
         failwithf
-            "Expected three strings; got %A, %A, and %A"
+            "Expected three strings; got %O, %O, and %O"
             (JsonTree.getType a)
             (JsonTree.getType b)
             (JsonTree.getType c)
@@ -368,7 +368,7 @@ let f_substring _ (args: Args) : JsonTree =
             match etc with
             | [] -> s.Length - startIndex
             | [ Integer length ] -> Operators.Checked.int length
-            | [ invalid ] -> failwithf "Expected integer, got %A" (JsonTree.getType invalid)
+            | [ invalid ] -> failwithf "Expected integer, got %O" (JsonTree.getType invalid)
             | _ -> failwith "Expected 2 or 3 arguments"
 
         if startIndex < 0 || startIndex + length > s.Length || length < 0 then
@@ -468,7 +468,7 @@ let f_not _ (args: Args) : JsonTree =
 
     match value with
     | Boolean b -> Boolean(not b)
-    | kind -> failwithf "Expected boolean, got %A" kind
+    | kind -> failwithf "Expected boolean, got %O" kind
 
 let f_or _ (args: LazyArgs) : JsonTree =
     if args = [] then
@@ -568,7 +568,7 @@ let f_decimal _ (args: Args) : JsonTree =
         match System.Decimal.TryParse(str, NumberStyles.Number, CultureInfo.InvariantCulture) with
         | true, result -> Decimal result
         | _ -> failwithf "Could not parse %s as decimal" str
-    | arg -> failwithf "Expected number or string, got %A" (JsonTree.getType arg)
+    | arg -> failwithf "Expected number or string, got %O" (JsonTree.getType arg)
 
 let f_float _ (args: Args) : JsonTree =
     let convertFrom, culture =
@@ -682,7 +682,7 @@ let f_xml (sim: SimulatorContext) (args: Args) : JsonTree =
     | String str -> makeXmlWith _.LoadXml(str)
     | Blob.Blob(_, content) -> content |> Base64.ofBytes |> Blob.ofBase64 ContentType.XmlUtf8
     | Object _ as v -> makeXmlWith (JsonToXmlConversion.writeJsonToXml sim.IsBugForBugAccurate v)
-    | v -> failwithf "Expected string or object, got %A" (JsonTree.getType v)
+    | v -> failwithf "Expected string or object, got %O" (JsonTree.getType v)
 
 // Math functions
 
@@ -700,13 +700,13 @@ let f_rand _ (args: Args) : JsonTree =
     | [ Integer a; Integer b ] ->
         let result = a + int64 (myRand.Force().Next(int32 (b - a)))
         Integer result
-    | [ a; b ] -> failwithf "Expected numbers, got %A and %A" (JsonTree.getType a) (JsonTree.getType b)
+    | [ a; b ] -> failwithf "Expected numbers, got %O and %O" (JsonTree.getType a) (JsonTree.getType b)
     | _ -> failwith "Expected 2 arguments"
 
 let f_range _ (args: Args) : JsonTree =
     match args with
     | [ Integer a; Integer b ] -> Seq.init (int b) (fun v -> Integer(int64 v + a)) |> Conversions.createArray
-    | [ a; b ] -> failwithf "Expected numbers, got %A and %A" (JsonTree.getType a) (JsonTree.getType b)
+    | [ a; b ] -> failwithf "Expected numbers, got %O and %O" (JsonTree.getType a) (JsonTree.getType b)
     | _ -> failwith "Expected 2 arguments"
 
 let f_sub _ (args: Args) : JsonTree = arithmetic2Function Subtract args
@@ -739,7 +739,7 @@ let f_addToTime _ (args: Args) : JsonTree =
     let addToTime' (time: JsonTree) (interval: JsonTree) (unit: JsonTree) (format: string) =
         match time, interval, unit with
         | String datetime, Integer interval, String unit -> addToTime'' datetime interval unit format
-        | kindA, kindB, kindC -> failwithf "Expected string, number, and string, got %A, %A, and %A" kindA kindB kindC
+        | kindA, kindB, kindC -> failwithf "Expected string, number, and string, got %O, %O, and %O" kindA kindB kindC
 
     match args with
     | [ ts1; ts2; unit ] -> addToTime' ts1 ts2 unit "o"
@@ -819,7 +819,7 @@ let f_subtractFromTime _ (args: Args) : JsonTree =
     let subtractFromTime' (time: JsonTree) (interval: JsonTree) (unit: JsonTree) (format: string) =
         match time, interval, unit with
         | String datetime, Integer interval, String unit -> addToTime'' datetime (-interval) unit format
-        | kindA, kindB, kindC -> failwithf "Expected string, number, and string, got %A, %A, and %A" kindA kindB kindC
+        | kindA, kindB, kindC -> failwithf "Expected string, number, and string, got %O, %O, and %O" kindA kindB kindC
 
     match args with
     | [ ts1; ts2; unit ] -> subtractFromTime' ts1 ts2 unit "o"
@@ -974,7 +974,7 @@ let f_xpath _ (args: Args) : JsonTree =
         | :? float as v -> Float v
         | :? string as v -> String v
         | :? bool as v -> Boolean v
-        | v -> failwithf "XPath evaluation returned undocumented type %A" (v.GetType())
+        | v -> failwithf "XPath evaluation returned undocumented type %O" (v.GetType())
     | [ _; String _ ] -> failwith "Expected the first parameter to be an XML object"
     | _ -> failwith "Expected the second parameter to be a string"
 

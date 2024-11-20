@@ -90,7 +90,7 @@ module JsonTree =
     let inline getKey (key: string) (json: JsonTree) =
         match json with
         | Object o -> o.[key]
-        | _ -> failwithf "Expected object, got %A" json
+        | _ -> failwithf "Expected object, got %O" json
 
     let inline getKeyCaseInsensitive (key: string) (json: JsonTree) =
         match json with
@@ -100,7 +100,7 @@ module JsonTree =
     let inline getIndex (index: int) (json: JsonTree) =
         match json with
         | Array a -> a.[index]
-        | _ -> failwithf "Expected array, got %A" json
+        | _ -> failwithf "Expected array, got %O" json
 
     let inline getKeyOrNull (key: string) (json: JsonTree) =
         match json with

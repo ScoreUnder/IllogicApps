@@ -244,7 +244,7 @@ let coerce (typ: VariableType) (value: JsonTree) : JsonTree =
     | VariableType.Object, JsonTree.Null -> Null
     | VariableType.Array, JsonTree.Array _ -> value
     | VariableType.Array, JsonTree.Null -> Conversions.emptyArray
-    | typ, value -> failwithf "Expected %A, got %A" typ (JsonTree.getType value)
+    | typ, value -> failwithf "Expected %O, got %O" typ (JsonTree.getType value)
 
 let getVarTypechecked (context: SimulatorContext) var typs =
     match context.GetVariable var with
@@ -253,7 +253,7 @@ let getVarTypechecked (context: SimulatorContext) var typs =
         let variableType = getVarType originalValue
 
         if not (Seq.contains variableType typs) then
-            failwithf "Variable is of type %A, expected one of %A" variableType typs
+            failwithf "Variable is of type %O, expected one of %O" variableType typs
 
         originalValue
 

@@ -53,7 +53,7 @@ let rec jsonOfJsValue (value: JsValue) : JsonTree =
         |> Seq.filter (fun (KeyValue(_, value)) -> value.Enumerable)
         |> Seq.map (fun (KeyValue(key, value)) -> key.AsString(), jsonOfJsValue value.Value)
         |> Conversions.createObject
-    | value -> failwithf "Unsupported JsValue: %A" value
+    | value -> failwithf "Unsupported JsValue: %O" value
 
 let jintJavascriptHandler (_sim: SimulatorContext) (request: ExternalServiceRequest) =
     match request with

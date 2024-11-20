@@ -250,7 +250,7 @@ type InitializeVariable(json) =
         let firstVar = this.Inputs.variables.Head
 
         printfn
-            "InitializeVariable: %s (%A) = %s"
+            "InitializeVariable: %s (%O) = %s"
             firstVar.name
             firstVar.type_
             (Conversions.prettyStringOfJson firstVar.value)
@@ -290,7 +290,7 @@ type SetVariable(json) =
         | a, b when a = b -> ()
         | VariableType.String, VariableType.Object when newValue = Null -> ()
         | VariableType.Array, VariableType.Object when newValue = Null -> ()
-        | a, b -> failwithf "Variable is of type %A, cannot set to %A: %s" a b (Conversions.stringOfJson newValue)
+        | a, b -> failwithf "Variable is of type %O, cannot set to %O: %s" a b (Conversions.stringOfJson newValue)
 
     member val Inputs = JsonTree.getKey "inputs" json |> setVariableSingleOfJson with get
 
@@ -633,7 +633,7 @@ type Http(json) =
     member val Inputs = JsonTree.getKey "inputs" json |> httpInputsOfJson with get
 
     override this.Execute (name: string) (context: SimulatorContext) =
-        printfn "HTTP: %A" this.Inputs
+        printfn "HTTP: %O" this.Inputs
 
         let result = ref HttpRequestReply.Default in
 

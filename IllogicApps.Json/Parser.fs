@@ -56,7 +56,7 @@ let private fail (c: char) (index: int) (state: ParserState) (stack: Constructin
         | _, ConstructingObjectValue _ :: _ -> "Unexpected end of input in object. Missing closing brace."
         | _, ConstructingObject _ :: _ -> "Unexpected end of input in object. Missing value and closing brace."
         | _, ConstructingArray _ :: _ -> "Unexpected end of input in array. Missing closing bracket."
-        | _ -> sprintf "Unexpected end of input in state %A with stack %A" state stack
+        | _ -> sprintf "Unexpected end of input in state %O with stack %O" state stack
         |> JsonFormatException
         |> raise
     else
@@ -67,7 +67,7 @@ let private fail (c: char) (index: int) (state: ParserState) (stack: Constructin
             sprintf "Unexpected character '%c' at index %d: Expecting comma or closing brace." c index
         | ValueEnd _, ConstructingObject _ :: _ ->
             sprintf "Unexpected character '%c' at index %d: Expecting colon." c index
-        | _ -> sprintf "Unexpected character '%c' at index %d in state %A with stack %A" c index state stack
+        | _ -> sprintf "Unexpected character '%c' at index %d in state %O with stack %O" c index state stack
         |> JsonFormatException
         |> raise
 
@@ -88,7 +88,7 @@ let private failBuildingString
         sprintf "Unexpected character '%c' at index %d in string literal. String so far: %O" c index sb
     | _ ->
         sprintf
-            "Unexpected character '%c' when parsing %s at index %d with stack %A. String so far: %O"
+            "Unexpected character '%c' when parsing %s at index %d with stack %O. String so far: %O"
             c
             (if isEscape then "string" else "escape sequence")
             index
