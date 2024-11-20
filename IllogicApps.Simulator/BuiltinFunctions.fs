@@ -713,25 +713,27 @@ let f_addHours _ (args: Args) : JsonTree = dateTimeFunc2f _.AddHours args
 let f_addMinutes _ (args: Args) : JsonTree = dateTimeFunc2f _.AddMinutes args
 let f_addSeconds _ (args: Args) : JsonTree = dateTimeFunc2f _.AddSeconds args
 
+let addToTime'' (datetime: string) (interval: int64) (unit: string) (format: string) =
+    let datetime = DateTime.Parse(datetime)
+    let interval = int interval
+
+    let result =
+        match unit.ToLowerInvariant() with
+        | "second" -> datetime.AddSeconds(interval)
+        | "minute" -> datetime.AddMinutes(interval)
+        | "hour" -> datetime.AddHours(interval)
+        | "day" -> datetime.AddDays(interval)
+        | "week" -> datetime.AddDays(float interval * 7.0)
+        | "month" -> datetime.AddMonths(interval)
+        | "year" -> datetime.AddYears(interval)
+        | _ -> failwithf "Unknown unit %s" unit
+
+    String(result.ToString(format))
+
 let f_addToTime _ (args: Args) : JsonTree =
     let addToTime' (time: JsonTree) (interval: JsonTree) (unit: JsonTree) (format: string) =
         match time, interval, unit with
-        | String datetime, Integer interval, String unit ->
-            let datetime = DateTime.Parse(datetime)
-            let interval = int interval
-
-            let result =
-                match unit.ToLowerInvariant() with
-                | "second" -> datetime.AddSeconds(interval)
-                | "minute" -> datetime.AddMinutes(interval)
-                | "hour" -> datetime.AddHours(interval)
-                | "day" -> datetime.AddDays(interval)
-                | "week" -> datetime.AddDays(float interval * 7.0)
-                | "month" -> datetime.AddMonths(interval)
-                | "year" -> datetime.AddYears(interval)
-                | _ -> failwithf "Unknown unit %s" unit
-
-            String(result.ToString(format))
+        | String datetime, Integer interval, String unit -> addToTime'' datetime interval unit format
         | kindA, kindB, kindC -> failwithf "Expected string, number, and string, got %A, %A, and %A" kindA kindB kindC
 
     match args with
@@ -807,6 +809,17 @@ let f_startOfMonth _ (args: Args) : JsonTree =
 
     let timestamp = DateTime.Parse(timestamp, CultureInfo.InvariantCulture)
     timestamp.Date.AddDays(float (1 - timestamp.Day)).ToString(format) |> String
+
+let f_subtractFromTime _ (args: Args) : JsonTree =
+    let subtractFromTime' (time: JsonTree) (interval: JsonTree) (unit: JsonTree) (format: string) =
+        match time, interval, unit with
+        | String datetime, Integer interval, String unit -> addToTime'' datetime (-interval) unit format
+        | kindA, kindB, kindC -> failwithf "Expected string, number, and string, got %A, %A, and %A" kindA kindB kindC
+
+    match args with
+    | [ ts1; ts2; unit ] -> subtractFromTime' ts1 ts2 unit "o"
+    | [ ts1; ts2; unit; fmt ] -> subtractFromTime' ts1 ts2 unit (fmt |> Conversions.ensureString)
+    | _ -> failwith "Expected 3 or 4 arguments"
 
 let f_ticks _ (args: Args) : JsonTree =
     args
@@ -1028,6 +1041,7 @@ let functions: OrderedMap<string, LanguageFunction> =
       "startOfDay", f_startOfDay
       "startOfHour", f_startOfHour
       "startOfMonth", f_startOfMonth
+      "subtractFromTime", f_subtractFromTime
       "ticks", f_ticks
       "utcNow", f_utcNow
       "actions", f_actions
