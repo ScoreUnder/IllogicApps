@@ -167,10 +167,9 @@ type private ArrayOperationContextImpl(values: JsonTree list, disposeHook: Array
         member this.Advance() =
             if not started then
                 started <- true
-                true
             else
                 values <- values.Tail
-                values.IsEmpty |> not
+            values.IsEmpty |> not
 
         member this.Current =
             if not started then
