@@ -78,3 +78,24 @@ let ``Test that script execution exceptions do not propagate`` code (errorText: 
 
     test <@ jintJavascriptHandler (mockSim ()) request = true @>
     test <@ (getError result.Value).Contains errorText @>
+
+let ``Return type test cases`` =
+    [ """return "hello";""", String "hello"
+      """return 1""", Float 1.0
+      """return true""", Boolean true
+      """return null""", Null
+      """void 0;""", Null // undefined-to-null conversion
+      """return [1,2,3]""", Conversions.createArray [ Float 1.0; Float 2.0; Float 3.0 ] // array
+      """return [1,2,3].filter(x => x % 2 == 0)""", Conversions.createArray [ Float 2.0 ] // array from filter
+      """return {a: 1, b: 2}""", Conversions.createObject [ "a", Float 1.0; "b", Float 2.0 ]
+      """return JSON.parse("1")""", Float 1.0
+      """return JSON.parse("{}")""", Conversions.emptyObject ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``Return type test cases``)>]
+let ``Test correct return types`` code expected =
+    let result = makeResult ()
+    let request = makeRequest OrderedMap.empty code result
+
+    test <@ jintJavascriptHandler (mockSim ()) request = true @>
+    test <@ result.Value = Ok(expected) @>
