@@ -762,6 +762,18 @@ let f_formatDateTime _ (args: Args) : JsonTree =
 
     String(timestamp.ToString(format, locale))
 
+let f_getFutureTime _ (args: Args) : JsonTree =
+    match args with
+    | [ Integer interval; String unit ] -> addToTime'' (string DateTime.UtcNow) interval unit "o"
+    | [ Integer interval; String unit; String format ] -> addToTime'' (string DateTime.UtcNow) interval unit format
+    | _ -> failwith "Expected 2 or 3 arguments"
+
+let f_getPastTime _ (args: Args) : JsonTree =
+    match args with
+    | [ Integer interval; String unit ] -> addToTime'' (string DateTime.UtcNow) (-interval) unit "o"
+    | [ Integer interval; String unit; String format ] -> addToTime'' (string DateTime.UtcNow) (-interval) unit format
+    | _ -> failwith "Expected 2 or 3 arguments"
+
 let f_parseDateTime _ (args: Args) : JsonTree =
     let timestamp, locale, format =
         match args with
@@ -1042,6 +1054,8 @@ let functions: OrderedMap<string, LanguageFunction> =
       "addSeconds", f_addSeconds
       "addToTime", f_addToTime
       "formatDateTime", f_formatDateTime
+      "getFutureTime", f_getFutureTime
+      "getPastTime", f_getPastTime
       "parseDateTime", f_parseDateTime
       "startOfDay", f_startOfDay
       "startOfHour", f_startOfHour
