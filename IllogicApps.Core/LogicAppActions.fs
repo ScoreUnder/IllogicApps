@@ -74,8 +74,8 @@ type If(resolveAction, json) =
         let code, error = codeAndErrorFromScopeResult result
 
         { status = result
-          inputs = None
-          outputs = Some(Conversions.createObject [ "expression", Boolean conditionResult ])
+          inputs = Some(Conversions.createObject [ "expressionResult", Boolean conditionResult ])
+          outputs = None
           code = Some code
           error = error }
 
@@ -107,13 +107,11 @@ type ForEach(resolveAction, json) =
             | _, n -> n
 
         let rec executeInnerScope acc =
-            let result = context.ExecuteGraph this.Actions
-            let result = mergeStatuses (acc, result)
-
             if loopContext.Advance() then
-                executeInnerScope result
+                let result = context.ExecuteGraph this.Actions
+                executeInnerScope (mergeStatuses (acc, result))
             else
-                result
+                acc
 
         let result = executeInnerScope Succeeded
         let code, error = codeAndErrorFromScopeResult result
@@ -252,7 +250,7 @@ type InitializeVariable(json) =
         let firstVar = this.Inputs.variables.Head
 
         printfn
-            "InitializeVariable: %s (%A) = %s"
+            "InitializeVariable: %s (%O) = %s"
             firstVar.name
             firstVar.type_
             (Conversions.prettyStringOfJson firstVar.value)
@@ -292,7 +290,7 @@ type SetVariable(json) =
         | a, b when a = b -> ()
         | VariableType.String, VariableType.Object when newValue = Null -> ()
         | VariableType.Array, VariableType.Object when newValue = Null -> ()
-        | a, b -> failwithf "Variable is of type %A, cannot set to %A: %s" a b (Conversions.stringOfJson newValue)
+        | a, b -> failwithf "Variable is of type %O, cannot set to %O: %s" a b (Conversions.stringOfJson newValue)
 
     member val Inputs = JsonTree.getKey "inputs" json |> setVariableSingleOfJson with get
 
@@ -410,18 +408,22 @@ type ParseJson(json) =
 
     override this.Execute (_: string) (context: SimulatorContext) =
         printfn "ParseJson: %O" this.Inputs
-        let input = context.EvaluateLanguage this.Inputs.content
+        let evaluatedContent = context.EvaluateLanguage this.Inputs.content
+        let evaluatedSchema = context.EvaluateLanguage this.Inputs.schema
 
         let result =
-            match input with
+            match evaluatedContent with
             | String input -> input |> Parser.parse
             | json -> json
-        // TODO: schema
-        // TODO: can we do freaky variable stuff in the schema?
+
         printfn "ParseJson Result: %s" (Conversions.prettyStringOfJson result)
 
+        let parsedSchema = SchemaValidator.jsonSchemaOfJson evaluatedSchema
+        let validationResult = SchemaValidator.validateJsonSchema parsedSchema result
+
         { ActionResult.Default with
-            inputs = Some(Conversions.createObject [ "content", input; "schema", this.Inputs.schema ])
+            status = if validationResult then Succeeded else Failed
+            inputs = Some(Conversions.createObject [ "content", evaluatedContent; "schema", evaluatedSchema ])
             outputs = Some(Conversions.createObject [ "body", result ])
             code = Some OK }
 
@@ -443,14 +445,17 @@ type Query(json) =
         use loopContext = context.PushArrayOperationContext nameOpt arrayVals
 
         let rec filterValsRev acc =
-            let current = loopContext.Current
+            if loopContext.Advance() then
+                let current = loopContext.Current
 
-            let condition =
-                this.Inputs.where |> context.EvaluateLanguage |> Conversions.ensureBoolean
+                let condition =
+                    this.Inputs.where |> context.EvaluateLanguage |> Conversions.ensureBoolean
 
-            let next = if condition then current :: acc else acc
+                let next = if condition then current :: acc else acc
 
-            if loopContext.Advance() then filterValsRev next else next
+                filterValsRev next
+            else
+                acc
 
         let result = filterValsRev [] |> List.rev |> Conversions.createArray in
 
@@ -478,11 +483,11 @@ type Select(json) =
         use loopContext = context.PushArrayOperationContext nameOpt arrayVals
 
         let rec selectValsRev acc =
-            let selected = this.Inputs.select |> context.EvaluateLanguage
-
-            let next = selected :: acc
-
-            if loopContext.Advance() then selectValsRev next else next
+            if loopContext.Advance() then
+                let selected = this.Inputs.select |> context.EvaluateLanguage
+                selectValsRev (selected :: acc)
+            else
+                acc
 
         let result = selectValsRev [] |> List.rev |> Conversions.createArray in
 
@@ -628,7 +633,7 @@ type Http(json) =
     member val Inputs = JsonTree.getKey "inputs" json |> httpInputsOfJson with get
 
     override this.Execute (name: string) (context: SimulatorContext) =
-        printfn "HTTP: %A" this.Inputs
+        printfn "HTTP: %O" this.Inputs
 
         let result = ref HttpRequestReply.Default in
 
@@ -737,6 +742,11 @@ type Workflow(json) =
                           message = "The server did not receive a response from an upstream server." } }
         else
             { ActionResult.Default with
+                status =
+                    if ExternalServiceTypeConversions.httpStatusCodeIsSuccess result.Value.statusCode then
+                        Succeeded
+                    else
+                        Failed
                 inputs = Some(jsonOfWorkflowRequest request)
                 outputs = Some(jsonOfHttpRequestReply result.Value)
                 code = Some Accepted }

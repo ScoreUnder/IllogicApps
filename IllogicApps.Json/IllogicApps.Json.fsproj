@@ -8,9 +8,11 @@
     <ItemGroup>
         <Compile Include="MutableOrderedMap.fs"/>
         <Compile Include="OrderedMap.fs"/>
+        <Compile Include="SerialisationHelper.fs"/>
         <Compile Include="CoreTypes.fs"/>
         <Compile Include="Conversions.fs"/>
         <Compile Include="JsonOrderedMapHelper.fs"/>
         <Compile Include="Parser.fs"/>
+        <Compile Include="SchemaValidator.fs"/>
     </ItemGroup>
 </Project>

@@ -9,7 +9,7 @@ let runAllHandlers (handlers: ExternalServiceHandler list) (sim: SimulatorContex
     handlers |> List.exists (fun h -> h sim request)
 
 let loggingHandler (_sim: SimulatorContext) (request: ExternalServiceRequest) =
-    printfn "Request: %A" request
+    printfn "Request: %O" request
     false
 
 let noOpHandler (_sim: SimulatorContext) (_request: ExternalServiceRequest) = true

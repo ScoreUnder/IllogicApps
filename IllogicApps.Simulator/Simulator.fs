@@ -97,7 +97,7 @@ module private SimulatorHelper =
         | TimedOut, _ -> TimedOut
         | _, TimedOut -> TimedOut
         | Succeeded, Succeeded -> Succeeded
-        | c -> failwithf "Unexpected status combination %A" c
+        | c -> failwithf "Unexpected status combination %O" c
 
     let unpackObject (node: JsonTree) =
         node |> Conversions.ensureObject |> OrderedMap.toSeq
@@ -129,8 +129,8 @@ module private SimulatorHelper =
 
     let logActionPostRun actionName actionType result =
         match result.error with
-        | None -> printfn "[Action %s (%s) ended: %A]" actionName actionType result.status
-        | Some err -> printfn "[Action %s (%s) ended: %A (%A)]" actionName actionType result.status err
+        | None -> printfn "[Action %s (%s) ended: %O]" actionName actionType result.status
+        | Some err -> printfn "[Action %s (%s) ended: %O (%O)]" actionName actionType result.status err
 
     let skippedResult =
         { ActionResult.Default with
@@ -159,15 +159,23 @@ open SimulatorHelper
 
 type private ArrayOperationContextImpl(values: JsonTree list, disposeHook: ArrayOperationContextImpl -> unit) =
     let mutable values = values
+    let mutable started = false
 
     interface ArrayOperationContext with
         member this.Dispose() = disposeHook this
 
         member this.Advance() =
-            values <- values.Tail
+            if not started then
+                started <- true
+            else
+                values <- values.Tail
             values.IsEmpty |> not
 
-        member this.Current = values.Head
+        member this.Current =
+            if not started then
+                failwith "ArrayOperationContext not advanced before accessing Current"
+
+            values.Head
 
 [<Struct>]
 type SimulatorCreationOptions =
@@ -376,7 +384,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
             | "or" -> value |> arrayOfObjects |> Seq.exists eval
             | "not" -> value |> unpackObject |> eval |> not
             | LanguageCondition fn -> value |> Conversions.ensureArray |> List.ofSeq |> fn
-            | _ -> failwithf "Unexpected expression %A" expr
+            | _ -> failwithf "Unexpected expression %O" expr
 
         expr |> unpackObject |> eval
 
@@ -388,7 +396,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
     member this.ExternalServiceRequest request =
         if not (runAllHandlers creationOptions.externalServiceHandlers this request) then
-            failwithf "No handler for external service request: %A" request
+            failwithf "No handler for external service request: %O" request
 
     member this.PushArrayOperationContext (actionName: string option) (array: JsonTree seq) : ArrayOperationContext =
         this.PushLoopContext(arrayOperationContextStack, actionName, array)

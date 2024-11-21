@@ -28,24 +28,32 @@ let rec jsValueOfJson engine (json: JsonTree) : JsValue =
         |> fun items -> JsArray(engine, items)
     | JsonTree.Null -> JsValue.Null
 
+[<Literal>]
+let minIntAsFloat = -9223372036854775808.0
+
+// At this point, Int64.MaxValue is too precise to be represented as a float
+// to we use the value +1, which can be represented exactly.
+[<Literal>]
+let maxIntPlusOneAsFloat = 9223372036854775808.0
+
+let numberOfFloat =
+    function
+    | v when System.Double.IsInteger(v) && v >= minIntAsFloat && v < maxIntPlusOneAsFloat -> Integer(int64 v)
+    | v -> Float v
+
 let rec jsonOfJsValue (value: JsValue) : JsonTree =
-    if value.IsString() then
-        JsonTree.String(value.AsString())
-    elif value.IsNumber() then
-        JsonTree.Float(value.AsNumber())
-    elif value.IsBoolean() then
-        JsonTree.Boolean(value.AsBoolean())
-    elif value.IsNull() || value.IsUndefined() then
-        JsonTree.Null
-    elif value.IsObject() then
+    match value with
+    | value when value.IsString() -> JsonTree.String(value.AsString())
+    | value when value.IsNumber() -> numberOfFloat (value.AsNumber())
+    | value when value.IsBoolean() -> JsonTree.Boolean(value.AsBoolean())
+    | value when value.IsNull() || value.IsUndefined() -> JsonTree.Null
+    | value when value.IsArray() -> value.AsArray() |> Seq.map jsonOfJsValue |> Conversions.createArray
+    | value when value.IsObject() ->
         value.AsObject().GetOwnProperties()
         |> Seq.filter (fun (KeyValue(_, value)) -> value.Enumerable)
         |> Seq.map (fun (KeyValue(key, value)) -> key.AsString(), jsonOfJsValue value.Value)
         |> Conversions.createObject
-    elif value.IsArray() then
-        value.AsArray() |> Seq.map jsonOfJsValue |> Conversions.createArray
-    else
-        failwithf "Unsupported JsValue: %A" value
+    | value -> failwithf "Unsupported JsValue: %O" value
 
 let jintJavascriptHandler (_sim: SimulatorContext) (request: ExternalServiceRequest) =
     match request with

@@ -63,7 +63,7 @@ let private checkComparison strictOrdering results a b =
     let comparison = compareValues a b
 
     if strictOrdering && comparisonIsUnordered comparison then
-        failwithf "Expected %A to be strictly comparable to %A" a b
+        failwithf "Expected %O to be strictly comparable to %O" a b
 
     List.contains comparison results
 
@@ -77,7 +77,7 @@ let condContains =
         | String a, String b -> a.Contains(b)
         | _ ->
             failwithf
-                "Expected array (and element), object (and string key), or string (and substring), got %A and %A"
+                "Expected array (and element), object (and string key), or string (and substring), got %O and %O"
                 (JsonTree.getType a)
                 (JsonTree.getType b))
 

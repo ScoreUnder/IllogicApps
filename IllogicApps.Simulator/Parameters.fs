@@ -31,6 +31,6 @@ let assertParameterType (param: Parameter) =
     let expected = param.type_
 
     if actual <> expected then
-        failwithf "Parameter's value has type %A, expected %A" actual expected
+        failwithf "Parameter's value has type %O, expected %O" actual expected
 
     param

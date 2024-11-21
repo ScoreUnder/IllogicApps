@@ -3,59 +3,10 @@ module IllogicApps.Json.Conversions
 open System.Collections.Immutable
 open System.IO
 
-let escapeStringForJson str =
-    let sb = System.Text.StringBuilder()
+let inline escapeStringForJson str =
+    SerialisationHelper.escapeStringForJson str
 
-    for c in str do
-        match c with
-        | '\\' -> sb.Append("\\\\")
-        | '\"' -> sb.Append("\\\"")
-        | '\b' -> sb.Append("\\b")
-        | '\f' -> sb.Append("\\f")
-        | '\n' -> sb.Append("\\n")
-        | '\r' -> sb.Append("\\r")
-        | '\t' -> sb.Append("\\t")
-        | _ when c < char 0x20 -> sb.AppendFormat("\\u{0:x4}", System.Convert.ToInt32(c))
-        | _ -> sb.Append(c)
-        |> ignore
-
-    sb.ToString()
-
-let hackyInsertDecimalPoint (str: string) =
-    if
-        str.Contains('.', System.StringComparison.Ordinal)
-        || str.Contains('e', System.StringComparison.OrdinalIgnoreCase)
-    then
-        str
-    else
-        $"{str}.0"
-
-let stringOfJson json =
-    let rec aux acc json =
-        match json with
-        | Null -> "null" :: acc
-        | Array a when a.IsEmpty -> "[]" :: acc
-        | Array a -> "[" :: List.tail (Seq.foldBack (fun el acc -> "," :: aux acc el) a ("]" :: acc))
-        | Object o when OrderedMap.isEmpty o -> "{}" :: acc
-        | Object o ->
-            "{"
-            :: List.tail (
-                OrderedMap.foldBack
-                    (fun k v acc -> "," :: "\"" :: (escapeStringForJson k) :: "\":" :: aux acc v)
-                    o
-                    ("}" :: acc)
-            )
-        | String s -> "\"" :: (escapeStringForJson s) :: "\"" :: acc
-        | Integer i -> string i :: acc
-        | Float f when System.Double.IsNaN f -> "\"NaN\"" :: acc
-        | Float f when System.Double.IsNegativeInfinity f -> "\"-Infinity\"" :: acc
-        | Float f when System.Double.IsPositiveInfinity f -> "\"Infinity\"" :: acc
-        | Float f -> hackyInsertDecimalPoint (string f) :: acc
-        | Decimal d -> hackyInsertDecimalPoint (string d) :: acc
-        | Boolean true -> "true" :: acc
-        | Boolean false -> "false" :: acc
-
-    aux [] json |> String.concat ""
+let inline stringOfJson json = json.ToString()
 
 let rec writePrettyJson (writer: TextWriter) json =
     let rec write' json indent =
@@ -143,14 +94,14 @@ let numberAsDecimal json =
     | Decimal d -> d
     | Float f -> decimal f
     | Integer i -> decimal i
-    | _ -> failwithf "Expected number, got %A" (JsonTree.getType json)
+    | _ -> failwithf "Expected number, got %O" (JsonTree.getType json)
 
 let numberAsFloat json =
     match json with
     | Decimal d -> float d
     | Float f -> f
     | Integer i -> float i
-    | _ -> failwithf "Expected number, got %A" (JsonTree.getType json)
+    | _ -> failwithf "Expected number, got %O" (JsonTree.getType json)
 
 let (|NumbersAsDecimal|NumbersAsFloat|NumbersAsInteger|NotNumbers|) tuple =
     match tuple with
@@ -164,27 +115,27 @@ let (|NumbersAsDecimal|NumbersAsFloat|NumbersAsInteger|NotNumbers|) tuple =
 let ensureArray =
     function
     | Array a -> a
-    | v -> failwithf "Expected array, got %A" (JsonTree.getType v)
+    | v -> failwithf "Expected array, got %O" (JsonTree.getType v)
 
 let ensureObject =
     function
     | Object o -> o
-    | v -> failwithf "Expected object, got %A" (JsonTree.getType v)
+    | v -> failwithf "Expected object, got %O" (JsonTree.getType v)
 
 let ensureString =
     function
     | String s -> s
-    | v -> failwithf "Expected string, got %A" (JsonTree.getType v)
+    | v -> failwithf "Expected string, got %O" (JsonTree.getType v)
 
 let ensureInteger =
     function
     | Integer i -> i
-    | v -> failwithf "Expected integer, got %A" (JsonTree.getType v)
+    | v -> failwithf "Expected integer, got %O" (JsonTree.getType v)
 
 let ensureBoolean =
     function
     | Boolean b -> b
-    | v -> failwithf "Expected boolean, got %A" (JsonTree.getType v)
+    | v -> failwithf "Expected boolean, got %O" (JsonTree.getType v)
 
 let rawStringOfJson json =
     match json with

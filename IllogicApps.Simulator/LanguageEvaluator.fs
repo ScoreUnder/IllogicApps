@@ -30,15 +30,15 @@ let accessMember (parent: JsonTree) (mem: JsonTree) =
         match OrderedMap.tryFindCaseInsensitive propName parent with
         | Some value -> AccessOk value
         | _ -> ForgivableError(sprintf "Property %s not found" propName)
-    | Object _, other -> SeriousError(sprintf "Cannot access property of object using %A" (JsonTree.getType other))
+    | Object _, other -> SeriousError(sprintf "Cannot access property of object using %O" (JsonTree.getType other))
     | Array arr, Integer index ->
         if index >= 0 && index < arr.Length then
             AccessOk(arr.[int index])
         else
             ForgivableError(sprintf "Index %d out of bounds in array of length %d" index arr.Length)
-    | Array _, other -> SeriousError(sprintf "Cannot index array with %A" (JsonTree.getType other))
+    | Array _, other -> SeriousError(sprintf "Cannot index array with %O" (JsonTree.getType other))
     | Null, _ -> ForgivableError "Cannot access property of null"
-    | kind, _ -> SeriousError(sprintf "Cannot access property of %A" kind)
+    | kind, _ -> SeriousError(sprintf "Cannot access property of %O" kind)
 
 type FuncsMap = OrderedMap<string, BuiltinFunctions.LanguageFunction>
 type LazyFuncsMap = OrderedMap<string, BuiltinFunctions.LazyArgsLanguageFunction>

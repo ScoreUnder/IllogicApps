@@ -32,7 +32,7 @@ let rec illogicJsonOfNewtonsoftJson (json: JToken) : JsonTree =
     | JTokenType.Guid -> String(json.Value<Guid>().ToString())
     | JTokenType.Uri -> String(json.Value<Uri>().ToString())
     | JTokenType.TimeSpan -> String(json.Value<TimeSpan>().ToString())
-    | typ -> failwithf "Cannot convert Newtonsoft.Json token of type %A" typ
+    | typ -> failwithf "Cannot convert Newtonsoft.Json token of type %O" typ
 
 let rec newtonsoftJsonOfIllogicJson (json: JsonTree) : JToken =
     match json with

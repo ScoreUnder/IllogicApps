@@ -22,6 +22,15 @@ type VariableType =
     | Object
     | Array
 
+    override this.ToString() =
+        match this with
+        | String -> "String"
+        | Integer -> "Integer"
+        | Float -> "Float"
+        | Boolean -> "Boolean"
+        | Object -> "Object"
+        | Array -> "Array"
+
 let variableTypeOfString (s: string) =
     match s.ToLowerInvariant() with
     | "string" -> VariableType.String
@@ -54,7 +63,12 @@ let variablesInputsOfJson elOfJson json =
         |> Seq.map elOfJson
         |> List.ofSeq }
 
-type ParseJsonInputs = { content: JsonTree; schema: JsonTree }
+type ParseJsonInputs =
+    { content: JsonTree
+      schema: JsonTree }
+
+    override this.ToString() =
+        $"{{{nameof ParseJsonInputs}.{nameof this.content}={this.content}; {nameof this.schema}={this.schema}}}"
 
 let parseJsonInputsOfJson json =
     { content = JsonTree.getKey "content" json
@@ -94,23 +108,40 @@ type JavaScriptCodeInputs =
     { code: string
       explicitDependencies: JavaScriptCodeDependencies option }
 
+    member inputs.ToJson() =
+        OrderedMap
+            .Builder()
+            .Add("code", JsonTree.String inputs.code)
+            .MaybeAdd(
+                "explicitDependencies",
+                inputs.explicitDependencies |> Option.map jsonOfJavaScriptCodeDependencies
+            )
+            .Build()
+        |> JsonTree.Object
+
+    override this.ToString() = this.ToJson().ToString()
+
 let javaScriptCodeInputsOfJson json =
     { code = JsonTree.getKey "code" json |> Conversions.ensureString
       explicitDependencies =
         JsonTree.tryGetKey "explicitDependencies" json
         |> Option.map javaScriptCodeDependenciesOfJson }
 
-let jsonOfJavaScriptCodeInputs (inputs: JavaScriptCodeInputs) =
-    OrderedMap
-        .Builder()
-        .Add("code", JsonTree.String inputs.code)
-        .MaybeAdd("explicitDependencies", inputs.explicitDependencies |> Option.map jsonOfJavaScriptCodeDependencies)
-        .Build()
-    |> JsonTree.Object
+let inline jsonOfJavaScriptCodeInputs (inputs: JavaScriptCodeInputs) = inputs.ToJson()
 
 type ServiceProviderInputs =
     { parameters: JsonTree
       serviceProviderConfiguration: ServiceProviderConfiguration }
+
+    member inputs.ToJson() =
+        OrderedMap
+            .Builder()
+            .MaybeAdd("parameters", inputs.parameters)
+            .Add("serviceProviderConfiguration", jsonOfServiceProviderConfiguration inputs.serviceProviderConfiguration)
+            .Build()
+        |> JsonTree.Object
+
+    override this.ToString() = this.ToJson().ToString()
 
 let serviceProviderInputsOfJson json =
     { parameters = JsonTree.tryGetKey "parameters" json |> Conversions.jsonOfOption
@@ -131,14 +162,18 @@ type HttpResponseInputs =
       headers: OrderedMap<string, string> option
       statusCode: JsonTree }
 
-let jsonOfHttpResponseInputs (inputs: HttpResponseInputs) =
-    OrderedMap
-        .Builder()
-        .Add("statusCode", inputs.statusCode)
-        .MaybeAdd("headers", inputs.headers)
-        .MaybeAdd("body", inputs.body)
-        .Build()
-    |> JsonTree.Object
+    member inputs.ToJson() =
+        OrderedMap
+            .Builder()
+            .Add("statusCode", inputs.statusCode)
+            .MaybeAdd("headers", inputs.headers)
+            .MaybeAdd("body", inputs.body)
+            .Build()
+        |> JsonTree.Object
+
+    override this.ToString() = this.ToJson().ToString()
+
+let inline jsonOfHttpResponseInputs (inputs: HttpResponseInputs) = inputs.ToJson()
 
 let httpResponseInputsOfJson json =
     { body = JsonTree.getKeyOrNull "body" json
@@ -192,19 +227,23 @@ type HttpInputs =
       authentication: JsonTree
       retryPolicy: JsonTree option }
 
-let jsonOfHttpInputs inputs =
-    OrderedMap
-        .Builder()
-        .Add("method", JsonTree.String inputs.method)
-        .Add("uri", JsonTree.String inputs.uri)
-        .MaybeAdd("headers", inputs.headers)
-        .MaybeAdd("queries", inputs.queries)
-        .MaybeAdd("body", inputs.body)
-        .MaybeAdd("cookie", inputs.cookie)
-        .MaybeAdd("authentication", inputs.authentication)
-        .MaybeAdd("retryPolicy", inputs.retryPolicy)
-        .Build()
-    |> JsonTree.Object
+    member inputs.ToJson() =
+        OrderedMap
+            .Builder()
+            .Add("method", JsonTree.String inputs.method)
+            .Add("uri", JsonTree.String inputs.uri)
+            .MaybeAdd("headers", inputs.headers)
+            .MaybeAdd("queries", inputs.queries)
+            .MaybeAdd("body", inputs.body)
+            .MaybeAdd("cookie", inputs.cookie)
+            .MaybeAdd("authentication", inputs.authentication)
+            .MaybeAdd("retryPolicy", inputs.retryPolicy)
+            .Build()
+        |> JsonTree.Object
+
+    override this.ToString() = this.ToJson().ToString()
+
+let inline jsonOfHttpInputs (inputs: HttpInputs) = inputs.ToJson()
 
 let httpInputsOfJson json =
     { method = JsonTree.getKey "method" json |> Conversions.ensureString
@@ -244,7 +283,7 @@ let coerce (typ: VariableType) (value: JsonTree) : JsonTree =
     | VariableType.Object, JsonTree.Null -> Null
     | VariableType.Array, JsonTree.Array _ -> value
     | VariableType.Array, JsonTree.Null -> Conversions.emptyArray
-    | typ, value -> failwithf "Expected %A, got %A" typ (JsonTree.getType value)
+    | typ, value -> failwithf "Expected %O, got %O" typ (JsonTree.getType value)
 
 let getVarTypechecked (context: SimulatorContext) var typs =
     match context.GetVariable var with
@@ -253,7 +292,7 @@ let getVarTypechecked (context: SimulatorContext) var typs =
         let variableType = getVarType originalValue
 
         if not (Seq.contains variableType typs) then
-            failwithf "Variable is of type %A, expected one of %A" variableType typs
+            failwithf "Variable is of type %O, expected one of %O" variableType typs
 
         originalValue
 

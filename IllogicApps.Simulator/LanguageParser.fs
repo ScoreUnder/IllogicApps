@@ -57,7 +57,7 @@ let parse (items: (int * Token) list list) =
             let newStack = f stack
 
             if newStack = stack then
-                failwithf "Unexpected token %A" (snd (List.head items))
+                failwithf "Unexpected token %O" (snd (List.head items))
             else
                 newStack
 
@@ -65,7 +65,7 @@ let parse (items: (int * Token) list list) =
         | [] ->
             match stack with
             | [ Ast a ] -> a
-            | _ -> failwithf "Unexpected end of input. Dump: %A" (List.rev stack)
+            | _ -> failwithf "Unexpected end of input. Dump: %O" (List.rev stack)
         | (pos, token) :: rest ->
             try
                 match token with
@@ -82,7 +82,7 @@ let parse (items: (int * Token) list list) =
             with ex ->
                 raise
                 <| new System.Exception(
-                    sprintf "Error at position %d: %s. Dump: %A" pos ex.Message (List.rev stack),
+                    sprintf "Error at position %d: %s. Dump: %O" pos ex.Message (List.rev stack),
                     ex
                 )
             |> parse' rest
