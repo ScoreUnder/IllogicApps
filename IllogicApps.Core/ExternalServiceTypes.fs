@@ -13,17 +13,17 @@ type HttpServiceRequest =
       cookie: string option
       authentication: JsonTree }
 
-type HttpTrigger =
+type HttpRequest =
     { queries: OrderedMap<string, string> option
       headers: OrderedMap<string, string> option
       body: JsonTree option }
 
-let jsonOfHttpTrigger trigger =
+let jsonOfHttpRequest request =
     OrderedMap
         .Builder()
-        .MaybeAdd("queries", trigger.queries |> Option.map Conversions.jsonOfStringsMap)
-        .MaybeAdd("headers", trigger.headers |> Option.map Conversions.jsonOfStringsMap)
-        .MaybeAdd("body", trigger.body)
+        .MaybeAdd("queries", request.queries |> Option.map Conversions.jsonOfStringsMap)
+        .MaybeAdd("headers", request.headers |> Option.map Conversions.jsonOfStringsMap)
+        .MaybeAdd("body", request.body)
         .Build()
     |> Object
 

@@ -162,7 +162,7 @@ type TestRunner
 
         // Create the trigger outputs
         let request =
-            { HttpTrigger.queries = queryParams |> Option.map OrderedMap.CreateRange
+            { HttpRequest.queries = queryParams |> Option.map OrderedMap.CreateRange
               headers = requestHeaders |> Option.map OrderedMap.CreateRange
               body =
                 if contentString.Length = 0 then
@@ -188,7 +188,7 @@ type TestRunner
 
         let sims =
             request
-            |> jsonOfHttpTrigger
+            |> jsonOfHttpRequest
             |> Some
             |> WorkflowFamily.buildWorkflowFamily
                 (fun options handler ->
