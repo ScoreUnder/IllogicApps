@@ -46,7 +46,7 @@ let netHttpContentOfContentTypeAndContent =
 let netHttpContentOfJson json =
     json |> contentOfJson |> netHttpContentOfContentTypeAndContent
 
-let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
+let netHttpRequestMessageOfHttpServiceRequest (req: HttpServiceRequest) =
     let netReq =
         new Http.HttpRequestMessage(
             method = Http.HttpMethod(req.method),

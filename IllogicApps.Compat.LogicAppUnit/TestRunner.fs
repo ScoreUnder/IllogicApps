@@ -54,7 +54,7 @@ type TestRunner
             overallResponse.Value <- Some <| netHttpResponseMessageOfHttpRequestReply response
             true
         | HttpRequest(request, reply) ->
-            let request = netHttpRequestMessageOfHttpRequest request
+            let request = netHttpRequestMessageOfHttpServiceRequest request
 
             let result =
                 try

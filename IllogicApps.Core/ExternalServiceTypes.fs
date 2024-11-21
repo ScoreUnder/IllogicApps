@@ -4,7 +4,7 @@ open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Core.HttpModel.RetryPolicy
 open IllogicApps.Json
 
-type HttpRequest =
+type HttpServiceRequest =
     { method: string
       uri: string
       headers: OrderedMap<string, string>
@@ -187,7 +187,7 @@ type ServiceProviderRequest =
       serviceProviderConfiguration: ServiceProviderConfiguration }
 
 type ExternalServiceRequest =
-    | HttpRequest of HttpRequest * HttpRequestReply ref
+    | HttpRequest of HttpServiceRequest * HttpRequestReply ref
     | HttpResponse of HttpRequestReply
     | Workflow of WorkflowRequest * HttpRequestReply ref
     | ScriptExecution of ScriptExecutionRequest * Result<JsonTree, string> ref
