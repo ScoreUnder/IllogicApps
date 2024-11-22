@@ -62,6 +62,10 @@ type JsonSchema =
       anyOf: JsonSchema list option
       oneOf: JsonSchema list option
 
+      // Generic schemas
+      enum: JsonTree list option
+      ``const``: JsonTree option
+
       // String schemas
       minLength: int option
       maxLength: int option
@@ -103,6 +107,10 @@ let emptyJsonSchema =
       allOf = None
       anyOf = None
       oneOf = None
+
+      // Generic schemas
+      enum = None
+      ``const`` = None
 
       // String schemas
       minLength = None
@@ -174,6 +182,8 @@ let rec jsonSchemaOfJson json =
           allOf = readOptionalSubSchemas "allOf" json
           anyOf = readOptionalSubSchemas "anyOf" json
           oneOf = readOptionalSubSchemas "oneOf" json
+          enum = JsonTree.tryGetKey "enum" json |> Option.map (ensureArray >> List.ofSeq)
+          ``const`` = JsonTree.tryGetKey "const" json
           minLength = readOptionalInt "minLength" json
           maxLength = readOptionalInt "maxLength" json
           pattern = JsonTree.tryGetKey "pattern" json |> Option.map ensureString
@@ -237,6 +247,8 @@ let rec validateJsonSchema (schema: JsonSchema) (json: JsonTree) =
                |> List.sumBy (fun subSchema -> if validateWith subSchema then 1 else 0)
                |> (=) 1)
            schema.oneOf
+       && Option.forall (List.exists (jsonsEqual json)) schema.enum
+       && Option.forall (jsonsEqual json) schema.``const``
        && match json with
           | String s ->
               Option.forall (fun minLength -> s.Length >= minLength) schema.minLength
