@@ -1,6 +1,6 @@
 module IllogicApps.Json.SchemaValidator
 
-open System
+type StringComparison = System.StringComparison
 
 open IllogicApps.Json.Conversions
 
@@ -55,21 +55,37 @@ let rec jsonsEqual (a: JsonTree) (b: JsonTree) =
 // OK this is long i'm going to implement something minimal and then come back to this
 type JsonSchema =
     { type_: SchemaType list option
+
+      // Subschema combinators
       not: JsonSchema option
       allOf: JsonSchema list option
       anyOf: JsonSchema list option
       oneOf: JsonSchema list option
+
+      // String schemas
       minLength: int option
       maxLength: int option
       pattern: string option
+
+      // Number schemas
       multipleOf: decimal option
       minimum: decimal option
       exclusiveMinimum: decimal option
       maximum: decimal option
       exclusiveMaximum: decimal option
-      items: JsonSchema option // for arrays
-      properties: OrderedMap<string, JsonSchema> option // for objects
-      required: string list option } // for objects
+
+      // Array schemas
+      items: JsonSchema option
+
+      // Object schemas
+      properties: OrderedMap<string, JsonSchema> option
+      patternProperties: OrderedMap<string, JsonSchema> option
+      additionalProperties: bool option
+      unevaluatedProperties: bool option
+      required: string list option
+      propertyNames: JsonSchema option
+      minProperties: int option
+      maxProperties: int option }
 
 let emptyJsonSchema =
     { type_ = None
@@ -97,7 +113,13 @@ let emptyJsonSchema =
 
       // Object schemas
       properties = None
-      required = None }
+      patternProperties = None
+      additionalProperties = None
+      unevaluatedProperties = None
+      required = None
+      propertyNames = None
+      minProperties = None
+      maxProperties = None }
 
 let mapArrayOrSingle f =
     function
@@ -109,6 +131,20 @@ let rec jsonSchemaOfJson json =
         JsonTree.tryGetKey key json
         |> Option.map (ensureArray >> Seq.map jsonSchemaOfJson >> List.ofSeq)
 
+    let readOptionalSubSchema key json =
+        JsonTree.tryGetKey key json |> Option.map jsonSchemaOfJson
+
+    let readOptionalSubSchemaMap key json =
+        JsonTree.tryGetKey key json
+        |> Option.map (ensureObject >> OrderedMap.mapValuesOnly jsonSchemaOfJson)
+
+    let readOptionalStringList key json =
+        JsonTree.tryGetKey key json
+        |> Option.map (ensureArray >> Seq.map ensureString >> List.ofSeq)
+
+    let readOptionalInt key json =
+        JsonTree.tryGetKey key json |> Option.map (fun i -> ensureInteger i |> int)
+
     match json with
     | Boolean true -> emptyJsonSchema
     | Boolean false ->
@@ -118,29 +154,27 @@ let rec jsonSchemaOfJson json =
         { type_ =
             JsonTree.tryGetKey "type" json
             |> Option.map (mapArrayOrSingle (ensureString >> schemaTypeOfString))
-          not = JsonTree.tryGetKey "not" json |> Option.map jsonSchemaOfJson
+          not = readOptionalSubSchema "not" json
           allOf = readOptionalSubSchemas "allOf" json
           anyOf = readOptionalSubSchemas "anyOf" json
           oneOf = readOptionalSubSchemas "oneOf" json
-          minLength =
-            JsonTree.tryGetKey "minLength" json
-            |> Option.map (fun i -> ensureInteger i |> int)
-          maxLength =
-            JsonTree.tryGetKey "maxLength" json
-            |> Option.map (fun i -> ensureInteger i |> int)
+          minLength = readOptionalInt "minLength" json
+          maxLength = readOptionalInt "maxLength" json
           pattern = JsonTree.tryGetKey "pattern" json |> Option.map ensureString
           multipleOf = JsonTree.tryGetKey "multipleOf" json |> Option.map numberAsDecimal
           minimum = JsonTree.tryGetKey "minimum" json |> Option.map numberAsDecimal
           exclusiveMinimum = JsonTree.tryGetKey "exclusiveMinimum" json |> Option.map numberAsDecimal
           maximum = JsonTree.tryGetKey "maximum" json |> Option.map numberAsDecimal
           exclusiveMaximum = JsonTree.tryGetKey "exclusiveMaximum" json |> Option.map numberAsDecimal
-          items = JsonTree.tryGetKey "items" json |> Option.map jsonSchemaOfJson
-          properties =
-            JsonTree.tryGetKey "properties" json
-            |> Option.map (ensureObject >> OrderedMap.mapValuesOnly jsonSchemaOfJson)
-          required =
-            JsonTree.tryGetKey "required" json
-            |> Option.map (ensureArray >> Seq.map ensureString >> List.ofSeq) }
+          items = readOptionalSubSchema "items" json
+          properties = readOptionalSubSchemaMap "properties" json
+          patternProperties = readOptionalSubSchemaMap "patternProperties" json
+          additionalProperties = JsonTree.tryGetKey "additionalProperties" json |> Option.map ensureBoolean
+          unevaluatedProperties = JsonTree.tryGetKey "unevaluatedProperties" json |> Option.map ensureBoolean
+          required = readOptionalStringList "required" json
+          propertyNames = readOptionalSubSchema "propertyNames" json
+          minProperties = readOptionalInt "minProperties" json
+          maxProperties = readOptionalInt "maxProperties" json }
     | _ -> failwith "Invalid JSON schema"
 
 let typesMatch (schemaType: SchemaType) (json: JsonTree) =
@@ -153,8 +187,8 @@ let typesMatch (schemaType: SchemaType) (json: JsonTree) =
     | SchemaType.Number, Float _ -> true
     | SchemaType.Number, Decimal _ -> true
     | SchemaType.Integer, Integer _ -> true
-    | SchemaType.Integer, Float f when Double.IsInteger(f) -> true
-    | SchemaType.Integer, Decimal d when Decimal.Truncate(d) = d -> true
+    | SchemaType.Integer, Float f when System.Double.IsInteger(f) -> true
+    | SchemaType.Integer, Decimal d when System.Decimal.Truncate(d) = d -> true
     | SchemaType.String, String _ -> true
     | _ -> false
 
@@ -194,5 +228,29 @@ let rec validateJsonSchema (schema: JsonSchema) (json: JsonTree) =
                       | Some v -> validateJsonSchema subSchema v
                       | None -> true))
                   schema.properties
+              && Option.forall
+                  (OrderedMap.forall (fun pattern subSchema ->
+                      o
+                      |> OrderedMap.toSeq
+                      |> Seq.filter (fun (prop, _) -> System.Text.RegularExpressions.Regex.IsMatch(prop, pattern))
+                      |> Seq.forall (fun (_, v) -> validateJsonSchema subSchema v)))
+                  schema.patternProperties
+              && if schema.additionalProperties = Some false then
+                     true //TODO
+                 // Checks for anything not in properties or patternProperties
+                 else
+                     true
+              && if schema.unevaluatedProperties = Some false then
+                     true //TODO
+                 // Checks for anything not in properties or patternProperties,
+                 // but this time it's recursive and will need a restructure of the
+                 // function signature
+                 else
+                     true
               && Option.forall (List.forall o.ContainsKey) schema.required
+              && Option.forall
+                  (fun subSchema -> OrderedMap.forall (fun k _ -> validateJsonSchema subSchema (String k)) o)
+                  schema.propertyNames
+              && Option.forall (fun min -> o.Count >= min) schema.minProperties
+              && Option.forall (fun max -> o.Count <= max) schema.maxProperties
           | _ -> true
