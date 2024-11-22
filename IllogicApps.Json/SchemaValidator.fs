@@ -61,10 +61,19 @@ type JsonSchema =
       allOf: JsonSchema list option
       anyOf: JsonSchema list option
       oneOf: JsonSchema list option
+      ``if``: JsonSchema option
+      ``then``: JsonSchema option
+      ``else``: JsonSchema option
 
       // Generic schemas
       enum: JsonTree list option
       ``const``: JsonTree option
+
+      // Embedded data schemas
+      // TODO! https://json-schema.org/understanding-json-schema/reference/non_json_data
+      // contentMediaType: string option
+      // contentEncoding: string option
+      // contentSchema: JsonSchema option
 
       // String schemas
       minLength: int option
@@ -97,7 +106,9 @@ type JsonSchema =
       required: string list option
       propertyNames: JsonSchema option
       minProperties: int option
-      maxProperties: int option }
+      maxProperties: int option
+      dependentRequired: OrderedMap<string, string list> option
+      dependentSchemas: OrderedMap<string, JsonSchema> option }
 
 let emptyJsonSchema =
     { type_ = None
@@ -107,6 +118,9 @@ let emptyJsonSchema =
       allOf = None
       anyOf = None
       oneOf = None
+      ``if`` = None
+      ``then`` = None
+      ``else`` = None
 
       // Generic schemas
       enum = None
@@ -143,7 +157,9 @@ let emptyJsonSchema =
       required = None
       propertyNames = None
       minProperties = None
-      maxProperties = None }
+      maxProperties = None
+      dependentRequired = None
+      dependentSchemas = None }
 
 let private mapArrayOrSingle f =
     function
@@ -182,6 +198,9 @@ let rec jsonSchemaOfJson json =
           allOf = readOptionalSubSchemas "allOf" json
           anyOf = readOptionalSubSchemas "anyOf" json
           oneOf = readOptionalSubSchemas "oneOf" json
+          ``if`` = readOptionalSubSchema "if" json
+          ``then`` = readOptionalSubSchema "then" json
+          ``else`` = readOptionalSubSchema "else" json
           enum = JsonTree.tryGetKey "enum" json |> Option.map (ensureArray >> List.ofSeq)
           ``const`` = JsonTree.tryGetKey "const" json
           minLength = readOptionalInt "minLength" json
@@ -208,7 +227,14 @@ let rec jsonSchemaOfJson json =
           required = readOptionalStringList "required" json
           propertyNames = readOptionalSubSchema "propertyNames" json
           minProperties = readOptionalInt "minProperties" json
-          maxProperties = readOptionalInt "maxProperties" json }
+          maxProperties = readOptionalInt "maxProperties" json
+          dependentRequired =
+            JsonTree.tryGetKey "dependentRequired" json
+            |> Option.map (
+                ensureObject
+                >> OrderedMap.mapValuesOnly (ensureArray >> Seq.map ensureString >> List.ofSeq)
+            )
+          dependentSchemas = readOptionalSubSchemaMap "dependentSchemas" json }
     | _ -> failwith "Invalid JSON schema"
 
 let typesMatch (schemaType: SchemaType) (json: JsonTree) =
@@ -249,6 +275,13 @@ let rec validateJsonSchema (schema: JsonSchema) (json: JsonTree) =
            schema.oneOf
        && Option.forall (List.exists (jsonsEqual json)) schema.enum
        && Option.forall (jsonsEqual json) schema.``const``
+       && Option.forall
+           (fun subSchema ->
+               if validateWith subSchema then
+                   Option.forall validateWith schema.``then``
+               else
+                   Option.forall validateWith schema.``else``)
+           schema.``if``
        && match json with
           | String s ->
               Option.forall (fun minLength -> s.Length >= minLength) schema.minLength
@@ -331,4 +364,16 @@ let rec validateJsonSchema (schema: JsonSchema) (json: JsonTree) =
                   schema.propertyNames
               && Option.forall (fun min -> o.Count >= min) schema.minProperties
               && Option.forall (fun max -> o.Count <= max) schema.maxProperties
+              && Option.forall
+                  (OrderedMap.forall (fun k required ->
+                      match OrderedMap.tryFind k o with
+                      | Some _ -> List.forall o.ContainsKey required
+                      | None -> true))
+                  schema.dependentRequired
+              && Option.forall
+                  (OrderedMap.forall (fun k subSchema ->
+                      match OrderedMap.tryFind k o with
+                      | Some v -> validateJsonSchema subSchema v
+                      | None -> true))
+                  schema.dependentSchemas
           | _ -> true
