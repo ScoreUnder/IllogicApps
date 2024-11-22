@@ -76,6 +76,14 @@ type JsonSchema =
 
       // Array schemas
       items: JsonSchema option
+      prefixItems: JsonSchema list option
+      unevaluatedItems: JsonSchema option
+      contains: JsonSchema option
+      minContains: int option
+      maxContains: int option
+      minItems: int option
+      maxItems: int option
+      uniqueItems: bool option
 
       // Object schemas
       properties: OrderedMap<string, JsonSchema> option
@@ -110,6 +118,14 @@ let emptyJsonSchema =
 
       // Array schemas
       items = None
+      prefixItems = None
+      unevaluatedItems = None
+      contains = None
+      minContains = None
+      maxContains = None
+      minItems = None
+      maxItems = None
+      uniqueItems = None
 
       // Object schemas
       properties = None
@@ -121,7 +137,7 @@ let emptyJsonSchema =
       minProperties = None
       maxProperties = None }
 
-let mapArrayOrSingle f =
+let private mapArrayOrSingle f =
     function
     | Array a -> a |> Seq.map f |> List.ofSeq
     | v -> [ f v ]
@@ -167,6 +183,14 @@ let rec jsonSchemaOfJson json =
           maximum = JsonTree.tryGetKey "maximum" json |> Option.map numberAsDecimal
           exclusiveMaximum = JsonTree.tryGetKey "exclusiveMaximum" json |> Option.map numberAsDecimal
           items = readOptionalSubSchema "items" json
+          prefixItems = readOptionalSubSchemas "prefixItems" json
+          unevaluatedItems = readOptionalSubSchema "unevaluatedItems" json
+          contains = readOptionalSubSchema "contains" json
+          minContains = readOptionalInt "minContains" json
+          maxContains = readOptionalInt "maxContains" json
+          minItems = readOptionalInt "minItems" json
+          maxItems = readOptionalInt "maxItems" json
+          uniqueItems = JsonTree.tryGetKey "uniqueItems" json |> Option.map ensureBoolean
           properties = readOptionalSubSchemaMap "properties" json
           patternProperties = readOptionalSubSchemaMap "patternProperties" json
           additionalProperties = JsonTree.tryGetKey "additionalProperties" json |> Option.map ensureBoolean
@@ -191,6 +215,14 @@ let typesMatch (schemaType: SchemaType) (json: JsonTree) =
     | SchemaType.Integer, Decimal d when System.Decimal.Truncate(d) = d -> true
     | SchemaType.String, String _ -> true
     | _ -> false
+
+let inline private seqCount ([<InlineIfLambda>] f) seq =
+    Seq.sumBy (fun x -> if f x then 1 else 0) seq
+
+let private listOfDistinct eqf seq =
+    // This is a naive/slow implementation, but probably not a problem for now
+    Seq.fold (fun acc x -> if List.exists (eqf x) acc then acc else x :: acc) [] seq
+    |> List.rev
 
 let rec validateJsonSchema (schema: JsonSchema) (json: JsonTree) =
     Option.forall (List.exists (fun schemaType -> typesMatch schemaType json)) schema.type_
@@ -220,7 +252,41 @@ let rec validateJsonSchema (schema: JsonSchema) (json: JsonTree) =
               && Option.forall (fun exclusiveMinimum -> number > exclusiveMinimum) schema.exclusiveMinimum
               && Option.forall (fun maximum -> number <= maximum) schema.maximum
               && Option.forall (fun exclusiveMaximum -> number < exclusiveMaximum) schema.exclusiveMaximum
-          | Array a -> Option.forall (fun subSchema -> a |> Seq.forall (validateJsonSchema subSchema)) schema.items
+          | Array a ->
+              Option.forall (fun subSchemas -> Seq.forall2 validateJsonSchema subSchemas a) schema.prefixItems
+              && let numPrefixItems =
+                  match schema.prefixItems with
+                  | None -> 0
+                  | Some prefixItems -> List.length prefixItems in
+
+                 Option.forall
+                     (fun subSchema -> a |> Seq.skip numPrefixItems |> Seq.forall (validateJsonSchema subSchema))
+                     schema.items
+                 && Option.forall
+                     (fun subSchema ->
+                         a
+                         |> Seq.skip (* Todo: wrong number, needs to take subschemas into account *) numPrefixItems
+                         |> Seq.forall (validateJsonSchema subSchema))
+                     schema.unevaluatedItems
+                 && let numContains =
+                     Option.map (fun subSchema -> seqCount (validateJsonSchema subSchema) a) schema.contains in
+
+                    numContains <> Some 0
+                    && Option.forall
+                        (fun minContains -> Option.forall (fun numContains -> numContains >= minContains) numContains)
+                        schema.minContains
+                    && Option.forall
+                        (fun maxContains -> Option.forall (fun numContains -> numContains <= maxContains) numContains)
+                        schema.maxContains
+                    && Option.forall (fun minItems -> a.Length >= minItems) schema.minItems
+                    && Option.forall (fun maxItems -> a.Length <= maxItems) schema.maxItems
+                    && Option.forall
+                        (fun uniqueItems ->
+                            if uniqueItems then
+                                a |> listOfDistinct jsonsEqual |> List.length = a.Length
+                            else
+                                true)
+                        schema.uniqueItems
           | Object o ->
               Option.forall
                   (OrderedMap.forall (fun k subSchema ->
