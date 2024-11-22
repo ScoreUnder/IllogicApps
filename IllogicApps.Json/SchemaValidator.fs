@@ -56,14 +56,26 @@ let rec jsonsEqual (a: JsonTree) (b: JsonTree) =
 type JsonSchema =
     { type_: SchemaType list option
       not: JsonSchema option
+      allOf: JsonSchema list option
+      anyOf: JsonSchema list option
+      oneOf: JsonSchema list option
       items: JsonSchema option // for arrays
       properties: OrderedMap<string, JsonSchema> option // for objects
       required: string list option } // for objects
 
 let emptyJsonSchema =
     { type_ = None
+
+      // Subschema combinators
       not = None
+      allOf = None
+      anyOf = None
+      oneOf = None
+
+      // Array schemas
       items = None
+
+      // Object schemas
       properties = None
       required = None }
 
@@ -72,7 +84,12 @@ let mapArrayOrSingle f =
     | Array a -> a |> Seq.map f |> List.ofSeq
     | v -> [ f v ]
 
+
 let rec jsonSchemaOfJson json =
+    let readOptionalSubSchemas key json =
+        JsonTree.tryGetKey key json
+        |> Option.map (ensureArray >> Seq.map jsonSchemaOfJson >> List.ofSeq)
+
     match json with
     | Boolean true -> emptyJsonSchema
     | Boolean false ->
@@ -83,6 +100,9 @@ let rec jsonSchemaOfJson json =
             JsonTree.tryGetKey "type" json
             |> Option.map (mapArrayOrSingle (ensureString >> schemaTypeOfString))
           not = JsonTree.tryGetKey "not" json |> Option.map jsonSchemaOfJson
+          allOf = readOptionalSubSchemas "allOf" json
+          anyOf = readOptionalSubSchemas "anyOf" json
+          oneOf = readOptionalSubSchemas "oneOf" json
           items = JsonTree.tryGetKey "items" json |> Option.map jsonSchemaOfJson
           properties =
             JsonTree.tryGetKey "properties" json
@@ -109,15 +129,25 @@ let typesMatch (schemaType: SchemaType) (json: JsonTree) =
 
 let rec validateJsonSchema (schema: JsonSchema) (json: JsonTree) =
     Option.forall (List.exists (fun schemaType -> typesMatch schemaType json)) schema.type_
-    && Option.forall (fun subSchema -> validateJsonSchema subSchema json |> not) schema.not
-    && match json with
-       | Array a -> Option.forall (fun subSchema -> a |> Seq.forall (validateJsonSchema subSchema)) schema.items
-       | Object o ->
-           Option.forall
-               (OrderedMap.forall (fun k subSchema ->
-                   match OrderedMap.tryFind k o with
-                   | Some v -> validateJsonSchema subSchema v
-                   | None -> true))
-               schema.properties
-           && Option.forall (List.forall o.ContainsKey) schema.required
-       | _ -> true
+    && let validateWith subSchema = validateJsonSchema subSchema json in
+
+       Option.forall (not << validateWith) schema.not
+       && Option.forall (List.forall validateWith) schema.allOf
+       && Option.forall (List.exists validateWith) schema.anyOf
+       && Option.forall
+           (fun subSchemas ->
+               subSchemas
+               |> List.sumBy (fun subSchema -> if validateWith subSchema then 1 else 0)
+               |> (=) 1)
+           schema.oneOf
+       && match json with
+          | Array a -> Option.forall (fun subSchema -> a |> Seq.forall (validateJsonSchema subSchema)) schema.items
+          | Object o ->
+              Option.forall
+                  (OrderedMap.forall (fun k subSchema ->
+                      match OrderedMap.tryFind k o with
+                      | Some v -> validateJsonSchema subSchema v
+                      | None -> true))
+                  schema.properties
+              && Option.forall (List.forall o.ContainsKey) schema.required
+          | _ -> true
