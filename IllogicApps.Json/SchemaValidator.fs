@@ -59,6 +59,9 @@ type JsonSchema =
       allOf: JsonSchema list option
       anyOf: JsonSchema list option
       oneOf: JsonSchema list option
+      minLength: int option
+      maxLength: int option
+      pattern: string option
       items: JsonSchema option // for arrays
       properties: OrderedMap<string, JsonSchema> option // for objects
       required: string list option } // for objects
@@ -71,6 +74,11 @@ let emptyJsonSchema =
       allOf = None
       anyOf = None
       oneOf = None
+
+      // String schemas
+      minLength = None
+      maxLength = None
+      pattern = None
 
       // Array schemas
       items = None
@@ -103,6 +111,13 @@ let rec jsonSchemaOfJson json =
           allOf = readOptionalSubSchemas "allOf" json
           anyOf = readOptionalSubSchemas "anyOf" json
           oneOf = readOptionalSubSchemas "oneOf" json
+          minLength =
+            JsonTree.tryGetKey "minLength" json
+            |> Option.map (fun i -> ensureInteger i |> int)
+          maxLength =
+            JsonTree.tryGetKey "maxLength" json
+            |> Option.map (fun i -> ensureInteger i |> int)
+          pattern = JsonTree.tryGetKey "pattern" json |> Option.map ensureString
           items = JsonTree.tryGetKey "items" json |> Option.map jsonSchemaOfJson
           properties =
             JsonTree.tryGetKey "properties" json
@@ -141,6 +156,10 @@ let rec validateJsonSchema (schema: JsonSchema) (json: JsonTree) =
                |> (=) 1)
            schema.oneOf
        && match json with
+          | String s ->
+              Option.forall (fun minLength -> s.Length >= minLength) schema.minLength
+              && Option.forall (fun maxLength -> s.Length <= maxLength) schema.maxLength
+              && Option.forall (fun pattern -> System.Text.RegularExpressions.Regex.IsMatch(s, pattern)) schema.pattern
           | Array a -> Option.forall (fun subSchema -> a |> Seq.forall (validateJsonSchema subSchema)) schema.items
           | Object o ->
               Option.forall
