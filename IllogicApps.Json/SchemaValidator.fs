@@ -191,6 +191,7 @@ let rec jsonSchemaOfJson json =
         { emptyJsonSchema with
             not = Some emptyJsonSchema }
     | Object _ ->
+        // TODO: $ref support
         { type_ =
             JsonTree.tryGetKey "type" json
             |> Option.map (mapArrayOrSingle (ensureString >> schemaTypeOfString))
