@@ -62,6 +62,11 @@ type JsonSchema =
       minLength: int option
       maxLength: int option
       pattern: string option
+      multipleOf: decimal option
+      minimum: decimal option
+      exclusiveMinimum: decimal option
+      maximum: decimal option
+      exclusiveMaximum: decimal option
       items: JsonSchema option // for arrays
       properties: OrderedMap<string, JsonSchema> option // for objects
       required: string list option } // for objects
@@ -80,6 +85,13 @@ let emptyJsonSchema =
       maxLength = None
       pattern = None
 
+      // Number schemas
+      multipleOf = None
+      minimum = None
+      exclusiveMinimum = None
+      maximum = None
+      exclusiveMaximum = None
+
       // Array schemas
       items = None
 
@@ -91,7 +103,6 @@ let mapArrayOrSingle f =
     function
     | Array a -> a |> Seq.map f |> List.ofSeq
     | v -> [ f v ]
-
 
 let rec jsonSchemaOfJson json =
     let readOptionalSubSchemas key json =
@@ -118,6 +129,11 @@ let rec jsonSchemaOfJson json =
             JsonTree.tryGetKey "maxLength" json
             |> Option.map (fun i -> ensureInteger i |> int)
           pattern = JsonTree.tryGetKey "pattern" json |> Option.map ensureString
+          multipleOf = JsonTree.tryGetKey "multipleOf" json |> Option.map numberAsDecimal
+          minimum = JsonTree.tryGetKey "minimum" json |> Option.map numberAsDecimal
+          exclusiveMinimum = JsonTree.tryGetKey "exclusiveMinimum" json |> Option.map numberAsDecimal
+          maximum = JsonTree.tryGetKey "maximum" json |> Option.map numberAsDecimal
+          exclusiveMaximum = JsonTree.tryGetKey "exclusiveMaximum" json |> Option.map numberAsDecimal
           items = JsonTree.tryGetKey "items" json |> Option.map jsonSchemaOfJson
           properties =
             JsonTree.tryGetKey "properties" json
@@ -160,6 +176,16 @@ let rec validateJsonSchema (schema: JsonSchema) (json: JsonTree) =
               Option.forall (fun minLength -> s.Length >= minLength) schema.minLength
               && Option.forall (fun maxLength -> s.Length <= maxLength) schema.maxLength
               && Option.forall (fun pattern -> System.Text.RegularExpressions.Regex.IsMatch(s, pattern)) schema.pattern
+          | Integer _
+          | Float _
+          | Decimal _ ->
+              let number = numberAsDecimal json in
+
+              Option.forall (fun multipleOf -> number % multipleOf = 0m) schema.multipleOf
+              && Option.forall (fun minimum -> number >= minimum) schema.minimum
+              && Option.forall (fun exclusiveMinimum -> number > exclusiveMinimum) schema.exclusiveMinimum
+              && Option.forall (fun maximum -> number <= maximum) schema.maximum
+              && Option.forall (fun exclusiveMaximum -> number < exclusiveMaximum) schema.exclusiveMaximum
           | Array a -> Option.forall (fun subSchema -> a |> Seq.forall (validateJsonSchema subSchema)) schema.items
           | Object o ->
               Option.forall
