@@ -169,6 +169,7 @@ type private ArrayOperationContextImpl(values: JsonTree list, disposeHook: Array
                 started <- true
             else
                 values <- values.Tail
+
             values.IsEmpty |> not
 
         member this.Current =
@@ -177,10 +178,16 @@ type private ArrayOperationContextImpl(values: JsonTree list, disposeHook: Array
 
             values.Head
 
+type TriggerCompletion =
+    | Completed of CompletedTrigger
+    | Invoked of HttpRequest
+
 [<Struct>]
 type SimulatorCreationOptions =
     { workflowName: string
-      triggerResult: CompletedTrigger
+      runId: string
+      originatingRunId: string
+      triggerResult: TriggerCompletion
       externalServiceHandlers: ExternalServiceHandler list
       isBugForBugAccurate: bool
       appConfig: OrderedMap<string, string>
@@ -188,28 +195,29 @@ type SimulatorCreationOptions =
 
     static member Default =
         { workflowName = "unnamed_workflow"
-          triggerResult = CompletedTrigger.create <| CompletedAction.create "" ""
+          runId = ""
+          originatingRunId = ""
+          triggerResult = Completed(CompletedTrigger.create <| CompletedAction.create "" "")
           externalServiceHandlers = []
           isBugForBugAccurate = true
           appConfig = OrderedMap.empty
           parameters = OrderedMap.empty }
 
-    static member createSimple (logicApp: LogicAppSpec.Root) triggerOutputs =
+    static member createSimple (logicApp: LogicAppSpec.Root) httpRequest =
+        let runId = Guid.NewGuid().ToString()
+
         { SimulatorCreationOptions.Default with
-            triggerResult =
-                CompletedTrigger.create
-                    { CompletedAction.create
-                          (logicApp.definition.triggers.Keys |> Seq.head)
-                          (stringOfDateTime DateTime.UtcNow) with
-                        outputs = triggerOutputs }
+            runId = runId
+            originatingRunId = runId
+            triggerResult = Invoked httpRequest
             externalServiceHandlers = [ loggingHandler; noOpHandler ] }
 
 type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     let isBugForBugAccurate = creationOptions.isBugForBugAccurate
 
-    let recordResultOf name (action: BaseAction) (f: unit -> ActionResult) =
-        let startTime = DateTime.UtcNow
+    let mutable triggerResult = creationOptions.triggerResult
 
+    let executeAction startTime name (action: BaseAction) (f: unit -> ActionResult) =
         let result =
             try
                 f ()
@@ -230,20 +238,50 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
                 |> Object
                 |> this.EvaluateLanguage
                 |> Conversions.ensureObject
-                |> Some
+                |> fun v -> if v.Count = 0 then None else Some v
 
-        let result =
-            { CompletedAction.create name (stringOfDateTime startTime) with
-                status = result.status
-                inputs = result.inputs
-                outputs = result.outputs
-                trackedProperties = trackedProperties
-                error = result.error
-                code = result.code
-                clientTrackingId = creationOptions.triggerResult.action.clientTrackingId }
+        { CompletedAction.create name (stringOfDateTime startTime) with
+            status = result.status
+            inputs = result.inputs
+            outputs = result.outputs
+            trackedProperties = trackedProperties
+            error = result.error
+            code = result.code
+            clientTrackingId = this.TriggerResult.action.clientTrackingId }
 
+    let recordResultOf name (action: BaseAction) (f: unit -> ActionResult) =
+        let startTime = DateTime.UtcNow
+        let result = executeAction startTime name action f
         this.RecordActionResult name result
         result
+
+    let executeTrigger name (trigger: BaseTrigger) (request: HttpRequest) =
+        let startTime = DateTime.UtcNow
+
+        let originalTriggerResult = triggerResult
+
+        try
+            // Set a dummy value for the trigger result, so that we have an initial clientTrackingId/inputs/etc
+            triggerResult <-
+                Completed
+                    { CompletedTrigger.create
+                          { CompletedAction.create name (stringOfDateTime startTime) with
+                              inputs = trigger.ProcessInputs this
+                              endTime = ""
+                              clientTrackingId = creationOptions.runId } with
+                        originHistoryName = creationOptions.originatingRunId }
+
+            let result =
+                executeAction startTime name trigger (fun () -> trigger.RunFromRequest request this)
+
+            let result =
+                { CompletedTrigger.create result with
+                    originHistoryName = creationOptions.originatingRunId }
+
+            triggerResult <- Completed result
+        with _ ->
+            triggerResult <- originalTriggerResult
+            reraise ()
 
     let evaluatedParameters =
         creationOptions.parameters
@@ -262,14 +300,36 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
         Debug.Assert(arrayOperationContextStack.Count = 0)
 
-    static member Trigger (actions: ActionGraph) (creationOptions: SimulatorCreationOptions) =
+    member this.ExecuteTrigger name trigger =
+        match triggerResult with
+        | Completed _ -> failwith "Trigger already executed"
+        | Invoked request -> executeTrigger name trigger request
+
+    member this.EditTrigger f = triggerResult <- f triggerResult
+
+    member this.RunWholeWorkflow actions =
+        let result = this.ExecuteGraph actions
+        this.CompleteWith result
+
+    static member Trigger
+        (trigger: string * BaseTrigger)
+        (actions: ActionGraph)
+        (creationOptions: SimulatorCreationOptions)
+        =
         let sim = Simulator.CreateUntriggered(creationOptions)
-        let result = sim.ExecuteGraph actions
-        sim.CompleteWith result
+
+        match creationOptions.triggerResult with
+        | Completed _ -> ()
+        | _ -> sim.ExecuteTrigger (fst trigger) (snd trigger)
+
+        sim.RunWholeWorkflow actions
         sim
 
     static member TriggerSimple (logicApp: LogicAppSpec.Root) triggerOutputs =
-        Simulator.Trigger logicApp.definition.actions (SimulatorCreationOptions.createSimple logicApp triggerOutputs)
+        Simulator.Trigger
+            (logicApp.definition.triggers |> OrderedMap.toSeq |> Seq.head)
+            logicApp.definition.actions
+            (SimulatorCreationOptions.createSimple logicApp triggerOutputs)
 
     member val TerminationStatus: Result<Status, Status * TerminateRunError option> = Ok Skipped with get, set
     member val ActionResults = MutableOrderedMap<string, CompletedAction>() with get
@@ -289,7 +349,11 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         | true, (_, context) -> Some(context: ArrayOperationContext)
         | _ -> None
 
-    member this.TriggerResult = creationOptions.triggerResult
+    member this.TriggerResult =
+        match triggerResult with
+        | Invoked _ -> failwith "Trigger result not yet available (invalid order of operations)"
+        | Completed completedTrigger -> completedTrigger
+
     member this.IsBugForBugAccurate = isBugForBugAccurate
     member this.AllActionResults = this.ActionResults |> OrderedMap.CreateRange
 
@@ -297,7 +361,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         WorkflowDetails.Create
             $"dummyWorkflowId_{creationOptions.workflowName}"
             creationOptions.workflowName
-            creationOptions.triggerResult.action.clientTrackingId
+            creationOptions.runId
 
     member this.GetActionResult name =
         this.ActionResults.TryGetValue name
@@ -331,7 +395,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
                         if Result.isError this.TerminationStatus then
                             // If we're terminating, just skip everything
                             // (i.e. consider dependencies fulfilled but not in the right state)
-                            Completed, skippedTerminatedResult
+                            DependencyStatus.Completed, skippedTerminatedResult
                         else
                             calculateDependencyStatus this.ActionResults action, skippedResult
 
@@ -348,7 +412,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
                         logActionPostRun actionName actionType result
 
                         rest @ (getNextActions actionName)
-                    | Completed ->
+                    | DependencyStatus.Completed ->
                         // This action's dependencies are in the wrong state, skip it
                         remainingActions.Remove actionName |> ignore
                         recordResultOf actionName action (fun () -> result) |> ignore

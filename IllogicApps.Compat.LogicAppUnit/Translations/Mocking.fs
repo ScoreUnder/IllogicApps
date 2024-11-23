@@ -14,7 +14,7 @@ open System.Runtime.ExceptionServices
 open System.Text
 open System.Threading.Tasks
 
-open IllogicApps.Compat.LogicAppUnit
+open IllogicApps.Core.HttpModel
 open IllogicApps.Json
 open Newtonsoft.Json.Linq
 
@@ -371,7 +371,7 @@ type MockRequestMatcher private () =
             lazy
                 if _requestQueryParams.Count > 0 then
                     let parsedParamsAsDictionary =
-                        InternalHelper.parseQueryString request.RequestUri.Query
+                        HttpParsing.parseQueryString request.RequestUri.Query
 
                     if parsedParamsAsDictionary.Count = 0 then
                         MockRequestMatchResult(

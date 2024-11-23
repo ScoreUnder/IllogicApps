@@ -19,6 +19,12 @@ type UnknownAction(json) =
                     { code = ActionFailed
                       message = sprintf "Unknown action type %s" this.ActionType } }
 
+type UnknownTrigger(json) =
+    inherit BaseTrigger(json)
+
+let triggerMap =
+    Map.ofList<string, JsonTree -> BaseTrigger> [ "Request", (fun v -> Request v) ]
+
 let actionMap =
     Map.ofList<string, (JsonTree -> BaseAction) -> JsonTree -> BaseAction>
         [ "Request", (fun _ v -> Request v)
@@ -54,8 +60,18 @@ let rec resolveAction (json: JsonTree) =
 
     parseAction resolveAction json
 
+let resolveTrigger (json: JsonTree) =
+    let type_ = JsonTree.getKey "type" json |> Conversions.ensureString
+
+    let parseAction =
+        triggerMap
+        |> Map.tryFind type_
+        |> Option.defaultValue (fun v -> UnknownTrigger v)
+
+    parseAction json
+
 let decodeLogicApp (json: string) =
-    Parser.parse json |> LogicAppSpec.rootOfJson resolveAction
+    Parser.parse json |> LogicAppSpec.rootOfJson resolveTrigger resolveAction
 
 let readLogicApp path =
     System.IO.File.ReadAllText path |> decodeLogicApp

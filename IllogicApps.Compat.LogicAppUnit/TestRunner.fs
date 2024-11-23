@@ -13,6 +13,7 @@ open IllogicApps.Core
 open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.ExternalServiceTypeConversions
+open IllogicApps.Core.HttpModel.HttpParsing
 open IllogicApps.Core.Support
 open IllogicApps.Json
 open IllogicApps.Simulator
@@ -158,15 +159,14 @@ type TestRunner
             content.Headers.ContentType
             |> Option.ofObj
             |> Option.map string
-            |> Option.defaultWith (fun () ->
+            |> Option.orElseWith (fun () ->
                 requestHeaders
                 |> Option.bind (fun h ->
                     match h.TryGetValue("Content-Type") with
                     | true, x -> Some x
-                    | _ -> None)
-                |> Option.defaultValue ContentType.Text)
+                    | _ -> None))
 
-        let contentString = content.ReadAsStringAsync().GetAwaiter().GetResult()
+        let contentBytes = content.ReadAsByteArrayAsync().GetAwaiter().GetResult()
 
         // Create the trigger outputs
         let request =
@@ -174,11 +174,7 @@ type TestRunner
               relativePath = relativePath
               queries = queryParams |> Option.map OrderedMap.CreateRange
               headers = requestHeaders |> Option.map OrderedMap.CreateRange
-              body =
-                if contentString.Length = 0 then
-                    None
-                else
-                    decodeBodyByContentType contentType contentString |> Some }
+              body = decodeOptionalBodyByContentType contentType contentBytes }
 
         // Figure out if there is a Response action in the main workflow
         let hasResponseAction =
@@ -198,8 +194,7 @@ type TestRunner
 
         let sims =
             request
-            |> jsonOfHttpRequest
-            |> Some
+            |> TriggerCompletion.Invoked
             |> WorkflowFamily.buildWorkflowFamily
                 (fun options handler ->
                     { options with

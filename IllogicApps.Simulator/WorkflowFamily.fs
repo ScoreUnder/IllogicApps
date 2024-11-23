@@ -40,31 +40,25 @@ let buildWorkflowFamily
     (settingsBuilder: SimulatorCreationOptions -> ExternalServiceHandler -> SimulatorCreationOptions)
     (workflows: (string * LogicAppSpec.Root) seq)
     (name: string)
-    (outputs: JsonTree option)
+    (triggerResult: TriggerCompletion)
     =
     let workflows = workflows |> Map.ofSeq
     let rootWorkflowId = makeNewWorkflowRunId ()
 
     let allSims = ref []
 
-    let rec launchWorkflow name (workflow: LogicAppSpec.Root) outputs responseHook runId =
+    let rec launchWorkflow name (workflow: LogicAppSpec.Root) triggerResult responseHook runId =
         let defn = workflow.definition
-        let runId = runId |> Option.defaultWith makeNewWorkflowRunId
-
-        let triggerResult =
-            { CompletedTrigger.create
-                  { CompletedAction.create (defn.triggers.Keys |> Seq.head) (stringOfDateTime DateTime.UtcNow) with
-                      outputs = outputs
-                      clientTrackingId = runId } with
-                originHistoryName = rootWorkflowId }
 
         let optionsBase =
             { SimulatorCreationOptions.Default with
                 workflowName = name
+                runId = runId
+                originatingRunId = rootWorkflowId
                 triggerResult = triggerResult }
 
         settingsBuilder optionsBase (handleWorkflowRequest responseHook)
-        |> Simulator.Trigger defn.actions
+        |> Simulator.Trigger (defn.triggers |> OrderedMap.toSeq |> Seq.head) defn.actions
 
     and handleWorkflowRequest responseHook sim =
         function
@@ -105,10 +99,26 @@ let buildWorkflowFamily
                         .Build()
                     |> Object
 
+                let newRunId = makeNewWorkflowRunId ()
+
+                let triggerResult =
+                    { CompletedTrigger.create
+                          { CompletedAction.create
+                                (workflow.definition.triggers.Keys |> Seq.head)
+                                (stringOfDateTime DateTime.UtcNow) with
+                              outputs = Some outputs
+                              clientTrackingId = newRunId } with
+                        originHistoryName = rootWorkflowId }
+
                 // If we ever go full async, I'll need a promise for the sim here because the outer workflow might
                 // finish before the inner one (because it only needs to wait until a response is received)
                 let innerSim =
-                    launchWorkflow workflowReq.workflowId workflow (Some outputs) (Some nextResponseHook) None
+                    launchWorkflow
+                        workflowReq.workflowId
+                        workflow
+                        (Completed triggerResult)
+                        (Some nextResponseHook)
+                        newRunId
 
                 allSims.Value <- innerSim :: allSims.Value
 
@@ -124,6 +134,6 @@ let buildWorkflowFamily
 
     match workflow with
     | Some workflow ->
-        let outerSim = launchWorkflow name workflow outputs None (Some rootWorkflowId)
+        let outerSim = launchWorkflow name workflow triggerResult None rootWorkflowId
         outerSim :: allSims.Value
     | None -> failwithf "Workflow not found: %s" name

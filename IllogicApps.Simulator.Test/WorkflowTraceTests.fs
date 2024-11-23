@@ -2,10 +2,12 @@ module IllogicApps.Simulator.Test.WorkflowTraceTests
 
 open System
 open System.IO
+open System.Net.Http
 open System.Reflection
 open System.Text
 open DEdge.Diffract
-open IllogicApps.Core.LogicAppActions
+open IllogicApps.Core.ExternalServiceTypes
+open IllogicApps.Core.HttpModel.HttpParsing
 open NUnit.Framework
 open Swensen.Unquote
 
@@ -181,6 +183,9 @@ let namedTestCases names =
     |> Seq.map TestCaseData
     |> List.ofSeq
 
+let logicAppHostQueryKeys =
+    [| "api-version"; "sp"; "sv"; "sig" |]
+
 let ``Test cases for workflows that respond with trigger`` =
     namedTestCases [ "simpleRelativePath"; "simpleEcho" ]
 
@@ -192,11 +197,41 @@ let ``Test IllogicApps output matches logic app trace for workflows that respond
     let expectedResponseStr = Encoding.UTF8.GetString(expectedResponse.body)
     let parsedExpectedResponse = Parser.parse expectedResponseStr
 
+    let relativePathPart =
+        let invokePart = "/invoke/"
+        let invocation = request.relativePath.IndexOf(invokePart, StringComparison.Ordinal)
+
+        if invocation = -1 then
+            ""
+        else
+            let query = request.relativePath.IndexOf('?', invocation)
+
+            if query = -1 then
+                request.relativePath.Substring(invocation + invokePart.Length)
+            else
+                request.relativePath.Substring(invocation + invokePart.Length, query - invocation - invokePart.Length)
+
+    let query =
+        let queryPart = request.relativePath.IndexOf('?', StringComparison.Ordinal)
+
+        if queryPart = -1 then
+            ""
+        else
+            request.relativePath.Substring(queryPart + 1)
+
+    let parsedQuery =
+        parseQueryString query
+        |> OrderedMap.filter (fun k _ -> not (Array.contains k logicAppHostQueryKeys))
+        |> fun m -> if m.Count = 0 then None else Some m
+
     // We can't reasonably be expected to match these without faking it:
     let workflowRunId =
-        parsedExpectedResponse
-        |> JsonTree.getKey "originHistoryName"
-        |> Conversions.ensureString
+        trap
+            <@
+                parsedExpectedResponse
+                |> JsonTree.getKey "originHistoryName"
+                |> Conversions.ensureString
+            @>
 
     let clientTrackingId =
         parsedExpectedResponse
@@ -216,68 +251,94 @@ let ``Test IllogicApps output matches logic app trace for workflows that respond
     let endTime =
         parsedExpectedResponse |> JsonTree.getKey "endTime" |> Conversions.ensureString
 
-    let triggerName = logicApp.definition.triggers.Keys |> Seq.head
-    let triggerAction = logicApp.definition.triggers.Values |> Seq.head
+    let triggerName, triggerAction =
+        logicApp.definition.triggers |> OrderedMap.toSeq |> Seq.head
+
     let actualResponse = ref None
 
     let responseHandler _sim request =
         match request with
-        | ExternalServiceTypes.HttpResponse(resp) when actualResponse.Value = None ->
+        | HttpResponse(resp) when actualResponse.Value = None ->
             actualResponse.Value <- Some resp
             true
         | _ -> false
 
-    let triggerOutputs = Some Conversions.emptyObject // TODO
+    let triggerRequest =
+        let headers = request.headers |> OrderedMap.ofList
 
-    let triggerResult =
-        { CompletedTrigger.create
-              { CompletedAction.create triggerName (stringOfDateTime DateTime.UtcNow) with
-                  inputs = Some Conversions.emptyObject //(triggerAction :?> Request)... TODO
-                  outputs = triggerOutputs
-                  startTime = startTime
-                  endTime = endTime
-                  clientTrackingId = clientTrackingId
-                  trackingId = trackingId } with
-            originHistoryName = workflowRunId }
+        let contentType = headers |> OrderedMap.tryFind "Content-Type"
+
+        { method = HttpMethod.Parse request.httpMethod
+          relativePath = relativePathPart
+          queries = parsedQuery
+          headers = request.headers |> OrderedMap.ofList |> Some
+          body = decodeOptionalBodyByContentType contentType request.body }
 
     let simCreationOptions =
         { SimulatorCreationOptions.Default with
             workflowName = workflowName
+            runId = workflowRunId
+            originatingRunId = workflowRunId
             externalServiceHandlers = [ responseHandler ]
-            triggerResult = triggerResult }
+            triggerResult = Invoked triggerRequest }
 
-    let sim = Simulator.Trigger logicApp.definition.actions simCreationOptions
+    let sim = Simulator.CreateUntriggered simCreationOptions
+
+    sim.ExecuteTrigger triggerName triggerAction
+
+    sim.EditTrigger (function
+        | Invoked _ -> failwith "Trigger was not run"
+        | Completed t ->
+            Completed
+                { t with
+                    action =
+                        { t.action with
+                            startTime = startTime
+                            endTime = endTime
+                            clientTrackingId = clientTrackingId
+                            trackingId = trackingId } })
+
+    sim.RunWholeWorkflow logicApp.definition.actions
 
     let actualResponse = trap <@ actualResponse.Value.Value @>
     let actualResponseBody = trap <@ actualResponse.body.Value @>
 
     test <@ expectedResponse.statusCode = actualResponse.statusCode @>
 
-    Differ.Assert(
-        parsedExpectedResponse,
-        actualResponseBody,
-        param =
-            { Differ.AssertPrintParams with
-                neutralName = "Response body object" }
-    )
+    trap
+        <@
+            Differ.Assert(
+                parsedExpectedResponse,
+                actualResponseBody,
+                param =
+                    { Differ.AssertPrintParams with
+                        neutralName = "Response body object" }
+            )
+        @>
 
-    Differ.Assert(
-        expectedResponseStr,
-        Conversions.stringOfJson actualResponseBody,
-        param =
-            { Differ.AssertPrintParams with
-                neutralName = "Response body string" }
-    )
+    trap
+        <@
+            Differ.Assert(
+                expectedResponseStr,
+                Conversions.stringOfJson actualResponseBody,
+                param =
+                    { Differ.AssertPrintParams with
+                        neutralName = "Response body string" }
+            )
+        @>
 
-    Differ.Assert(
-        expectedResponse.headers,
-        // TODO: the headers are probably not going to be right without at least adding in some synthetic ones
-        // which I don't intend to be part of the actual HttpRequestReply object
-        // (though which should appear during conversion to HttpResponseMessage)
-        actualResponse.headers
-        |> Option.defaultValue OrderedMap.empty
-        |> OrderedMap.toList,
-        param =
-            { Differ.AssertPrintParams with
-                neutralName = "Response headers" }
-    )
+    trap
+        <@
+            Differ.Assert(
+                expectedResponse.headers,
+                // TODO: the headers are probably not going to be right without at least adding in some synthetic ones
+                // which I don't intend to be part of the actual HttpRequestReply object
+                // (though which should appear during conversion to HttpResponseMessage)
+                actualResponse.headers
+                |> Option.defaultValue OrderedMap.empty
+                |> OrderedMap.toList,
+                param =
+                    { Differ.AssertPrintParams with
+                        neutralName = "Response headers" }
+            )
+        @>

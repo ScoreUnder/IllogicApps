@@ -2,6 +2,7 @@ module IllogicApps.Core.Program
 
 open System.IO
 
+open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Json
 open ReadLogicApp
 open IllogicApps.Simulator
@@ -37,7 +38,7 @@ let logicAppNamesStr =
 System.Console.WriteLine($"Enter workflow name (one of {logicAppNamesStr}):")
 let userInput = System.Console.In.ReadLine()
 
-let sims = runWorkflow userInput (Some(String "Test trigger"))
+let sims = runWorkflow userInput (TriggerCompletion.Invoked HttpRequest.Default)
 
 for sim in sims do
     printfn "\nWorkflow results for %s:\n------------------------\n" sim.WorkflowDetails.name

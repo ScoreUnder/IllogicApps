@@ -35,6 +35,9 @@ module Blob =
     let ofString (contentType: string) (str: string) : JsonTree =
         str |> Base64.ofString |> ofBase64 contentType
 
+    let ofBytes (contentType: string) (bytes: byte array) : JsonTree =
+        bytes |> Base64.ofBytes |> ofBase64 contentType
+
     let binaryOfString (str: string) : JsonTree = str |> ofString ContentType.Binary
 
     let (|Blob|_|) (node: JsonTree) : (string * byte array) option =

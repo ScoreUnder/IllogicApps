@@ -7,33 +7,14 @@ open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Core.LogicAppActionSupport
 open CompletedStepTypes
 open ExternalServiceTypes
+open IllogicApps.Core.HttpModel.HttpParsing
 open IllogicApps.Core.Support
 open IllogicApps.Json
 
 // Triggers
-[<AbstractClass>]
-type Trigger(json) =
-    inherit BaseAction(json)
-
-    abstract member RunFromRequest: HttpRequest -> SimulatorContext -> ActionResult
-
-    override this.RunFromRequest request _context =
-        // If this isn't implemented it's probably a timer trigger or something
-        printfn "WARN: Unimplemented Trigger triggered with %O" request
-        ActionResult.Default
-
-    override this.Execute (_: string) (context: SimulatorContext) =
-        // TODO: Does this ever get called?
-        let triggerResult = context.TriggerResult
-
-        { status = triggerResult.action.status
-          inputs = triggerResult.action.inputs
-          outputs = triggerResult.action.outputs
-          code = triggerResult.action.code
-          error = triggerResult.action.error }
 
 type Request(json) =
-    inherit Trigger(json)
+    inherit BaseTrigger(json)
 
     let kind = JsonTree.getKey "kind" json |> Conversions.ensureString
 
@@ -77,6 +58,9 @@ type Request(json) =
     member val Kind = kind with get
     member val Inputs = inputs with get
 
+    override this.ProcessInputs context =
+        this.Inputs |> Option.map (_.ToJson() >> context.EvaluateLanguage)
+
     override this.RunFromRequest request context =
         let method = request.method
         let relativePath = request.relativePath
@@ -110,9 +94,13 @@ type Request(json) =
 
             match matches with
             | Some matches ->
-                let inputs =
-                    { HttpRequestTriggerInputs.method = expectedMethod
-                      relativePath = expectedRelativePath }
+                let processedInputs =
+                    match inputs with
+                    | Some _ ->
+                        Some
+                            { HttpRequestTriggerInputs.method = expectedMethod
+                              relativePath = expectedRelativePath }
+                    | None -> None
 
                 let matchOutputs = if OrderedMap.isEmpty matches then None else Some matches
 
@@ -124,7 +112,7 @@ type Request(json) =
 
                 { ActionResult.Default with
                     status = Succeeded
-                    inputs = Some(inputs.ToJson())
+                    inputs = processedInputs |> Option.map _.ToJson()
                     outputs = Some(outputs.ToJson()) }
             | None ->
                 { ActionResult.Default with
@@ -760,8 +748,7 @@ type Http(json) =
             |> Option.map (OrderedMap.Builder().AddRange)
             |> Option.defaultValue (OrderedMap.Builder())
 
-        let processedContent =
-            ExternalServiceTypeConversions.contentOfJson processedInputs.body
+        let processedContent = contentOfJson processedInputs.body
 
         // Add content-type if missing
         // TODO case-insensitivity

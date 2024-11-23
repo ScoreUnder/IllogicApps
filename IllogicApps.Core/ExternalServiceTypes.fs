@@ -21,6 +21,13 @@ type HttpRequest =
       headers: OrderedMap<string, string> option
       body: JsonTree option }
 
+    static member Default =
+        { method = HttpMethod.Post
+          relativePath = ""
+          queries = None
+          headers = None
+          body = None }
+
     member request.ToJson() =
         OrderedMap
             .Builder()
