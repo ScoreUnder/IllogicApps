@@ -95,10 +95,7 @@ let traceEvaluationParsed expr =
                 |> List.map trace'
                 |> TraceResult.sequence
                 |> TraceResult.step (fun args -> LanguageParser.Call(name, args)) (fun args ->
-                    match BuiltinFunctions.functions.TryGetValue(name) with
-                    | true, func ->
-                        Changes(args |> List.map unpackLiteral |> func simContext |> LanguageParser.Literal)
-                    | _ -> TraceError <| LanguageEvaluator.ErrorMessages.badFunctionCall name)
+                    Changes(args |> List.map unpackLiteral |> func simContext |> LanguageParser.Literal))
             | _ ->
                 match OrderedMap.tryFindCaseInsensitive name BuiltinFunctions.lazyFunctions with
                 | Some func ->
