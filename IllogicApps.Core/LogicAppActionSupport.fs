@@ -5,6 +5,42 @@ open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Json
 
+type HttpRequestTriggerInputs =
+    { method: string option
+      relativePath: string option }
+
+    member this.ToJson() =
+        OrderedMap
+            .Builder()
+            .MaybeAdd("method", this.method)
+            .MaybeAdd("relativePath", this.relativePath)
+            .Build()
+        |> Object
+
+    override this.ToString() = this.ToJson().ToString()
+
+let httpRequestTriggerInputsOfJson json =
+    { method = JsonTree.tryGetKey "method" json |> Option.map Conversions.ensureString
+      relativePath = JsonTree.tryGetKey "relativePath" json |> Option.map Conversions.ensureString }
+
+type HttpRequestTriggerOutputs =
+    { relativePathParameters: OrderedMap<string, string> option
+      queries: OrderedMap<string, string> option
+      headers: OrderedMap<string, string> option
+      body: JsonTree option }
+
+    member this.ToJson() =
+        OrderedMap
+            .Builder()
+            .MaybeAdd("relativePathParameters", this.relativePathParameters)
+            .MaybeAdd("queries", this.queries)
+            .MaybeAdd("headers", this.headers)
+            .MaybeAdd("body", this.body)
+            .Build()
+        |> Object
+
+    override this.ToString() = this.ToJson().ToString()
+
 type SetVariableSingle = { name: string; value: JsonTree }
 
 let setVariableSingleOfJson json =

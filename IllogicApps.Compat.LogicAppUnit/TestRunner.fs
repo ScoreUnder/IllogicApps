@@ -138,11 +138,19 @@ type TestRunner
     member _.MockHostUri = MOCK_HOST_URI
 
     member this.TriggerWorkflow
-        (queryParams: Dictionary<string, string>, content: HttpContent, requestHeaders: Dictionary<string, string>)
-        : HttpResponseMessage =
+        (
+            queryParams: Dictionary<string, string>,
+            content: HttpContent,
+            method: HttpMethod,
+            relativePath: string,
+            requestHeaders: Dictionary<string, string>
+        ) : HttpResponseMessage =
+
         // First, let's wash our hands
         let queryParams = queryParams |> Option.ofObj
         let content = content |> sanitiseNull (new ByteArrayContent(Array.empty<byte>))
+        let method = method |> sanitiseNull HttpMethod.Post
+        let relativePath = relativePath |> sanitiseNull ""
         let requestHeaders = requestHeaders |> Option.ofObj
 
         // Grab details of HTTP content
@@ -162,7 +170,9 @@ type TestRunner
 
         // Create the trigger outputs
         let request =
-            { HttpRequest.queries = queryParams |> Option.map OrderedMap.CreateRange
+            { HttpRequest.method = method
+              relativePath = relativePath
+              queries = queryParams |> Option.map OrderedMap.CreateRange
               headers = requestHeaders |> Option.map OrderedMap.CreateRange
               body =
                 if contentString.Length = 0 then
@@ -281,39 +291,34 @@ type TestRunner
 
         member this.MockRequests = mockDefinition.MockRequests
 
-        member this.TriggerWorkflow(_method, requestHeaders) =
-            this.TriggerWorkflow(null, null, requestHeaders)
+        member this.TriggerWorkflow(method, requestHeaders) =
+            this.TriggerWorkflow(null, null, method, null, requestHeaders)
 
         member this.TriggerWorkflow
             (queryParams: Dictionary<string, string>, method: HttpMethod, requestHeaders: Dictionary<string, string>)
             : HttpResponseMessage =
-            this.TriggerWorkflow(queryParams, null, requestHeaders)
+            this.TriggerWorkflow(queryParams, null, method, null, requestHeaders)
 
         member this.TriggerWorkflow
             (
                 queryParams: Dictionary<string, string>,
-                _method: HttpMethod,
-                _relativePath: string,
+                method: HttpMethod,
+                relativePath: string,
                 requestHeaders: Dictionary<string, string>
             ) : HttpResponseMessage =
-            this.TriggerWorkflow(queryParams, null, requestHeaders)
+            this.TriggerWorkflow(queryParams, null, method, relativePath, requestHeaders)
 
         member this.TriggerWorkflow
-            (content: HttpContent, _method: HttpMethod, requestHeaders: Dictionary<string, string>)
+            (content: HttpContent, method: HttpMethod, requestHeaders: Dictionary<string, string>)
             : HttpResponseMessage =
-            this.TriggerWorkflow(null, content, requestHeaders)
+            this.TriggerWorkflow(null, content, method, null, requestHeaders)
 
         member this.TriggerWorkflow
-            (
-                content: HttpContent,
-                _method: HttpMethod,
-                _relativePath: string,
-                requestHeaders: Dictionary<string, string>
-            ) : HttpResponseMessage =
-            this.TriggerWorkflow(null, content, requestHeaders)
+            (content: HttpContent, method: HttpMethod, relativePath: string, requestHeaders: Dictionary<string, string>) : HttpResponseMessage =
+            this.TriggerWorkflow(null, content, method, relativePath, requestHeaders)
 
-        member this.TriggerWorkflow(queryParams, content, _method, _relativePath, requestHeaders) =
-            this.TriggerWorkflow(queryParams, content, requestHeaders)
+        member this.TriggerWorkflow(queryParams, content, method, relativePath, requestHeaders) =
+            this.TriggerWorkflow(queryParams, content, method, relativePath, requestHeaders)
 
         member this.WaitForAsynchronousResponse(maxTimeoutSeconds: int) : unit =
             asyncResponseTimeout <- Some(TimeSpan.FromSeconds(float maxTimeoutSeconds))

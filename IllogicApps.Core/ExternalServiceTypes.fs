@@ -1,5 +1,6 @@
 module IllogicApps.Core.ExternalServiceTypes
 
+open System.Net.Http
 open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Core.HttpModel.RetryPolicy
 open IllogicApps.Json
@@ -14,18 +15,26 @@ type HttpServiceRequest =
       authentication: JsonTree }
 
 type HttpRequest =
-    { queries: OrderedMap<string, string> option
+    { method: HttpMethod
+      relativePath: string
+      queries: OrderedMap<string, string> option
       headers: OrderedMap<string, string> option
       body: JsonTree option }
 
-let jsonOfHttpRequest request =
-    OrderedMap
-        .Builder()
-        .MaybeAdd("queries", request.queries |> Option.map Conversions.jsonOfStringsMap)
-        .MaybeAdd("headers", request.headers |> Option.map Conversions.jsonOfStringsMap)
-        .MaybeAdd("body", request.body)
-        .Build()
-    |> Object
+    member request.ToJson() =
+        OrderedMap
+            .Builder()
+            .Add("method", String request.method.Method)
+            .Add("relativePath", String request.relativePath)
+            .MaybeAdd("queries", request.queries |> Option.map Conversions.jsonOfStringsMap)
+            .MaybeAdd("headers", request.headers |> Option.map Conversions.jsonOfStringsMap)
+            .MaybeAdd("body", request.body)
+            .Build()
+        |> Object
+
+    override request.ToString() = request.ToJson().ToString()
+
+let inline jsonOfHttpRequest (request: HttpRequest) = request.ToJson()
 
 type HttpRequestReply =
     { statusCode: int

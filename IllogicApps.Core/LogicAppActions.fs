@@ -11,15 +11,19 @@ open IllogicApps.Core.Support
 open IllogicApps.Json
 
 // Triggers
-
-type Request(json) =
+[<AbstractClass>]
+type Trigger(json) =
     inherit BaseAction(json)
 
-    member val Kind = JsonTree.getKey "kind" json |> Conversions.ensureString with get
+    abstract member RunFromRequest: HttpRequest -> SimulatorContext -> ActionResult
+
+    override this.RunFromRequest request _context =
+        // If this isn't implemented it's probably a timer trigger or something
+        printfn "WARN: Unimplemented Trigger triggered with %O" request
+        ActionResult.Default
 
     override this.Execute (_: string) (context: SimulatorContext) =
         // TODO: Does this ever get called?
-
         let triggerResult = context.TriggerResult
 
         { status = triggerResult.action.status
@@ -27,6 +31,104 @@ type Request(json) =
           outputs = triggerResult.action.outputs
           code = triggerResult.action.code
           error = triggerResult.action.error }
+
+type Request(json) =
+    inherit Trigger(json)
+
+    let kind = JsonTree.getKey "kind" json |> Conversions.ensureString
+
+    let inputs =
+        JsonTree.tryGetKeyCaseInsensitive "inputs" json
+        |> Option.map httpRequestTriggerInputsOfJson
+
+    do
+        match inputs with
+        | Some { method = None; relativePath = Some _ } ->
+            failwith $"{nameof Request} trigger: Method is required when relativePath is specified"
+        | _ -> ()
+
+        match kind with
+        | "Http" -> ()
+        | _ -> printfn "WARN: %s trigger: Kind '%s' is not supported" (nameof Request) kind
+
+    let matchPathComponents (expectedRelativePath: string) (relativePath: string) =
+        let expectedComponents = expectedRelativePath.TrimStart('/').Split('/')
+        let actualComponents = relativePath.Split('/')
+
+        if expectedComponents.Length <> actualComponents.Length then
+            None
+        else
+            Seq.fold2
+                (fun (acc: OrderedMap.Builder<string, string> option) (expected: string) (actual: string) ->
+                    match acc with
+                    | None -> None
+                    | Some acc ->
+                        if expected.StartsWith("{") && expected.EndsWith("}") then
+                            acc.Add(expected.Substring(1, expected.Length - 2), actual) |> Some
+                        elif expected = actual then
+                            Some acc
+                        else
+                            None)
+                (Some(OrderedMap.Builder()))
+                expectedComponents
+                actualComponents
+            |> Option.map _.Build()
+
+    member val Kind = kind with get
+    member val Inputs = inputs with get
+
+    override this.RunFromRequest request context =
+        let method = request.method
+        let relativePath = request.relativePath
+
+        let expectedMethod =
+            match this.Inputs with
+            | Some { method = Some m } ->
+                m
+                |> String
+                |> context.EvaluateLanguage
+                |> Conversions.ensureString
+                |> _.ToUpperInvariant()
+                |> Some
+            | _ -> None
+
+        let expectedRelativePath =
+            match this.Inputs with
+            | Some { relativePath = Some p } ->
+                p |> String |> context.EvaluateLanguage |> Conversions.ensureString |> Some
+            | _ -> None
+
+        match expectedMethod with
+        | Some m when m <> method.Method ->
+            { ActionResult.Default with
+                status = Failed }
+        | _ ->
+            let matches =
+                match expectedRelativePath with
+                | Some expectedRelativePath -> matchPathComponents expectedRelativePath relativePath
+                | _ -> Some OrderedMap.empty
+
+            match matches with
+            | Some matches ->
+                let inputs =
+                    { HttpRequestTriggerInputs.method = expectedMethod
+                      relativePath = expectedRelativePath }
+
+                let matchOutputs = if OrderedMap.isEmpty matches then None else Some matches
+
+                let outputs =
+                    { relativePathParameters = matchOutputs
+                      queries = request.queries
+                      headers = request.headers
+                      body = request.body }
+
+                { ActionResult.Default with
+                    status = Succeeded
+                    inputs = Some(inputs.ToJson())
+                    outputs = Some(outputs.ToJson()) }
+            | None ->
+                { ActionResult.Default with
+                    status = Failed }
 
 // Actions
 
