@@ -2,7 +2,7 @@ module internal IllogicApps.Compat.LogicAppUnit.InternalHelper
 
 open IllogicApps.Json
 
-let inline sanitiseNull (def: 'a) (value: 'a) = if value = null then def else value
+let inline sanitiseNull (def: 'a) (value: 'a) = if isNull value then def else value
 
 let parseQueryString =
     function

@@ -44,7 +44,7 @@ type ContentHelper =
         ArgumentNullException.ThrowIfNull(value, nameof value)
         ArgumentNullException.ThrowIfNull(contentType, nameof contentType)
 
-        let encoding = if encoding = null then Encoding.UTF8 else encoding
+        let encoding = if isNull encoding then Encoding.UTF8 else encoding
 
         new StringContent(value, encoding, contentType)
 
