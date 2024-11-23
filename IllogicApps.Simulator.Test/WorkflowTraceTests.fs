@@ -182,7 +182,7 @@ let namedTestCases names =
     |> List.ofSeq
 
 let ``Test cases for workflows that respond with trigger`` =
-    namedTestCases [ "simpleRelativePath" ]
+    namedTestCases [ "simpleRelativePath"; "simpleEcho" ]
 
 [<TestCaseSource(nameof ``Test cases for workflows that respond with trigger``)>]
 let ``Test IllogicApps output matches logic app trace for workflows that respond with trigger`` workflowName traceName =
