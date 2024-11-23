@@ -1,5 +1,7 @@
 module IllogicApps.Json.Test.Benchmarks
 
+open System.Text.Json
+open System.Text.Json.Nodes
 open BenchmarkDotNet.Attributes
 open IllogicApps.Json
 
@@ -19,8 +21,9 @@ let bigJson =
 type GetterBenchmarks() =
     let alreadyParsed = Parser.parse bigJson.Value
 
-    let alreadyParsedSystemText =
-        System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.Nodes.JsonNode>(bigJson.Value)
+    let alreadyParsedSystemTextNode = JsonNode.Parse(bigJson.Value)
+
+    let alreadyParsedSystemTextDocument = JsonDocument.Parse(bigJson.Value)
 
     [<Benchmark(Baseline = true)>]
     member _.AccessBigJson() =
@@ -55,8 +58,8 @@ type GetterBenchmarks() =
         |> Option.get
 
     [<Benchmark>]
-    member _.SystemTextJson() =
-        alreadyParsedSystemText
+    member _.SystemTextJsonNode() =
+        alreadyParsedSystemTextNode
             .AsObject()
             .["definition"].AsObject()
             .["actions"].AsObject()
@@ -64,6 +67,16 @@ type GetterBenchmarks() =
             .["actions"].AsObject()
             .["Compose"].AsObject()
             .["inputs"]
+
+    [<Benchmark>]
+    member _.SystemTextJsonDocument() =
+        alreadyParsedSystemTextDocument.RootElement
+            .GetProperty("definition")
+            .GetProperty("actions")
+            .GetProperty("Condition")
+            .GetProperty("actions")
+            .GetProperty("Compose")
+            .GetProperty("inputs")
 
 type ParserBenchmark() =
     [<Benchmark(Baseline = true)>]
