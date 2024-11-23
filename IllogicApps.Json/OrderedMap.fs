@@ -302,6 +302,40 @@ module OrderedMap =
         let key = caseInsensitiveKey key m
         find key m
 
+    let inline findMapOrElse
+        (key: 'K)
+        ([<InlineIfLambda>] ``then``: 'V -> 'T)
+        ([<InlineIfLambda>] ``else``: unit -> 'T)
+        (m: OrderedMap<'K, 'V>)
+        : 'T =
+        match m.TryGetValue key with
+        | true, v -> ``then`` v
+        | _ -> ``else`` ()
+
+    let inline findCaseInsensitiveMapOrElse
+        (key: string)
+        ([<InlineIfLambda>] ``then``: 'V -> 'T)
+        ([<InlineIfLambda>] ``else``: unit -> 'T)
+        (m: OrderedMap<string, 'V>)
+        : 'T =
+        match tryCaseInsensitiveKey key m with
+        | Some key -> ``then`` m.[key]
+        | None -> ``else`` ()
+
+    let inline findOrElse (key: 'K) ([<InlineIfLambda>] ``else``: unit -> 'V) (m: OrderedMap<'K, 'V>) : 'V =
+        // ReSharper disable once FSharpBuiltinFunctionReimplementation
+        // (`id` function is not inlined)
+        findMapOrElse key (fun x -> x) ``else`` m
+
+    let inline findCaseInsensitiveOrElse
+        (key: string)
+        ([<InlineIfLambda>] ``else``: unit -> 'V)
+        (m: OrderedMap<string, 'V>)
+        : 'V =
+        // ReSharper disable once FSharpBuiltinFunctionReimplementation
+        // (`id` function is not inlined)
+        findCaseInsensitiveMapOrElse key (fun x -> x) ``else`` m
+
     let pick (f: 'K -> 'V -> 'State option) (m: OrderedMap<'K, 'V>) : 'State =
         Seq.pick (fun (KeyValue(k, v)) -> f k v) m
 

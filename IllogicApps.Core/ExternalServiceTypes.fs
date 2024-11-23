@@ -89,29 +89,25 @@ let jsonOfWorkflowRequest req =
     |> Object
 
 let workflowRequestOfJson json =
-    { actionName =
-        JsonTree.tryGetKey "actionName" json
-        |> Option.map Conversions.ensureString
-        |> Option.defaultValue ""
+    { actionName = JsonTree.getKeyMapOrElse "actionName" Conversions.ensureString (fun () -> "") json
       workflowId =
         JsonTree.getKey "host" json
         |> JsonTree.getKey "workflow"
         |> JsonTree.getKey "id"
         |> Conversions.ensureString
       headers =
-        JsonTree.tryGetKey "headers" json
-        |> Option.map (fun headers ->
-            headers
-            |> Conversions.ensureObject
-            // TODO: The designer should stringify all header values, but non-stringified ones
-            // are still valid. Needs looking into re. specifics
-            |> OrderedMap.mapValuesOnly Conversions.rawStringOfJson)
-        |> Option.defaultValue OrderedMap.empty
-      body = JsonTree.tryGetKey "body" json |> Conversions.jsonOfOption
-      asyncSupported =
-        JsonTree.tryGetKey "asyncSupported" json
-        |> Option.map Conversions.ensureBoolean
-        |> Option.defaultValue true
+        JsonTree.getKeyMapOrElse
+            "headers"
+            (fun headers ->
+                headers
+                |> Conversions.ensureObject
+                // TODO: The designer should stringify all header values, but non-stringified ones
+                // are still valid. Needs looking into re. specifics
+                |> OrderedMap.mapValuesOnly Conversions.rawStringOfJson)
+            (fun () -> OrderedMap.empty)
+            json
+      body = JsonTree.getKeyOrNull "body" json
+      asyncSupported = JsonTree.getKeyMapOrElse "asyncSupported" Conversions.ensureBoolean (fun () -> true) json
       retryPolicy = JsonTree.tryGetKey "retryPolicy" json |> Option.map retryPolicyOfJson }
 
 type WorkflowRunDetails =
