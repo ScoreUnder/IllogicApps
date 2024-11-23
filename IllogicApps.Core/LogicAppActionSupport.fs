@@ -5,9 +5,6 @@ open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Json
 
-let fromKvps seq =
-    Seq.map (fun (KeyValue(k, v)) -> k, v) seq
-
 type SetVariableSingle = { name: string; value: JsonTree }
 
 let setVariableSingleOfJson json =

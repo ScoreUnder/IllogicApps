@@ -67,7 +67,7 @@ type If(resolveAction, json) =
             else
                 this.Else.actions, this.Actions in
 
-        otherActions |> fromKvps |> context.ForceSkipAll
+        otherActions |> OrderedMap.toSeq |> context.ForceSkipAll
 
         let result = context.ExecuteGraph actions in
 
@@ -147,7 +147,7 @@ type Switch(resolveAction, json) =
         |> Seq.map _.actions
         |> Seq.append [ this.Default.actions ]
         |> Seq.filter (fun selectedActions -> selectedActions <> actions)
-        |> Seq.collect fromKvps
+        |> Seq.collect OrderedMap.toSeq
         |> context.ForceSkipAll
 
         let result = context.ExecuteGraph actions in
