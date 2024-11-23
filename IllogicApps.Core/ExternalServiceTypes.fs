@@ -172,7 +172,7 @@ type ScriptExecutionRequest =
       language: ScriptingLanguage
       actions: OrderedMap<string, CompletedAction>
       workflow: WorkflowDetails
-      trigger: CompletedTrigger }
+      trigger: CompletedAction }
 
 type ServiceProviderConfiguration =
     { connectionName: string

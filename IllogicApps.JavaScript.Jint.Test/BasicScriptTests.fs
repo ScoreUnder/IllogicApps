@@ -10,21 +10,8 @@ open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.JavaScript.Jint.Handler
 
 let mockSim () = Foq.Mock<SimulatorContext>().Create()
-
 let makeResult () = ref (Error "No result")
-
-let defaultAction =
-    { code = Some OK
-      status = Succeeded
-      error = None
-      inputs = None
-      outputs = None
-      name = "Action"
-      endTime = ""
-      startTime = ""
-      trackedProperties = None
-      trackingId = ""
-      clientTrackingId = "" }
+let defaultAction = CompletedAction.create "Action" ""
 
 let makeActions seq =
     seq
@@ -40,7 +27,7 @@ let makeRequest actions code result =
         { actions = actions
           language = JavaScript
           source = Inline code
-          trigger = CompletedTrigger.create defaultAction
+          trigger = defaultAction
           workflow = WorkflowDetails.Create "123" "TestWorkflow" "0abc" },
         result
     )

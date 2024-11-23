@@ -68,7 +68,7 @@ let jintJavascriptHandler (_sim: SimulatorContext) (request: ExternalServiceRequ
         engine.SetValue(
             "workflowContext",
             [ "actions", actions |> OrderedMap.mapValuesOnly jsonOfCompletedAction |> Object
-              "trigger", trigger |> jsonOfCompletedTrigger
+              "trigger", trigger |> jsonOfCompletedAction
               "workflow", workflow |> jsonOfWorkflowDetails ]
             |> Conversions.createObject
             |> jsValueOfJson engine

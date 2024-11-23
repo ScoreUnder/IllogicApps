@@ -899,7 +899,7 @@ let f_parameters (sim: SimulatorContext) (args: Args) : JsonTree =
 let f_trigger (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 0 args
 
-    CompletedStepTypes.jsonOfCompletedTrigger sim.TriggerResult
+    CompletedStepTypes.jsonOfCompletedAction sim.TriggerResult
 
 let f_triggerBody (sim: SimulatorContext) (args: Args) : JsonTree =
     f_trigger sim args

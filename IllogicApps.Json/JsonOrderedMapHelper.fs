@@ -29,6 +29,12 @@ type OrderedMapBuilderExtensions =
         | None -> map
         | Some value -> map.Add(key, Conversions.jsonOfStringsMap value)
 
+    [<Extension>]
+    static member MaybeTryAdd(map: OrderedMap.Builder<string, string>, key: string, value: string option) =
+        match value with
+        | None -> map
+        | Some s -> map.TryAdd(key, s)
+
 type OrderedMapExtensions =
     [<Extension>]
     static member TryAdd(map: OrderedMap<string, 'V>, key: string, value: 'V, comparison: System.StringComparer) =

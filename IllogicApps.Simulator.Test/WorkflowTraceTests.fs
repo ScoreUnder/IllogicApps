@@ -1,6 +1,7 @@
 module IllogicApps.Simulator.Test.WorkflowTraceTests
 
 open System
+open System.Collections.Generic
 open System.IO
 open System.Net.Http
 open System.Reflection
@@ -183,8 +184,7 @@ let namedTestCases names =
     |> Seq.map TestCaseData
     |> List.ofSeq
 
-let logicAppHostQueryKeys =
-    [| "api-version"; "sp"; "sv"; "sig" |]
+let logicAppHostQueryKeys = [| "api-version"; "sp"; "sv"; "sig" |]
 
 let ``Test cases for workflows that respond with trigger`` =
     namedTestCases [ "simpleRelativePath"; "simpleEcho" ]
@@ -264,14 +264,32 @@ let ``Test IllogicApps output matches logic app trace for workflows that respond
         | _ -> false
 
     let triggerRequest =
-        let headers = request.headers |> OrderedMap.ofList
+        let headers =
+            // Round-trip the headers via HttpRequestHeaders (which can only be instantiated by a HttpRequestMessage)
+            // and sort the header keys from the Headers slot (but not the Content.Headers slot)
+            // to ensure that they are ordered the same way the Logic Apps host orders them
+            use requestContent = new ByteArrayContent(Array.empty)
+            use requestMessage = new HttpRequestMessage(Content = requestContent)
+
+            request.headers
+            |> List.iter (fun (k, v) ->
+                if not (requestMessage.Headers.TryAddWithoutValidation(k, v)) then
+                    if not (requestMessage.Content.Headers.TryAddWithoutValidation(k, v)) then
+                        failwithf "Don't know where to put the %s header" k)
+
+            let sortedInitialHeaders =
+                requestMessage.Headers |> Seq.sortBy (fun (KeyValue(k, _)) -> k)
+
+            Seq.append sortedInitialHeaders requestMessage.Content.Headers
+            |> Seq.map (fun (KeyValue(k, v)) -> KeyValuePair(k, v |> String.concat ","))
+            |> OrderedMap.CreateRange
 
         let contentType = headers |> OrderedMap.tryFind "Content-Type"
 
         { method = HttpMethod.Parse request.httpMethod
           relativePath = relativePathPart
           queries = parsedQuery
-          headers = request.headers |> OrderedMap.ofList |> Some
+          headers = Some headers
           body = decodeOptionalBodyByContentType contentType request.body }
 
     let simCreationOptions =
@@ -291,12 +309,10 @@ let ``Test IllogicApps output matches logic app trace for workflows that respond
         | Completed t ->
             Completed
                 { t with
-                    action =
-                        { t.action with
-                            startTime = startTime
-                            endTime = endTime
-                            clientTrackingId = clientTrackingId
-                            trackingId = trackingId } })
+                    startTime = startTime
+                    endTime = endTime
+                    clientTrackingId = clientTrackingId
+                    trackingId = trackingId })
 
     sim.RunWholeWorkflow logicApp.definition.actions
 

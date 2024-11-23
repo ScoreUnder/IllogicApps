@@ -179,7 +179,7 @@ type private ArrayOperationContextImpl(values: JsonTree list, disposeHook: Array
             values.Head
 
 type TriggerCompletion =
-    | Completed of CompletedTrigger
+    | Completed of CompletedAction
     | Invoked of HttpRequest
 
 [<Struct>]
@@ -197,7 +197,7 @@ type SimulatorCreationOptions =
         { workflowName = "unnamed_workflow"
           runId = ""
           originatingRunId = ""
-          triggerResult = Completed(CompletedTrigger.create <| CompletedAction.create "" "")
+          triggerResult = Completed(CompletedAction.create "" "")
           externalServiceHandlers = []
           isBugForBugAccurate = true
           appConfig = OrderedMap.empty
@@ -247,7 +247,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
             trackedProperties = trackedProperties
             error = result.error
             code = result.code
-            clientTrackingId = this.TriggerResult.action.clientTrackingId }
+            clientTrackingId = this.TriggerResult.clientTrackingId }
 
     let recordResultOf name (action: BaseAction) (f: unit -> ActionResult) =
         let startTime = DateTime.UtcNow
@@ -264,19 +264,18 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
             // Set a dummy value for the trigger result, so that we have an initial clientTrackingId/inputs/etc
             triggerResult <-
                 Completed
-                    { CompletedTrigger.create
-                          { CompletedAction.create name (stringOfDateTime startTime) with
-                              inputs = trigger.ProcessInputs this
-                              endTime = ""
-                              clientTrackingId = creationOptions.runId } with
-                        originHistoryName = creationOptions.originatingRunId }
+                    { CompletedAction.create name (stringOfDateTime startTime) with
+                        inputs = trigger.ProcessInputs this
+                        endTime = ""
+                        clientTrackingId = creationOptions.runId
+                        originHistoryName = Some creationOptions.originatingRunId }
 
             let result =
                 executeAction startTime name trigger (fun () -> trigger.RunFromRequest request this)
 
             let result =
-                { CompletedTrigger.create result with
-                    originHistoryName = creationOptions.originatingRunId }
+                { result with
+                    originHistoryName = Some creationOptions.originatingRunId }
 
             triggerResult <- Completed result
         with _ ->

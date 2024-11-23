@@ -73,7 +73,7 @@ and SimulatorContext =
     abstract ArrayOperationContext: ArrayOperationContext option
 
     /// Gets the result of the trigger which invoked this workflow.
-    abstract TriggerResult: CompletedTrigger
+    abstract TriggerResult: CompletedAction
 
     /// Gets the results of all actions executed so far.
     abstract AllActionResults: OrderedMap<string, CompletedAction>
@@ -138,11 +138,11 @@ type BaseTrigger(json) =
         // for any reason other than curiosity.
         let triggerResult = context.TriggerResult
 
-        { status = triggerResult.action.status
-          inputs = triggerResult.action.inputs
-          outputs = triggerResult.action.outputs
-          code = triggerResult.action.code
-          error = triggerResult.action.error }
+        { status = triggerResult.status
+          inputs = triggerResult.inputs
+          outputs = triggerResult.outputs
+          code = triggerResult.code
+          error = triggerResult.error }
 
 module BaseAction =
     let getAllChildren start =

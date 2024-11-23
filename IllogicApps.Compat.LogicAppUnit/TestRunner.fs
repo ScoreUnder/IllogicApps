@@ -319,7 +319,7 @@ type TestRunner
             asyncResponseTimeout <- Some(TimeSpan.FromSeconds(float maxTimeoutSeconds))
 
         member this.WaitForAsynchronousResponse(maxTimeout: TimeSpan) : unit = asyncResponseTimeout <- Some maxTimeout
-        member this.WorkflowClientTrackingId = mySim().TriggerResult.action.clientTrackingId
+        member this.WorkflowClientTrackingId = mySim().TriggerResult.clientTrackingId
         member this.WorkflowRunId = mySim().WorkflowDetails.run.name
 
         member this.WorkflowRunStatus =

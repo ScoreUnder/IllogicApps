@@ -17,8 +17,8 @@ let addWorkflowResponseHeaders (sim: SimulatorContext) (headers: OrderedMap<stri
         .AddRange(headers)
         .TryAdd("x-ms-workflow-run-id", workflowDetails.run.name)
         .TryAdd("x-ms-correlation-id", correlationId)
-        .TryAdd("x-ms-client-tracking-id", trigger.action.clientTrackingId)
-        .TryAdd("x-ms-trigger-history-name", trigger.originHistoryName)
+        .TryAdd("x-ms-client-tracking-id", trigger.clientTrackingId)
+        .MaybeTryAdd("x-ms-trigger-history-name", trigger.originHistoryName)
         .TryAdd("x-ms-workflow-system-id", $"/scaleunits/prod-00/{workflowDetails.id}")
         .TryAdd("x-ms-workflow-id", workflowDetails.id.Split('/') |> Array.last)
         .TryAdd("x-ms-workflow-name", workflowDetails.name)
@@ -102,13 +102,12 @@ let buildWorkflowFamily
                 let newRunId = makeNewWorkflowRunId ()
 
                 let triggerResult =
-                    { CompletedTrigger.create
-                          { CompletedAction.create
-                                (workflow.definition.triggers.Keys |> Seq.head)
-                                (stringOfDateTime DateTime.UtcNow) with
-                              outputs = Some outputs
-                              clientTrackingId = newRunId } with
-                        originHistoryName = rootWorkflowId }
+                    { CompletedAction.create
+                          (workflow.definition.triggers.Keys |> Seq.head)
+                          (stringOfDateTime DateTime.UtcNow) with
+                        outputs = Some outputs
+                        clientTrackingId = newRunId
+                        originHistoryName = Some rootWorkflowId }
 
                 // If we ever go full async, I'll need a promise for the sim here because the outer workflow might
                 // finish before the inner one (because it only needs to wait until a response is received)
