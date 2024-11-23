@@ -177,7 +177,7 @@ type ServiceProviderInputs =
     override this.ToString() = this.ToJson().ToString()
 
 let serviceProviderInputsOfJson json =
-    { parameters = JsonTree.tryGetKey "parameters" json |> Conversions.jsonOfOption
+    { parameters = JsonTree.getKeyOrNull "parameters" json
       serviceProviderConfiguration =
         JsonTree.getKey "serviceProviderConfiguration" json
         |> serviceProviderConfigurationOfJson }
