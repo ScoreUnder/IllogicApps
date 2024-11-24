@@ -60,12 +60,8 @@ let (|ContentTypedAny|_|) (node: JsonTree) =
     match node with
     | Blob.Blob(contentType, content) -> Some(contentType, content)
     | Null -> None
-    | String s -> Some(ContentType.Charset.set ContentType.Text ContentType.Charset.Utf8, Encoding.UTF8.GetBytes s)
-    | n ->
-        Some(
-            ContentType.Charset.set ContentType.Json ContentType.Charset.Utf8,
-            Encoding.UTF8.GetBytes(objectToString n)
-        )
+    | String s -> Some(ContentType.TextUtf8, Encoding.UTF8.GetBytes s)
+    | n -> Some(ContentType.JsonUtf8, Encoding.UTF8.GetBytes(objectToString n))
 
 type Arithmetic2Type =
     | Add
