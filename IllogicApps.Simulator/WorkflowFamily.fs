@@ -37,7 +37,8 @@ let buildWorkflowFamily
                 workflowName = name
                 runId = runId
                 originatingRunId = rootWorkflowId
-                triggerResult = triggerResult }
+                triggerResult = triggerResult
+                isStateless = Simulator.workflowIsStateless workflow }
 
         settingsBuilder optionsBase (handleWorkflowRequest responseHook)
         |> Simulator.Trigger (defn.triggers |> OrderedMap.toSeq |> Seq.head) defn.actions

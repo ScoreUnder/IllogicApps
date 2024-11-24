@@ -192,6 +192,7 @@ type SimulatorCreationOptions =
       triggerResult: TriggerCompletion
       externalServiceHandlers: ExternalServiceHandler list
       isBugForBugAccurate: bool
+      isStateless: bool
       appConfig: OrderedMap<string, string>
       parameters: OrderedMap<string, Parameter> }
 
@@ -204,6 +205,7 @@ type SimulatorCreationOptions =
           triggerResult = Completed(CompletedAction.create "" "")
           externalServiceHandlers = []
           isBugForBugAccurate = true
+          isStateless = false
           appConfig = OrderedMap.empty
           parameters = OrderedMap.empty }
 
@@ -215,6 +217,10 @@ type SimulatorCreationOptions =
             originatingRunId = runId
             triggerResult = Invoked httpRequest
             externalServiceHandlers = [ loggingHandler; noOpHandler ] }
+
+module Simulator =
+    let workflowIsStateless (workflow: LogicAppSpec.Root) =
+        workflow.kind.Equals("stateless", StringComparison.OrdinalIgnoreCase)
 
 type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     let isBugForBugAccurate = creationOptions.isBugForBugAccurate
@@ -237,6 +243,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         let trackedProperties =
             match result.status with
             | Skipped -> None
+            | _ when creationOptions.isStateless -> None
             | _ ->
                 action.TrackedProperties
                 |> Object
@@ -343,7 +350,8 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         Simulator.Trigger
             (logicApp.definition.triggers |> OrderedMap.toSeq |> Seq.head)
             logicApp.definition.actions
-            (SimulatorCreationOptions.createSimple logicApp triggerOutputs)
+            { SimulatorCreationOptions.createSimple logicApp triggerOutputs with
+                isStateless = Simulator.workflowIsStateless logicApp }
 
     member val TerminationStatus: Result<Status, Status * TerminateRunError option> = Ok Skipped with get, set
     member val ActionResults = MutableOrderedMap<string, CompletedAction>() with get

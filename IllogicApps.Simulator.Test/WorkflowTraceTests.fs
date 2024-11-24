@@ -313,7 +313,8 @@ let ``Test IllogicApps output matches logic app trace for workflows that respond
             runId = workflowRunId
             originatingRunId = workflowRunId
             externalServiceHandlers = [ responseHandler ]
-            triggerResult = Invoked triggerRequest }
+            triggerResult = Invoked triggerRequest
+            isStateless = Simulator.workflowIsStateless logicApp }
 
     let sim = Simulator.CreateUntriggered simCreationOptions
 

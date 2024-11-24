@@ -280,7 +280,7 @@ type TestRunner
                 |> OrderedMap.toSeq
                 |> Seq.map (fun (k, v) -> KeyValuePair(k, Conversions.rawStringOfJson v))
                 |> Dictionary<string, string>)
-            |> Option.defaultValue (Dictionary<string, string>())
+            |> Option.toObj
 
         member this.GetWorkflowActionTrackedProperties(actionName, repetitionNumber) = failwith "todo"
 
