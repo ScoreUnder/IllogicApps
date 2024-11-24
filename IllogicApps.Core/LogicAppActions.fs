@@ -9,6 +9,7 @@ open IllogicApps.Core.LogicAppActionSupport
 open CompletedStepTypes
 open ExternalServiceTypes
 open IllogicApps.Core.HttpModel.HttpParsing
+open IllogicApps.Core.HttpModel.HttpWriting
 open IllogicApps.Core.Support
 open IllogicApps.Json
 
@@ -653,8 +654,7 @@ type ServiceProvider(json) =
             result
         )
 
-        let success =
-            ExternalServiceTypeConversions.httpStatusCodeIsSuccess result.Value.statusCode
+        let success = httpStatusCodeIsSuccess result.Value.statusCode
 
         { ActionResult.Default with
             status = if success then Succeeded else Failed
@@ -782,8 +782,7 @@ type Http(json) =
             result
         )
 
-        let success =
-            ExternalServiceTypeConversions.httpStatusCodeIsSuccess result.Value.statusCode
+        let success = httpStatusCodeIsSuccess result.Value.statusCode
         // TODO: retry policy
 
         { ActionResult.Default with
@@ -843,7 +842,7 @@ type Workflow(json) =
         else
             { ActionResult.Default with
                 status =
-                    if ExternalServiceTypeConversions.httpStatusCodeIsSuccess result.Value.statusCode then
+                    if httpStatusCodeIsSuccess result.Value.statusCode then
                         Succeeded
                     else
                         Failed

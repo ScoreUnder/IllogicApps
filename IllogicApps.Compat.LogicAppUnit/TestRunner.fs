@@ -14,6 +14,7 @@ open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.ExternalServiceTypeConversions
 open IllogicApps.Core.HttpModel.HttpParsing
+open IllogicApps.Core.HttpModel.HttpWriting
 open IllogicApps.Core.HttpModel.RetryPolicy
 open IllogicApps.Core.Support
 open IllogicApps.Json

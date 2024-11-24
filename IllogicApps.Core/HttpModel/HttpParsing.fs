@@ -49,9 +49,4 @@ let decodeOptionalBodyByContentType (contentType: string option) (body: byte arr
         let contentType = Option.defaultValue ContentType.Binary contentType
         Some(decodeBodyByContentType contentType body)
 
-let contentOfJson =
-    function
-    | Null -> None
-    | String s -> Some(ContentType.TextUtf8, s |> Encoding.UTF8.GetBytes)
-    | Blob.Blob(contentType, content) -> Some(contentType, content)
-    | json -> Some(ContentType.JsonUtf8, json |> Conversions.stringOfJson |> Encoding.UTF8.GetBytes)
+let httpStatusCodeIsSuccess (code: int) = code >= 200 && code < 300

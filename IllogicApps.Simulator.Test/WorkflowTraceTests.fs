@@ -10,6 +10,7 @@ open System.Text
 open DEdge.Diffract
 open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.HttpModel.HttpParsing
+open IllogicApps.Core.HttpModel.HttpWriting
 open NUnit.Framework
 open Swensen.Unquote
 

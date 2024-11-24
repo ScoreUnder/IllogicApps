@@ -11,6 +11,7 @@
         <Compile Include="Support\LogicAppHeaders.fs"/>
         <Compile Include="HttpModel\RetryPolicy.fs"/>
         <Compile Include="HttpModel\HttpParsing.fs"/>
+        <Compile Include="HttpModel\HttpWriting.fs"/>
         <Compile Include="CompletedStepTypes.fs"/>
         <Compile Include="ExternalServiceTypes.fs"/>
         <Compile Include="ExternalServiceTypeConversions.fs"/>
