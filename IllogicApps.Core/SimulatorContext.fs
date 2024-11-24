@@ -129,11 +129,6 @@ type BaseTrigger(json) =
 
     abstract member RunFromRequest: HttpRequest -> SimulatorContext -> ActionResult
 
-    override this.RunFromRequest request _context =
-        // If this isn't implemented it's probably a timer trigger or something
-        printfn "WARN: Unimplemented Trigger triggered with %O" request
-        ActionResult.Default
-
     override this.Execute (_: string) (context: SimulatorContext) =
         // TODO: Does this ever get called?
         // On a well-formed workflow that is. I think there is a way to add triggers to the

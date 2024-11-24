@@ -22,6 +22,21 @@ type UnknownAction(json) =
 type UnknownTrigger(json) =
     inherit BaseTrigger(json)
 
+    member val Inputs = JsonTree.tryGetKey "inputs" json with get
+
+    override this.ProcessInputs context =
+        this.Inputs |> Option.map context.EvaluateLanguage
+
+    override this.RunFromRequest request context =
+        // If this isn't implemented it's probably a timer trigger or something
+        printfn "WARN: Unimplemented Trigger triggered with %O" request
+
+        // However we still want to be able to give outputs just in case they're necessary
+        { ActionResult.Default with
+            status = Succeeded
+            inputs = this.ProcessInputs context
+            outputs = Some(request.ToJson()) }
+
 let triggerMap =
     Map.ofList<string, JsonTree -> BaseTrigger> [ "Request", (fun v -> Request v) ]
 
