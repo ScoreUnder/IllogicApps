@@ -281,6 +281,17 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
                 { result with
                     originHistoryName = Some creationOptions.originatingRunId }
 
+            // Set an intermediate result before evaluating the clientTrackingId
+            // (so that it can use trigger outputs)
+            triggerResult <- Completed result
+
+            let result =
+                { result with
+                    clientTrackingId =
+                        match trigger.ClientTrackingId with
+                        | Some code -> this.EvaluateLanguage code |> Conversions.ensureString
+                        | None -> creationOptions.runId }
+
             triggerResult <- Completed result
         with _ ->
             triggerResult <- originalTriggerResult

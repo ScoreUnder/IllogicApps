@@ -119,6 +119,10 @@ and SimulatorContext =
 type BaseTrigger(json) =
     inherit BaseAction(json)
 
+    member val ClientTrackingId =
+        JsonTree.tryGetKey "correlation" json
+        |> Option.bind (JsonTree.tryGetKey "clientTrackingId") with get
+
     abstract member ProcessInputs: SimulatorContext -> JsonTree option
 
     override this.ProcessInputs _context = None
