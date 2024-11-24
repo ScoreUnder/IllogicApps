@@ -71,7 +71,7 @@ type WorkflowRequest =
         /// Name of the workflow to be invoked
         workflowId: string
         /// HTTP headers to be sent with the request
-        headers: OrderedMap<string, string>
+        headers: OrderedMap<string, JsonTree>
         /// Request body (not serialized)
         body: JsonTree
         /// Whether async processing is supported (i.e. HTTP 201 + polling)
@@ -88,7 +88,7 @@ let jsonOfWorkflowRequest req =
         .Builder()
         .Add("actionName", String req.actionName)
         .Add("host", Conversions.createObject [ "workflow", Conversions.createObject [ "id", String req.workflowId ] ])
-        .Add("headers", req.headers |> OrderedMap.mapValuesOnly String |> Object)
+        .Add("headers", Object req.headers)
         .MaybeAdd("body", req.body |> Conversions.optionOfJson)
         .Add("asyncSupported", Boolean req.asyncSupported)
         .MaybeAdd("retryPolicy", req.retryPolicy |> Option.map jsonOfRetryPolicy)
@@ -105,12 +105,11 @@ let workflowRequestOfJson json =
       headers =
         JsonTree.getKeyMapOrElse
             "headers"
-            (fun headers ->
-                headers
-                |> Conversions.ensureObject
-                // TODO: The designer should stringify all header values, but non-stringified ones
-                // are still valid. Needs looking into re. specifics
-                |> OrderedMap.mapValuesOnly Conversions.rawStringOfJson)
+            (fun headers -> headers |> Conversions.ensureObject
+            // TODO: The designer should stringify all header values, but non-stringified ones
+            // are still valid. Needs looking into re. specifics
+            // |> OrderedMap.mapValuesOnly Conversions.rawStringOfJson
+            )
             (fun () -> OrderedMap.empty)
             json
       body = JsonTree.getKeyOrNull "body" json

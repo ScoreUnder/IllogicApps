@@ -90,7 +90,9 @@ let netHttpRequestMessageOfWorkflowRequest (req: WorkflowRequest) =
     netReq.Content <- netHttpContentOfJson req.body
 
     req.headers
-    |> OrderedMap.iter (fun k v -> netReq.Headers.TryAddWithoutValidation(k, v) |> ignore)
+    |> OrderedMap.iter (fun k v ->
+        netReq.Headers.TryAddWithoutValidation(k, Conversions.rawStringOfJson v)
+        |> ignore)
 
     // Not implemented, probably shouldn't be handled here: retryPolicy
 

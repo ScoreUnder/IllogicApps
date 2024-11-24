@@ -71,7 +71,7 @@ let buildWorkflowFamily
                 let outputs =
                     OrderedMap
                         .Builder()
-                        .Add("headers", workflowReq.headers |> OrderedMap.mapValuesOnly String |> Object)
+                        .Add("headers", workflowReq.headers |> Object)
                         .MaybeAdd("body", workflowReq.body)
                         .Build()
                     |> Object

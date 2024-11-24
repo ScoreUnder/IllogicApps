@@ -14,6 +14,7 @@ open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.ExternalServiceTypeConversions
 open IllogicApps.Core.HttpModel.HttpParsing
+open IllogicApps.Core.HttpModel.RetryPolicy
 open IllogicApps.Core.Support
 open IllogicApps.Json
 open IllogicApps.Simulator
@@ -48,6 +49,16 @@ type TestRunner
 
     let mySim () = simulators |> List.head
 
+    let compatibleJsonOfWorkflowRequest (req: WorkflowRequest) =
+        OrderedMap
+            .Builder()
+            .Add("host", Conversions.createObject [ "workflow", Conversions.createObject [ "id", String req.workflowId ] ])
+            .Add("headers", req.headers |> Object)
+            .MaybeAdd("body", req.body |> Conversions.optionOfJson)
+            .MaybeAdd("retryPolicy", req.retryPolicy |> Option.map jsonOfRetryPolicy)
+            .Build()
+        |> Object
+
     let defaultHandler (overallResponse: HttpResponseMessage option ref) originWorkflowName (_: SimulatorContext) =
         let getMockResponse request =
             try
@@ -72,7 +83,7 @@ type TestRunner
             true
         | Workflow(request, reply) ->
             let uri = $"{MOCK_HOST_URI}/{request.actionName}"
-            let requestStr = request |> jsonOfWorkflowRequest |> Conversions.stringOfJson
+            let requestStr = request |> compatibleJsonOfWorkflowRequest |> Conversions.stringOfJson
             let content = new StringContent(requestStr, Encoding.UTF8, ContentType.Json)
             let netHttpRequest = new HttpRequestMessage(HttpMethod.Post, uri, Content = content)
             let result = getMockResponse netHttpRequest
