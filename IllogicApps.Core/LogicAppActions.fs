@@ -807,8 +807,7 @@ type Workflow(json) =
         let headers =
             this.Inputs.headers
             |> OrderedMap.map (fun k v ->
-                context.EvaluateLanguage(String k) |> Conversions.ensureString,
-                context.EvaluateLanguage(v))
+                context.EvaluateLanguage(String k) |> Conversions.ensureString, context.EvaluateLanguage(v))
 
         let body = this.Inputs.body |> context.EvaluateLanguage
 

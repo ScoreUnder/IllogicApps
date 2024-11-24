@@ -53,7 +53,10 @@ type TestRunner
     let compatibleJsonOfWorkflowRequest (req: WorkflowRequest) =
         OrderedMap
             .Builder()
-            .Add("host", Conversions.createObject [ "workflow", Conversions.createObject [ "id", String req.workflowId ] ])
+            .Add(
+                "host",
+                Conversions.createObject [ "workflow", Conversions.createObject [ "id", String req.workflowId ] ]
+            )
             .Add("headers", req.headers |> Object)
             .MaybeAdd("body", req.body |> Conversions.optionOfJson)
             .MaybeAdd("retryPolicy", req.retryPolicy |> Option.map jsonOfRetryPolicy)
@@ -84,7 +87,10 @@ type TestRunner
             true
         | Workflow(request, reply) ->
             let uri = $"{MOCK_HOST_URI}/{request.actionName}"
-            let requestStr = request |> compatibleJsonOfWorkflowRequest |> Conversions.stringOfJson
+
+            let requestStr =
+                request |> compatibleJsonOfWorkflowRequest |> Conversions.stringOfJson
+
             let content = new StringContent(requestStr, Encoding.UTF8, ContentType.Json)
             let netHttpRequest = new HttpRequestMessage(HttpMethod.Post, uri, Content = content)
             let result = getMockResponse netHttpRequest
