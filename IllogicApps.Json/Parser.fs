@@ -50,6 +50,9 @@ let private parseInteger index (str: string) =
     | true, result -> Integer result
     | _ -> parseFloat index str
 
+let private debugChr (c: char) =
+    sprintf "'%c' (\\u%04x)" c (int c)
+
 let private fail (c: char) (index: int) (state: ParserState) (stack: ConstructingState list) =
     if index = -1 then
         match state, stack with
@@ -60,14 +63,15 @@ let private fail (c: char) (index: int) (state: ParserState) (stack: Constructin
         |> JsonFormatException
         |> raise
     else
+        let charStr = debugChr c
         match state, stack with
         | ValueEnd _, ConstructingArray _ :: _ ->
-            sprintf "Unexpected character '%c' at index %d: Expecting comma or closing bracket." c index
+            sprintf "Unexpected character %s at index %d: Expecting comma or closing bracket." charStr index
         | ValueEnd _, ConstructingObjectValue _ :: _ ->
-            sprintf "Unexpected character '%c' at index %d: Expecting comma or closing brace." c index
+            sprintf "Unexpected character %s at index %d: Expecting comma or closing brace." charStr index
         | ValueEnd _, ConstructingObject _ :: _ ->
-            sprintf "Unexpected character '%c' at index %d: Expecting colon." c index
-        | _ -> sprintf "Unexpected character '%c' at index %d in state %O with stack %O" c index state stack
+            sprintf "Unexpected character %s at index %d: Expecting colon." charStr index
+        | _ -> sprintf "Unexpected character %s at index %d in state %O with stack %O" charStr index state stack
         |> JsonFormatException
         |> raise
 
@@ -85,11 +89,13 @@ let private failBuildingString
             index
             sb
     | c when c < char 0x20 ->
-        sprintf "Unexpected character '%c' at index %d in string literal. String so far: %O" c index sb
+        let charStr = debugChr c
+        sprintf "Unexpected character %s at index %d in string literal. String so far: %O" charStr index sb
     | _ ->
+        let charStr = debugChr c
         sprintf
-            "Unexpected character '%c' when parsing %s at index %d with stack %O. String so far: %O"
-            c
+            "Unexpected character %s when parsing %s at index %d with stack %O. String so far: %O"
+            charStr
             (if isEscape then "string" else "escape sequence")
             index
             stack
