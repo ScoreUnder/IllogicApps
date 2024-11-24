@@ -161,6 +161,10 @@ module OrderedMap =
             seq |> Seq.iter (fun (KeyValue(k, v)) -> this.Add(k, v) |> ignore)
             this
 
+        member this.AddRange(seq: ('K * 'V) seq) =
+            seq |> Seq.iter (fun tup -> this.Add tup |> ignore)
+            this
+
         member this.AddRange(map: OrderedMap<'K, 'V>) =
             backingMap.AddRange(map.BackingMap)
             backingArray.AddRange(map.Keys)

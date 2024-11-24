@@ -915,7 +915,7 @@ let f_variables (sim: SimulatorContext) (args: Args) : JsonTree =
 let f_workflow (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 0 args
 
-    sim.WorkflowDetails |> ExternalServiceTypes.jsonOfWorkflowDetails
+    sim.WorkflowDetails |> ExternalServiceTypes.compatibleJsonOfWorkflowDetails
 
 // Manipulation functions
 

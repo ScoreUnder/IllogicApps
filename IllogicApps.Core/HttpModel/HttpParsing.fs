@@ -1,5 +1,6 @@
 module IllogicApps.Core.HttpModel.HttpParsing
 
+open System.Net
 open System.Text
 open IllogicApps.Core.Support
 open IllogicApps.Json
@@ -17,8 +18,8 @@ let parseQueryString =
             let parts = part.Split('=', 2)
 
             match parts with
-            | [| key; value |] -> key, value
-            | [| value |] -> null, value
+            | [| key; value |] -> WebUtility.UrlDecode(key), WebUtility.UrlDecode(value)
+            | [| value |] -> null, WebUtility.UrlDecode(value)
             | _ -> failwith "Should never happen")
         |> Seq.groupBy fst
         |> Seq.map (fun (key, values) -> key, (values |> Seq.map snd |> String.concat ","))

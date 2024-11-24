@@ -4,30 +4,12 @@ open System
 open IllogicApps.Core
 open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Core.ExternalServiceTypes
+open IllogicApps.Core.LogicAppActionSupport
 open IllogicApps.Json
 open IllogicApps.Simulator.ExternalServices
 
-let addWorkflowResponseHeaders (sim: SimulatorContext) (headers: OrderedMap<string, string>) =
-    let workflowDetails = sim.WorkflowDetails
-    let trigger = sim.TriggerResult
-    let correlationId = Guid.NewGuid().ToString()
-
-    OrderedMap
-        .Builder()
-        .AddRange(headers)
-        .TryAdd("x-ms-workflow-run-id", workflowDetails.run.name)
-        .TryAdd("x-ms-correlation-id", correlationId)
-        .TryAdd("x-ms-client-tracking-id", trigger.clientTrackingId)
-        .MaybeTryAdd("x-ms-trigger-history-name", trigger.originHistoryName)
-        .TryAdd("x-ms-workflow-system-id", $"/scaleunits/prod-00/{workflowDetails.id}")
-        .TryAdd("x-ms-workflow-id", workflowDetails.id.Split('/') |> Array.last)
-        .TryAdd("x-ms-workflow-name", workflowDetails.name)
-        .TryAdd("x-ms-tracking-id", correlationId)
-        .TryAdd("x-ms-request-id", $":{correlationId}")
-        .Build()
-
 let createAsyncBeginWorkflowResponse sim =
-    { statusCode = 202
+    { HttpRequestReply.statusCode = 202
       body = None
       headers = Some(addWorkflowResponseHeaders sim OrderedMap.empty) }
 
@@ -69,20 +51,14 @@ let buildWorkflowFamily
             | Some workflow ->
                 let receivedResponse = ref NotReceived
 
-                let nextResponseHook innerSim resp =
+                let nextResponseHook _innerSim resp =
                     match receivedResponse.Value with
                     | Received -> false
                     | Ignored ->
                         receivedResponse.Value <- Received
                         true
                     | NotReceived ->
-                        result.Value <-
-                            { resp with
-                                headers =
-                                    resp.headers
-                                    |> Option.defaultValue OrderedMap.empty
-                                    |> addWorkflowResponseHeaders innerSim
-                                    |> Some }
+                        result.Value <- resp
 
                         receivedResponse.Value <- Received
                         true

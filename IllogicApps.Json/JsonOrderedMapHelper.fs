@@ -10,7 +10,7 @@ type OrderedMapBuilderExtensions =
         | _ -> map.Add(key, value)
 
     [<Extension>]
-    static member MaybeAdd(map: OrderedMap.Builder<string, JsonTree>, key: string, value: JsonTree option) =
+    static member MaybeAdd(map: OrderedMap.Builder<'K, 'V>, key: 'K, value: 'V option) =
         match value with
         | None -> map
         | Some value -> map.Add(key, value)

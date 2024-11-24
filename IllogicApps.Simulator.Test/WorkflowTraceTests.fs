@@ -4,6 +4,7 @@ open System
 open System.Collections.Generic
 open System.IO
 open System.Net.Http
+open System.Net.Http.Headers
 open System.Reflection
 open System.Text
 open DEdge.Diffract
@@ -251,6 +252,18 @@ let ``Test IllogicApps output matches logic app trace for workflows that respond
     let endTime =
         parsedExpectedResponse |> JsonTree.getKey "endTime" |> Conversions.ensureString
 
+    let workflowId =
+        expectedResponse.headers
+        |> List.pick (function
+            | "x-ms-workflow-id", v -> Some v
+            | _ -> None)
+
+    let workflowVersion =
+        expectedResponse.headers
+        |> List.pick (function
+            | "x-ms-workflow-version", v -> Some v
+            | _ -> None)
+
     let triggerName, triggerAction =
         logicApp.definition.triggers |> OrderedMap.toSeq |> Seq.head
 
@@ -295,6 +308,8 @@ let ``Test IllogicApps output matches logic app trace for workflows that respond
     let simCreationOptions =
         { SimulatorCreationOptions.Default with
             workflowName = workflowName
+            workflowId = workflowId
+            workflowVersion = workflowVersion
             runId = workflowRunId
             originatingRunId = workflowRunId
             externalServiceHandlers = [ responseHandler ]
@@ -318,6 +333,31 @@ let ``Test IllogicApps output matches logic app trace for workflows that respond
 
     let actualResponse = trap <@ actualResponse.Value.Value @>
     let actualResponseBody = trap <@ actualResponse.body.Value @>
+
+    // Add some synthetic headers to the response
+    let tweakedHeaders =
+        let builder = OrderedMap.Builder()
+
+        match contentOfJson actualResponseBody with
+        | Some(contentType, body) ->
+            builder
+                .Add("Content-Length", body.Length.ToString())
+                .Add("Content-Type", contentType |> MediaTypeHeaderValue.Parse |> _.ToString())
+            |> ignore
+        | None -> ()
+
+        builder
+            .MaybeAdd(
+                "Date",
+                expectedResponse.headers
+                |> List.tryPick (function
+                    | "Date", v -> Some v
+                    | _ -> None)
+            )
+            .Add("Server", "Kestrel")
+            .AddRange(actualResponse.headers |> Option.defaultValue OrderedMap.empty)
+            .Build()
+
 
     test <@ expectedResponse.statusCode = actualResponse.statusCode @>
 
@@ -347,12 +387,7 @@ let ``Test IllogicApps output matches logic app trace for workflows that respond
         <@
             Differ.Assert(
                 expectedResponse.headers,
-                // TODO: the headers are probably not going to be right without at least adding in some synthetic ones
-                // which I don't intend to be part of the actual HttpRequestReply object
-                // (though which should appear during conversion to HttpResponseMessage)
-                actualResponse.headers
-                |> Option.defaultValue OrderedMap.empty
-                |> OrderedMap.toList,
+                tweakedHeaders |> OrderedMap.toList,
                 param =
                     { Differ.AssertPrintParams with
                         neutralName = "Response headers" }

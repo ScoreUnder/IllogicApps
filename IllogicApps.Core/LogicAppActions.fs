@@ -1,5 +1,6 @@
 namespace IllogicApps.Core.LogicAppActions
 
+open System.Net
 open System.Xml
 
 open IllogicApps.Core
@@ -45,6 +46,7 @@ type Request(json) =
                     | None -> None
                     | Some acc ->
                         if expected.StartsWith("{") && expected.EndsWith("}") then
+                            let actual = WebUtility.UrlDecode(actual)
                             acc.Add(expected.Substring(1, expected.Length - 2), actual) |> Some
                         elif expected = actual then
                             Some acc
@@ -695,10 +697,19 @@ type Response(json) =
 
         let processedStatusCode = context.EvaluateLanguage(this.Inputs.statusCode)
 
+        let actualHeaders =
+            // TODO: allow the toggle that disables the default headers
+            processedHeaders
+            |> Option.defaultValue Seq.empty
+            |> OrderedMap.Builder().AddRange
+            |> addWorkflowResponseHeadersToBuilder context
+            |> _.Build()
+            |> Some
+
         context.ExternalServiceRequest
         <| HttpResponse(
             { HttpRequestReply.statusCode = processedStatusCode |> parseIntegerOrStringteger |> expect2xx4xx5xx
-              headers = Option.map OrderedMap.ofSeq processedHeaders
+              headers = actualHeaders
               body = Conversions.optionOfJson processedBody }
         )
 

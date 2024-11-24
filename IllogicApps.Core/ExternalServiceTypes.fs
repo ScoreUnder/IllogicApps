@@ -139,24 +139,32 @@ let jsonOfWorkflowRunDetails run =
 type WorkflowDetails =
     { id: string
       name: string
+      version: string
       type_: string
       run: WorkflowRunDetails }
 
-    static member Create workflowId workflowName runName =
+    static member Create workflowId workflowName workflowVersion runName =
         { id = $"/workflows/{workflowId}"
           name = workflowName
+          version = workflowVersion
           type_ = "workflows"
           run = WorkflowRunDetails.Create workflowId runName }
 
-let jsonOfWorkflowDetails details =
+let compatibleJsonBuilderOfWorkflowDetails details =
     OrderedMap
         .Builder()
         .Add("id", String details.id)
         .Add("name", String details.name)
         .Add("type", String details.type_)
         .Add("run", jsonOfWorkflowRunDetails details.run)
-        .Build()
+
+let jsonOfWorkflowDetails details =
+    compatibleJsonBuilderOfWorkflowDetails details
+    |> _.Add("version", String details.version).Build()
     |> Object
+
+let compatibleJsonOfWorkflowDetails details =
+    compatibleJsonBuilderOfWorkflowDetails details |> _.Build() |> Object
 
 type ScriptSource =
     | Inline of string

@@ -185,6 +185,8 @@ type TriggerCompletion =
 [<Struct>]
 type SimulatorCreationOptions =
     { workflowName: string
+      workflowId: string
+      workflowVersion: string
       runId: string
       originatingRunId: string
       triggerResult: TriggerCompletion
@@ -195,6 +197,8 @@ type SimulatorCreationOptions =
 
     static member Default =
         { workflowName = "unnamed_workflow"
+          workflowId = "dummy_workflow_id"
+          workflowVersion = "01234567890123456789"
           runId = ""
           originatingRunId = ""
           triggerResult = Completed(CompletedAction.create "" "")
@@ -358,8 +362,9 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
     member this.WorkflowDetails =
         WorkflowDetails.Create
-            $"dummyWorkflowId_{creationOptions.workflowName}"
+            creationOptions.workflowId
             creationOptions.workflowName
+            creationOptions.workflowVersion
             creationOptions.runId
 
     member this.GetActionResult name =
