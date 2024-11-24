@@ -3,8 +3,8 @@ module IllogicApps.Core.ExternalServiceTypeConversions
 open System
 open System.Net
 open System.Net.Http.Headers
-open System.Text
 open ExternalServiceTypes
+open IllogicApps.Core.HttpModel.HttpParsing
 open IllogicApps.Core.Support
 open IllogicApps.Json
 
@@ -23,18 +23,6 @@ let formUri (str: string) (query: OrderedMap<string, string>) =
     uriBuilder.Query <- query
     uriBuilder.Uri
 
-let decodeBodyByContentType (contentType: string) (body: string) =
-    if ContentType.isJson contentType then Parser.parse body
-    elif ContentType.isAnyText contentType then String body
-    else Blob.ofString contentType body
-
-let contentOfJson =
-    function
-    | Null -> None
-    | String s -> Some(ContentType.TextUtf8, s |> Encoding.UTF8.GetBytes)
-    | Blob.Blob(contentType, content) -> Some(contentType, content)
-    | json -> Some(ContentType.JsonUtf8, json |> Conversions.stringOfJson |> Encoding.UTF8.GetBytes)
-
 let netHttpContentOfContentTypeAndContent =
     function
     | None -> new Http.ByteArrayContent(Array.empty)
@@ -46,7 +34,7 @@ let netHttpContentOfContentTypeAndContent =
 let netHttpContentOfJson json =
     json |> contentOfJson |> netHttpContentOfContentTypeAndContent
 
-let netHttpRequestMessageOfHttpRequest (req: HttpRequest) =
+let netHttpRequestMessageOfHttpServiceRequest (req: HttpServiceRequest) =
     let netReq =
         new Http.HttpRequestMessage(
             method = Http.HttpMethod(req.method),
@@ -85,14 +73,8 @@ let httpRequestReplyOfNetHttpResponseMessage (resp: Http.HttpResponseMessage) =
         | content ->
             let contentType = content.Headers.ContentType |> Option.ofObj |> Option.map string
 
-            let contentStr = content.ReadAsStringAsync().Result
-
-            if String.IsNullOrEmpty contentStr && Option.isNone contentType then
-                None
-            else
-                contentStr
-                |> decodeBodyByContentType (Option.defaultValue ContentType.Binary contentType)
-                |> Some
+            content.ReadAsByteArrayAsync().GetAwaiter().GetResult()
+            |> decodeOptionalBodyByContentType contentType
 
     { statusCode = int resp.StatusCode
       headers = Some headers

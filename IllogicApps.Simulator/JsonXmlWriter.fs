@@ -188,10 +188,10 @@ type JsonXmlWriter(bugForBugAccurate: bool) =
     // override this.WriteCommentAsync(text: string): System.Threading.Tasks.Task =
     //     raiseError "Not Implemented"
     override this.WriteDocType(name: string, pubid: string, sysid: string, subset: string) : unit =
-        if name = null then
+        if isNull name then
             raiseError "null name"
 
-        if subset = null then
+        if isNull subset then
             raiseError "null subset"
 
         requireState [| WriteState.Start; WriteState.Prolog |]
@@ -200,16 +200,16 @@ type JsonXmlWriter(bugForBugAccurate: bool) =
 
         let map = this.Current
 
-        if name <> "" && name <> null then
+        if not (System.String.IsNullOrEmpty(name)) then
             map.[DOCTYPE_NAME_KEY] <- singletonList (Text name)
 
-        if pubid <> "" && pubid <> null then
+        if not (System.String.IsNullOrEmpty(pubid)) then
             map.[DOCTYPE_PUBLIC_KEY] <- singletonList (Text pubid)
 
-        if sysid <> "" && sysid <> null then
+        if not (System.String.IsNullOrEmpty(sysid)) then
             map.[DOCTYPE_SYSTEM_KEY] <- singletonList (Text sysid)
 
-        if subset <> "" && subset <> null then
+        if not (System.String.IsNullOrEmpty(subset)) then
             map.[DOCTYPE_SUBSET_KEY] <- singletonList (Text subset)
 
         this.WriteEndElement(true)
@@ -332,10 +332,10 @@ type JsonXmlWriter(bugForBugAccurate: bool) =
         if attributeKey.IsSome then
             raiseError "Already writing an attribute"
 
-        if prefix = null then
+        if isNull prefix then
             raiseError "null prefix"
 
-        if localName = null then
+        if isNull localName then
             raiseError "null attribute name"
 
         requireState [| WriteState.Element |]
@@ -362,7 +362,7 @@ type JsonXmlWriter(bugForBugAccurate: bool) =
                WriteState.Attribute
                WriteState.Content |]
 
-        if prefix = null then
+        if isNull prefix then
             raiseError "null prefix"
 
         let name = if prefix = "" then localName else $"{prefix}:{localName}"
@@ -378,7 +378,7 @@ type JsonXmlWriter(bugForBugAccurate: bool) =
     override this.WriteString(text: string) : unit =
         requireState [| WriteState.Element; WriteState.Attribute; WriteState.Content |]
 
-        if text = null then
+        if isNull text then
             raiseError "null text"
 
         if writeState = WriteState.Attribute then
@@ -426,10 +426,8 @@ module JsonToXmlConversion =
         | EndElement
 
     let writeJsonToXml bugForBugAccurate (json: JsonTree) (xmlDoc: XmlDocument) =
-        let getStringOrDefault k def (o: OrderedMap<string, JsonTree>) =
-            OrderedMap.tryFind k o
-            |> Option.map Conversions.rawStringOfJson
-            |> Option.defaultValue def
+        let inline getStringOrDefault k def (o: OrderedMap<string, JsonTree>) =
+            OrderedMap.findMapOrElse k Conversions.rawStringOfJson (fun () -> def) o
 
         let sanitizeElementName name =
             String.collect

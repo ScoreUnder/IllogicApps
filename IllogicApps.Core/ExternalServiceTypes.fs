@@ -1,10 +1,11 @@
 module IllogicApps.Core.ExternalServiceTypes
 
+open System.Net.Http
 open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Core.HttpModel.RetryPolicy
 open IllogicApps.Json
 
-type HttpRequest =
+type HttpServiceRequest =
     { method: string
       uri: string
       headers: OrderedMap<string, string>
@@ -13,19 +14,34 @@ type HttpRequest =
       cookie: string option
       authentication: JsonTree }
 
-type HttpTrigger =
-    { queries: OrderedMap<string, string> option
+type HttpRequest =
+    { method: HttpMethod
+      relativePath: string
+      queries: OrderedMap<string, string> option
       headers: OrderedMap<string, string> option
       body: JsonTree option }
 
-let jsonOfHttpTrigger trigger =
-    OrderedMap
-        .Builder()
-        .MaybeAdd("queries", trigger.queries |> Option.map Conversions.jsonOfStringsMap)
-        .MaybeAdd("headers", trigger.headers |> Option.map Conversions.jsonOfStringsMap)
-        .MaybeAdd("body", trigger.body)
-        .Build()
-    |> Object
+    static member Default =
+        { method = HttpMethod.Post
+          relativePath = ""
+          queries = None
+          headers = None
+          body = None }
+
+    member request.ToJson() =
+        OrderedMap
+            .Builder()
+            .Add("method", String request.method.Method)
+            .Add("relativePath", String request.relativePath)
+            .MaybeAdd("queries", request.queries |> Option.map Conversions.jsonOfStringsMap)
+            .MaybeAdd("headers", request.headers |> Option.map Conversions.jsonOfStringsMap)
+            .MaybeAdd("body", request.body)
+            .Build()
+        |> Object
+
+    override request.ToString() = request.ToJson().ToString()
+
+let inline jsonOfHttpRequest (request: HttpRequest) = request.ToJson()
 
 type HttpRequestReply =
     { statusCode: int
@@ -80,29 +96,25 @@ let jsonOfWorkflowRequest req =
     |> Object
 
 let workflowRequestOfJson json =
-    { actionName =
-        JsonTree.tryGetKey "actionName" json
-        |> Option.map Conversions.ensureString
-        |> Option.defaultValue ""
+    { actionName = JsonTree.getKeyMapOrElse "actionName" Conversions.ensureString (fun () -> "") json
       workflowId =
         JsonTree.getKey "host" json
         |> JsonTree.getKey "workflow"
         |> JsonTree.getKey "id"
         |> Conversions.ensureString
       headers =
-        JsonTree.tryGetKey "headers" json
-        |> Option.map (fun headers ->
-            headers
-            |> Conversions.ensureObject
-            // TODO: The designer should stringify all header values, but non-stringified ones
-            // are still valid. Needs looking into re. specifics
-            |> OrderedMap.mapValuesOnly Conversions.rawStringOfJson)
-        |> Option.defaultValue OrderedMap.empty
-      body = JsonTree.tryGetKey "body" json |> Conversions.jsonOfOption
-      asyncSupported =
-        JsonTree.tryGetKey "asyncSupported" json
-        |> Option.map Conversions.ensureBoolean
-        |> Option.defaultValue true
+        JsonTree.getKeyMapOrElse
+            "headers"
+            (fun headers ->
+                headers
+                |> Conversions.ensureObject
+                // TODO: The designer should stringify all header values, but non-stringified ones
+                // are still valid. Needs looking into re. specifics
+                |> OrderedMap.mapValuesOnly Conversions.rawStringOfJson)
+            (fun () -> OrderedMap.empty)
+            json
+      body = JsonTree.getKeyOrNull "body" json
+      asyncSupported = JsonTree.getKeyMapOrElse "asyncSupported" Conversions.ensureBoolean (fun () -> true) json
       retryPolicy = JsonTree.tryGetKey "retryPolicy" json |> Option.map retryPolicyOfJson }
 
 type WorkflowRunDetails =
@@ -127,24 +139,32 @@ let jsonOfWorkflowRunDetails run =
 type WorkflowDetails =
     { id: string
       name: string
+      version: string
       type_: string
       run: WorkflowRunDetails }
 
-    static member Create workflowId workflowName runName =
+    static member Create workflowId workflowName workflowVersion runName =
         { id = $"/workflows/{workflowId}"
           name = workflowName
+          version = workflowVersion
           type_ = "workflows"
           run = WorkflowRunDetails.Create workflowId runName }
 
-let jsonOfWorkflowDetails details =
+let compatibleJsonBuilderOfWorkflowDetails details =
     OrderedMap
         .Builder()
         .Add("id", String details.id)
         .Add("name", String details.name)
         .Add("type", String details.type_)
         .Add("run", jsonOfWorkflowRunDetails details.run)
-        .Build()
+
+let jsonOfWorkflowDetails details =
+    compatibleJsonBuilderOfWorkflowDetails details
+    |> _.Add("version", String details.version).Build()
     |> Object
+
+let compatibleJsonOfWorkflowDetails details =
+    compatibleJsonBuilderOfWorkflowDetails details |> _.Build() |> Object
 
 type ScriptSource =
     | Inline of string
@@ -160,7 +180,7 @@ type ScriptExecutionRequest =
       language: ScriptingLanguage
       actions: OrderedMap<string, CompletedAction>
       workflow: WorkflowDetails
-      trigger: CompletedTrigger }
+      trigger: CompletedAction }
 
 type ServiceProviderConfiguration =
     { connectionName: string
@@ -187,7 +207,7 @@ type ServiceProviderRequest =
       serviceProviderConfiguration: ServiceProviderConfiguration }
 
 type ExternalServiceRequest =
-    | HttpRequest of HttpRequest * HttpRequestReply ref
+    | HttpRequest of HttpServiceRequest * HttpRequestReply ref
     | HttpResponse of HttpRequestReply
     | Workflow of WorkflowRequest * HttpRequestReply ref
     | ScriptExecution of ScriptExecutionRequest * Result<JsonTree, string> ref

@@ -102,21 +102,42 @@ module JsonTree =
         | Array a -> a.[index]
         | _ -> failwithf "Expected array, got %O" json
 
-    let inline getKeyOrNull (key: string) (json: JsonTree) =
+    let inline getKeyMapOrElse
+        (key: string)
+        ([<InlineIfLambda>] ``then``: JsonTree -> 'T)
+        ([<InlineIfLambda>] ``else``: unit -> 'T)
+        (json: JsonTree)
+        : 'T =
         match json with
-        | Object o ->
-            match OrderedMap.tryFind key o with
-            | Some v -> v
-            | None -> Null
-        | _ -> Null
+        | Object o -> OrderedMap.findMapOrElse key ``then`` ``else`` o
+        | _ -> ``else`` ()
+
+    let inline getKeyCaseInsensitiveMapOrElse
+        (key: string)
+        ([<InlineIfLambda>] ``then``: JsonTree -> 'T)
+        ([<InlineIfLambda>] ``else``: unit -> 'T)
+        (json: JsonTree)
+        : 'T =
+        match json with
+        | Object o -> OrderedMap.findCaseInsensitiveMapOrElse key ``then`` ``else`` o
+        | _ -> ``else`` ()
+
+    let inline getKeyOrElse (key: string) ([<InlineIfLambda>] ``else``: unit -> JsonTree) (json: JsonTree) =
+        // ReSharper disable once FSharpBuiltinFunctionReimplementation
+        getKeyMapOrElse key (fun x -> x) ``else`` json
+
+    let inline getKeyCaseInsensitiveOrElse
+        (key: string)
+        ([<InlineIfLambda>] ``else``: unit -> JsonTree)
+        (json: JsonTree)
+        =
+        // ReSharper disable once FSharpBuiltinFunctionReimplementation
+        getKeyCaseInsensitiveMapOrElse key (fun x -> x) ``else`` json
+
+    let inline getKeyOrNull (key: string) (json: JsonTree) = getKeyOrElse key (fun () -> Null) json
 
     let inline getKeyCaseInsensitiveOrNull (key: string) (json: JsonTree) =
-        match json with
-        | Object o ->
-            match OrderedMap.tryFindCaseInsensitive key o with
-            | Some v -> v
-            | None -> Null
-        | _ -> Null
+        getKeyCaseInsensitiveOrElse key (fun () -> Null) json
 
     let inline getIndexOrNull (index: int) (json: JsonTree) =
         match json with

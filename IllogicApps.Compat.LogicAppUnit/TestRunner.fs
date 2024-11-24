@@ -13,6 +13,7 @@ open IllogicApps.Core
 open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.ExternalServiceTypeConversions
+open IllogicApps.Core.HttpModel.HttpParsing
 open IllogicApps.Core.Support
 open IllogicApps.Json
 open IllogicApps.Simulator
@@ -54,7 +55,7 @@ type TestRunner
             overallResponse.Value <- Some <| netHttpResponseMessageOfHttpRequestReply response
             true
         | HttpRequest(request, reply) ->
-            let request = netHttpRequestMessageOfHttpRequest request
+            let request = netHttpRequestMessageOfHttpServiceRequest request
 
             let result =
                 try
@@ -138,11 +139,19 @@ type TestRunner
     member _.MockHostUri = MOCK_HOST_URI
 
     member this.TriggerWorkflow
-        (queryParams: Dictionary<string, string>, content: HttpContent, requestHeaders: Dictionary<string, string>)
-        : HttpResponseMessage =
+        (
+            queryParams: Dictionary<string, string>,
+            content: HttpContent,
+            method: HttpMethod,
+            relativePath: string,
+            requestHeaders: Dictionary<string, string>
+        ) : HttpResponseMessage =
+
         // First, let's wash our hands
         let queryParams = queryParams |> Option.ofObj
         let content = content |> sanitiseNull (new ByteArrayContent(Array.empty<byte>))
+        let method = method |> sanitiseNull HttpMethod.Post
+        let relativePath = relativePath |> sanitiseNull ""
         let requestHeaders = requestHeaders |> Option.ofObj
 
         // Grab details of HTTP content
@@ -150,25 +159,22 @@ type TestRunner
             content.Headers.ContentType
             |> Option.ofObj
             |> Option.map string
-            |> Option.defaultWith (fun () ->
+            |> Option.orElseWith (fun () ->
                 requestHeaders
                 |> Option.bind (fun h ->
                     match h.TryGetValue("Content-Type") with
                     | true, x -> Some x
-                    | _ -> None)
-                |> Option.defaultValue ContentType.Text)
+                    | _ -> None))
 
-        let contentString = content.ReadAsStringAsync().GetAwaiter().GetResult()
+        let contentBytes = content.ReadAsByteArrayAsync().GetAwaiter().GetResult()
 
         // Create the trigger outputs
         let request =
-            { HttpTrigger.queries = queryParams |> Option.map OrderedMap.CreateRange
+            { HttpRequest.method = method
+              relativePath = relativePath
+              queries = queryParams |> Option.map OrderedMap.CreateRange
               headers = requestHeaders |> Option.map OrderedMap.CreateRange
-              body =
-                if contentString.Length = 0 then
-                    None
-                else
-                    decodeBodyByContentType contentType contentString |> Some }
+              body = decodeOptionalBodyByContentType contentType contentBytes }
 
         // Figure out if there is a Response action in the main workflow
         let hasResponseAction =
@@ -188,8 +194,7 @@ type TestRunner
 
         let sims =
             request
-            |> jsonOfHttpTrigger
-            |> Some
+            |> TriggerCompletion.Invoked
             |> WorkflowFamily.buildWorkflowFamily
                 (fun options handler ->
                     { options with
@@ -281,45 +286,40 @@ type TestRunner
 
         member this.MockRequests = mockDefinition.MockRequests
 
-        member this.TriggerWorkflow(_method, requestHeaders) =
-            this.TriggerWorkflow(null, null, requestHeaders)
+        member this.TriggerWorkflow(method, requestHeaders) =
+            this.TriggerWorkflow(null, null, method, null, requestHeaders)
 
         member this.TriggerWorkflow
             (queryParams: Dictionary<string, string>, method: HttpMethod, requestHeaders: Dictionary<string, string>)
             : HttpResponseMessage =
-            this.TriggerWorkflow(queryParams, null, requestHeaders)
+            this.TriggerWorkflow(queryParams, null, method, null, requestHeaders)
 
         member this.TriggerWorkflow
             (
                 queryParams: Dictionary<string, string>,
-                _method: HttpMethod,
-                _relativePath: string,
+                method: HttpMethod,
+                relativePath: string,
                 requestHeaders: Dictionary<string, string>
             ) : HttpResponseMessage =
-            this.TriggerWorkflow(queryParams, null, requestHeaders)
+            this.TriggerWorkflow(queryParams, null, method, relativePath, requestHeaders)
 
         member this.TriggerWorkflow
-            (content: HttpContent, _method: HttpMethod, requestHeaders: Dictionary<string, string>)
+            (content: HttpContent, method: HttpMethod, requestHeaders: Dictionary<string, string>)
             : HttpResponseMessage =
-            this.TriggerWorkflow(null, content, requestHeaders)
+            this.TriggerWorkflow(null, content, method, null, requestHeaders)
 
         member this.TriggerWorkflow
-            (
-                content: HttpContent,
-                _method: HttpMethod,
-                _relativePath: string,
-                requestHeaders: Dictionary<string, string>
-            ) : HttpResponseMessage =
-            this.TriggerWorkflow(null, content, requestHeaders)
+            (content: HttpContent, method: HttpMethod, relativePath: string, requestHeaders: Dictionary<string, string>) : HttpResponseMessage =
+            this.TriggerWorkflow(null, content, method, relativePath, requestHeaders)
 
-        member this.TriggerWorkflow(queryParams, content, _method, _relativePath, requestHeaders) =
-            this.TriggerWorkflow(queryParams, content, requestHeaders)
+        member this.TriggerWorkflow(queryParams, content, method, relativePath, requestHeaders) =
+            this.TriggerWorkflow(queryParams, content, method, relativePath, requestHeaders)
 
         member this.WaitForAsynchronousResponse(maxTimeoutSeconds: int) : unit =
             asyncResponseTimeout <- Some(TimeSpan.FromSeconds(float maxTimeoutSeconds))
 
         member this.WaitForAsynchronousResponse(maxTimeout: TimeSpan) : unit = asyncResponseTimeout <- Some maxTimeout
-        member this.WorkflowClientTrackingId = mySim().TriggerResult.action.clientTrackingId
+        member this.WorkflowClientTrackingId = mySim().TriggerResult.clientTrackingId
         member this.WorkflowRunId = mySim().WorkflowDetails.run.name
 
         member this.WorkflowRunStatus =

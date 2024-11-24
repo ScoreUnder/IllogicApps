@@ -60,12 +60,8 @@ let (|ContentTypedAny|_|) (node: JsonTree) =
     match node with
     | Blob.Blob(contentType, content) -> Some(contentType, content)
     | Null -> None
-    | String s -> Some(ContentType.Charset.set ContentType.Text ContentType.Charset.Utf8, Encoding.UTF8.GetBytes s)
-    | n ->
-        Some(
-            ContentType.Charset.set ContentType.Json ContentType.Charset.Utf8,
-            Encoding.UTF8.GetBytes(objectToString n)
-        )
+    | String s -> Some(ContentType.TextUtf8, Encoding.UTF8.GetBytes s)
+    | n -> Some(ContentType.JsonUtf8, Encoding.UTF8.GetBytes(objectToString n))
 
 type Arithmetic2Type =
     | Add
@@ -876,9 +872,7 @@ let f_appsetting (sim: SimulatorContext) (args: Args) : JsonTree =
 
 let f_body (sim: SimulatorContext) (args: Args) : JsonTree =
     f_actions sim args
-    |> JsonTree.tryGetKey "outputs"
-    |> Option.bind (JsonTree.tryGetKey "body")
-    |> Conversions.jsonOfOption
+    |> JsonTree.getKeyMapOrElse "outputs" (JsonTree.getKeyOrNull "body") (fun () -> Null)
 
 let f_items (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 1 args
@@ -889,7 +883,7 @@ let f_items (sim: SimulatorContext) (args: Args) : JsonTree =
     | None -> failwithf "Array context action %s not found" actionName
 
 let f_outputs (sim: SimulatorContext) (args: Args) : JsonTree =
-    f_actions sim args |> JsonTree.tryGetKey "outputs" |> Conversions.jsonOfOption
+    f_actions sim args |> JsonTree.getKeyOrNull "outputs"
 
 let f_parameters (sim: SimulatorContext) (args: Args) : JsonTree =
     args
@@ -901,16 +895,14 @@ let f_parameters (sim: SimulatorContext) (args: Args) : JsonTree =
 let f_trigger (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 0 args
 
-    CompletedStepTypes.jsonOfCompletedTrigger sim.TriggerResult
+    CompletedStepTypes.jsonOfCompletedAction sim.TriggerResult
 
 let f_triggerBody (sim: SimulatorContext) (args: Args) : JsonTree =
     f_trigger sim args
-    |> JsonTree.tryGetKey "outputs"
-    |> Option.bind (JsonTree.tryGetKey "body")
-    |> Conversions.jsonOfOption
+    |> JsonTree.getKeyMapOrElse "outputs" (JsonTree.getKeyOrNull "body") (fun () -> Null)
 
 let f_triggerOutputs (sim: SimulatorContext) (args: Args) : JsonTree =
-    f_trigger sim args |> JsonTree.tryGetKey "outputs" |> Conversions.jsonOfOption
+    f_trigger sim args |> JsonTree.getKeyOrNull "outputs"
 
 let f_variables (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 1 args
@@ -923,7 +915,7 @@ let f_variables (sim: SimulatorContext) (args: Args) : JsonTree =
 let f_workflow (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 0 args
 
-    sim.WorkflowDetails |> ExternalServiceTypes.jsonOfWorkflowDetails
+    sim.WorkflowDetails |> ExternalServiceTypes.compatibleJsonOfWorkflowDetails
 
 // Manipulation functions
 

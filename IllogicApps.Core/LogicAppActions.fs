@@ -1,5 +1,6 @@
 namespace IllogicApps.Core.LogicAppActions
 
+open System.Net
 open System.Xml
 
 open IllogicApps.Core
@@ -7,26 +8,117 @@ open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Core.LogicAppActionSupport
 open CompletedStepTypes
 open ExternalServiceTypes
+open IllogicApps.Core.HttpModel.HttpParsing
 open IllogicApps.Core.Support
 open IllogicApps.Json
 
 // Triggers
 
 type Request(json) =
-    inherit BaseAction(json)
+    inherit BaseTrigger(json)
 
-    member val Kind = JsonTree.getKey "kind" json |> Conversions.ensureString with get
+    let kind = JsonTree.getKey "kind" json |> Conversions.ensureString
 
-    override this.Execute (_: string) (context: SimulatorContext) =
-        // TODO: Does this ever get called?
+    let inputs =
+        JsonTree.tryGetKeyCaseInsensitive "inputs" json
+        |> Option.map httpRequestTriggerInputsOfJson
 
-        let triggerResult = context.TriggerResult
+    do
+        match inputs with
+        | Some { method = None; relativePath = Some _ } ->
+            failwith $"{nameof Request} trigger: Method is required when relativePath is specified"
+        | _ -> ()
 
-        { status = triggerResult.action.status
-          inputs = triggerResult.action.inputs
-          outputs = triggerResult.action.outputs
-          code = triggerResult.action.code
-          error = triggerResult.action.error }
+        match kind with
+        | "Http" -> ()
+        | _ -> printfn "WARN: %s trigger: Kind '%s' is not supported" (nameof Request) kind
+
+    let matchPathComponents (expectedRelativePath: string) (relativePath: string) =
+        let expectedComponents = expectedRelativePath.TrimStart('/').Split('/')
+        let actualComponents = relativePath.Split('/')
+
+        if expectedComponents.Length <> actualComponents.Length then
+            None
+        else
+            Seq.fold2
+                (fun (acc: OrderedMap.Builder<string, string> option) (expected: string) (actual: string) ->
+                    match acc with
+                    | None -> None
+                    | Some acc ->
+                        if expected.StartsWith("{") && expected.EndsWith("}") then
+                            let actual = WebUtility.UrlDecode(actual)
+                            acc.Add(expected.Substring(1, expected.Length - 2), actual) |> Some
+                        elif expected = actual then
+                            Some acc
+                        else
+                            None)
+                (Some(OrderedMap.Builder()))
+                expectedComponents
+                actualComponents
+            |> Option.map _.Build()
+
+    member val Kind = kind with get
+    member val Inputs = inputs with get
+
+    override this.ProcessInputs context =
+        this.Inputs |> Option.map (_.ToJson() >> context.EvaluateLanguage)
+
+    override this.RunFromRequest request context =
+        let method = request.method
+        let relativePath = request.relativePath
+
+        let expectedMethod =
+            match this.Inputs with
+            | Some { method = Some m } ->
+                m
+                |> String
+                |> context.EvaluateLanguage
+                |> Conversions.ensureString
+                |> _.ToUpperInvariant()
+                |> Some
+            | _ -> None
+
+        let expectedRelativePath =
+            match this.Inputs with
+            | Some { relativePath = Some p } ->
+                p |> String |> context.EvaluateLanguage |> Conversions.ensureString |> Some
+            | _ -> None
+
+        match expectedMethod with
+        | Some m when m <> method.Method ->
+            { ActionResult.Default with
+                status = Failed }
+        | _ ->
+            let matches =
+                match expectedRelativePath with
+                | Some expectedRelativePath -> matchPathComponents expectedRelativePath relativePath
+                | _ -> Some OrderedMap.empty
+
+            match matches with
+            | Some matches ->
+                let processedInputs =
+                    match inputs with
+                    | Some _ ->
+                        Some
+                            { HttpRequestTriggerInputs.method = expectedMethod
+                              relativePath = expectedRelativePath }
+                    | None -> None
+
+                let matchOutputs = if OrderedMap.isEmpty matches then None else Some matches
+
+                let outputs =
+                    { relativePathParameters = matchOutputs
+                      queries = request.queries
+                      headers = request.headers
+                      body = request.body }
+
+                { ActionResult.Default with
+                    status = Succeeded
+                    inputs = processedInputs |> Option.map _.ToJson()
+                    outputs = Some(outputs.ToJson()) }
+            | None ->
+                { ActionResult.Default with
+                    status = Failed }
 
 // Actions
 
@@ -67,7 +159,7 @@ type If(resolveAction, json) =
             else
                 this.Else.actions, this.Actions in
 
-        otherActions |> fromKvps |> context.ForceSkipAll
+        otherActions |> OrderedMap.toSeq |> context.ForceSkipAll
 
         let result = context.ExecuteGraph actions in
 
@@ -147,7 +239,7 @@ type Switch(resolveAction, json) =
         |> Seq.map _.actions
         |> Seq.append [ this.Default.actions ]
         |> Seq.filter (fun selectedActions -> selectedActions <> actions)
-        |> Seq.collect fromKvps
+        |> Seq.collect OrderedMap.toSeq
         |> context.ForceSkipAll
 
         let result = context.ExecuteGraph actions in
@@ -605,10 +697,19 @@ type Response(json) =
 
         let processedStatusCode = context.EvaluateLanguage(this.Inputs.statusCode)
 
+        let actualHeaders =
+            // TODO: allow the toggle that disables the default headers
+            processedHeaders
+            |> Option.defaultValue Seq.empty
+            |> OrderedMap.Builder().AddRange
+            |> addWorkflowResponseHeadersToBuilder context
+            |> _.Build()
+            |> Some
+
         context.ExternalServiceRequest
         <| HttpResponse(
             { HttpRequestReply.statusCode = processedStatusCode |> parseIntegerOrStringteger |> expect2xx4xx5xx
-              headers = Option.map OrderedMap.ofSeq processedHeaders
+              headers = actualHeaders
               body = Conversions.optionOfJson processedBody }
         )
 
@@ -658,8 +759,7 @@ type Http(json) =
             |> Option.map (OrderedMap.Builder().AddRange)
             |> Option.defaultValue (OrderedMap.Builder())
 
-        let processedContent =
-            ExternalServiceTypeConversions.contentOfJson processedInputs.body
+        let processedContent = contentOfJson processedInputs.body
 
         // Add content-type if missing
         // TODO case-insensitivity

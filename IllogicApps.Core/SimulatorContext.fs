@@ -73,7 +73,7 @@ and SimulatorContext =
     abstract ArrayOperationContext: ArrayOperationContext option
 
     /// Gets the result of the trigger which invoked this workflow.
-    abstract TriggerResult: CompletedTrigger
+    abstract TriggerResult: CompletedAction
 
     /// Gets the results of all actions executed so far.
     abstract AllActionResults: OrderedMap<string, CompletedAction>
@@ -114,6 +114,35 @@ and SimulatorContext =
 
     /// Mark all provided actions, and their children, as skipped
     abstract ForceSkipAll: (string * BaseAction) seq -> unit
+
+[<AbstractClass>]
+type BaseTrigger(json) =
+    inherit BaseAction(json)
+
+    abstract member ProcessInputs: SimulatorContext -> JsonTree option
+
+    override this.ProcessInputs _context = None
+
+    abstract member RunFromRequest: HttpRequest -> SimulatorContext -> ActionResult
+
+    override this.RunFromRequest request _context =
+        // If this isn't implemented it's probably a timer trigger or something
+        printfn "WARN: Unimplemented Trigger triggered with %O" request
+        ActionResult.Default
+
+    override this.Execute (_: string) (context: SimulatorContext) =
+        // TODO: Does this ever get called?
+        // On a well-formed workflow that is. I think there is a way to add triggers to the
+        // action graph via the designer but I don't know how that translates to actual
+        // behaviour, and I have not yet tried it because I don't know if anyone would do it
+        // for any reason other than curiosity.
+        let triggerResult = context.TriggerResult
+
+        { status = triggerResult.status
+          inputs = triggerResult.inputs
+          outputs = triggerResult.outputs
+          code = triggerResult.code
+          error = triggerResult.error }
 
 module BaseAction =
     let getAllChildren start =

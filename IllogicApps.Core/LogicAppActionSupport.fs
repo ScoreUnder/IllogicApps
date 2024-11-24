@@ -5,8 +5,41 @@ open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Json
 
-let fromKvps seq =
-    Seq.map (fun (KeyValue(k, v)) -> k, v) seq
+type HttpRequestTriggerInputs =
+    { method: string option
+      relativePath: string option }
+
+    member this.ToJson() =
+        OrderedMap
+            .Builder()
+            .MaybeAdd("method", this.method)
+            .MaybeAdd("relativePath", this.relativePath)
+            .Build()
+        |> Object
+
+    override this.ToString() = this.ToJson().ToString()
+
+let httpRequestTriggerInputsOfJson json =
+    { method = JsonTree.tryGetKey "method" json |> Option.map Conversions.ensureString
+      relativePath = JsonTree.tryGetKey "relativePath" json |> Option.map Conversions.ensureString }
+
+type HttpRequestTriggerOutputs =
+    { headers: OrderedMap<string, string> option
+      queries: OrderedMap<string, string> option
+      relativePathParameters: OrderedMap<string, string> option
+      body: JsonTree option }
+
+    member this.ToJson() =
+        OrderedMap
+            .Builder()
+            .MaybeAdd("headers", this.headers)
+            .MaybeAdd("queries", this.queries)
+            .MaybeAdd("relativePathParameters", this.relativePathParameters)
+            .MaybeAdd("body", this.body)
+            .Build()
+        |> Object
+
+    override this.ToString() = this.ToJson().ToString()
 
 type SetVariableSingle = { name: string; value: JsonTree }
 
@@ -144,7 +177,7 @@ type ServiceProviderInputs =
     override this.ToString() = this.ToJson().ToString()
 
 let serviceProviderInputsOfJson json =
-    { parameters = JsonTree.tryGetKey "parameters" json |> Conversions.jsonOfOption
+    { parameters = JsonTree.getKeyOrNull "parameters" json
       serviceProviderConfiguration =
         JsonTree.getKey "serviceProviderConfiguration" json
         |> serviceProviderConfigurationOfJson }
@@ -179,6 +212,28 @@ let httpResponseInputsOfJson json =
     { body = JsonTree.getKeyOrNull "body" json
       headers = JsonTree.tryGetKey "headers" json |> Option.map Conversions.stringsMapOfJson
       statusCode = JsonTree.getKey "statusCode" json }
+
+let addWorkflowResponseHeadersToBuilder (sim: SimulatorContext) (headers: OrderedMap.Builder<string, string>) =
+    let workflowDetails = sim.WorkflowDetails
+    let trigger = sim.TriggerResult
+    let correlationId = trigger.trackingId
+
+    headers
+        .TryAdd("x-ms-workflow-run-id", workflowDetails.run.name)
+        .TryAdd("x-ms-correlation-id", correlationId)
+        .TryAdd("x-ms-client-tracking-id", trigger.clientTrackingId)
+        .MaybeTryAdd("x-ms-trigger-history-name", trigger.originHistoryName)
+        .TryAdd("x-ms-workflow-system-id", $"/scaleunits/prod-00{workflowDetails.id}")
+        .TryAdd("x-ms-workflow-id", workflowDetails.id.Split('/') |> Array.last)
+        .TryAdd("x-ms-workflow-version", workflowDetails.version)
+        .TryAdd("x-ms-workflow-name", workflowDetails.name)
+        .TryAdd("x-ms-tracking-id", correlationId)
+        .TryAdd("x-ms-request-id", $":{correlationId}")
+
+let addWorkflowResponseHeaders (sim: SimulatorContext) (headers: OrderedMap<string, string>) =
+    OrderedMap.Builder().AddRange(headers)
+    |> addWorkflowResponseHeadersToBuilder sim
+    |> _.Build()
 
 type ActionGraphContainer =
     { actions: ActionGraph }

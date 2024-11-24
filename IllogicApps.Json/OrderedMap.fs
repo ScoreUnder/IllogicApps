@@ -161,6 +161,10 @@ module OrderedMap =
             seq |> Seq.iter (fun (KeyValue(k, v)) -> this.Add(k, v) |> ignore)
             this
 
+        member this.AddRange(seq: ('K * 'V) seq) =
+            seq |> Seq.iter (fun tup -> this.Add tup |> ignore)
+            this
+
         member this.AddRange(map: OrderedMap<'K, 'V>) =
             backingMap.AddRange(map.BackingMap)
             backingArray.AddRange(map.Keys)
@@ -301,6 +305,40 @@ module OrderedMap =
     let findCaseInsensitive (key: string) (m: OrderedMap<string, 'V>) =
         let key = caseInsensitiveKey key m
         find key m
+
+    let inline findMapOrElse
+        (key: 'K)
+        ([<InlineIfLambda>] ``then``: 'V -> 'T)
+        ([<InlineIfLambda>] ``else``: unit -> 'T)
+        (m: OrderedMap<'K, 'V>)
+        : 'T =
+        match m.TryGetValue key with
+        | true, v -> ``then`` v
+        | _ -> ``else`` ()
+
+    let inline findCaseInsensitiveMapOrElse
+        (key: string)
+        ([<InlineIfLambda>] ``then``: 'V -> 'T)
+        ([<InlineIfLambda>] ``else``: unit -> 'T)
+        (m: OrderedMap<string, 'V>)
+        : 'T =
+        match tryCaseInsensitiveKey key m with
+        | Some key -> ``then`` m.[key]
+        | None -> ``else`` ()
+
+    let inline findOrElse (key: 'K) ([<InlineIfLambda>] ``else``: unit -> 'V) (m: OrderedMap<'K, 'V>) : 'V =
+        // ReSharper disable once FSharpBuiltinFunctionReimplementation
+        // (`id` function is not inlined)
+        findMapOrElse key (fun x -> x) ``else`` m
+
+    let inline findCaseInsensitiveOrElse
+        (key: string)
+        ([<InlineIfLambda>] ``else``: unit -> 'V)
+        (m: OrderedMap<string, 'V>)
+        : 'V =
+        // ReSharper disable once FSharpBuiltinFunctionReimplementation
+        // (`id` function is not inlined)
+        findCaseInsensitiveMapOrElse key (fun x -> x) ``else`` m
 
     let pick (f: 'K -> 'V -> 'State option) (m: OrderedMap<'K, 'V>) : 'State =
         Seq.pick (fun (KeyValue(k, v)) -> f k v) m

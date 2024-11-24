@@ -1,0 +1,289 @@
+== Info: Host localhost:7071 was resolved.
+== Info: IPv6: ::1
+== Info: IPv4: 127.0.0.1
+== Info:   Trying [::1]:7071...
+== Info: connect to ::1 port 7071 from ::1 port 44118 failed: Connection refused
+== Info:   Trying 127.0.0.1:7071...
+== Info: Connected to localhost (127.0.0.1) port 7071
+== Info: using HTTP/1.x
+=> Send header, 417 bytes (0x1a1)
+0000: 50 55 54 20 2f 61 70 69 2f 57 68 61 74 48 61 70 PUT /api/WhatHap
+0010: 70 65 6e 73 49 66 53 74 61 74 65 6d 65 6e 74 2f pensIfStatement/
+0020: 74 72 69 67 67 65 72 73 2f 57 68 65 6e 5f 61 5f triggers/When_a_
+0030: 48 54 54 50 5f 72 65 71 75 65 73 74 5f 69 73 5f HTTP_request_is_
+0040: 72 65 63 65 69 76 65 64 2f 69 6e 76 6f 6b 65 2f received/invoke/
+0050: 62 6f 6f 6d 2f 77 68 69 7a 7a 2f 70 6f 77 2f 31 boom/whizz/pow/1
+0060: 32 33 3f 61 70 69 2d 76 65 72 73 69 6f 6e 3d 32 23?api-version=2
+0070: 30 32 32 2d 30 35 2d 30 31 26 73 70 3d 25 32 46 022-05-01&sp=%2F
+0080: 74 72 69 67 67 65 72 73 25 32 46 57 68 65 6e 5f triggers%2FWhen_
+0090: 61 5f 48 54 54 50 5f 72 65 71 75 65 73 74 5f 69 a_HTTP_request_i
+00a0: 73 5f 72 65 63 65 69 76 65 64 25 32 46 72 75 6e s_received%2Frun
+00b0: 26 73 76 3d 31 2e 30 26 73 69 67 3d 50 4b 65 53 &sv=1.0&sig=PKeS
+00c0: 39 55 35 6d 65 5f 50 6c 7a 68 63 76 53 74 35 72 9U5me_PlzhcvSt5r
+00d0: 61 4f 4a 55 47 71 46 64 5a 72 4b 37 51 52 5a 33 aOJUGqFdZrK7QRZ3
+00e0: 6d 59 33 6c 6d 73 6b 20 48 54 54 50 2f 31 2e 31 mY3lmsk HTTP/1.1
+00f0: 0d 0a 48 6f 73 74 3a 20 6c 6f 63 61 6c 68 6f 73 ..Host: localhos
+0100: 74 3a 37 30 37 31 0d 0a 55 73 65 72 2d 41 67 65 t:7071..User-Age
+0110: 6e 74 3a 20 63 75 72 6c 2f 38 2e 31 31 2e 30 0d nt: curl/8.11.0.
+0120: 0a 41 63 63 65 70 74 3a 20 2a 2f 2a 0d 0a 43 6f .Accept: */*..Co
+0130: 6e 74 65 6e 74 2d 4c 65 6e 67 74 68 3a 20 35 38 ntent-Length: 58
+0140: 30 0d 0a 43 6f 6e 74 65 6e 74 2d 54 79 70 65 3a 0..Content-Type:
+0150: 20 6d 75 6c 74 69 70 61 72 74 2f 66 6f 72 6d 2d  multipart/form-
+0160: 64 61 74 61 3b 20 62 6f 75 6e 64 61 72 79 3d 2d data; boundary=-
+0170: 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d ----------------
+0180: 2d 2d 2d 2d 2d 2d 2d 4a 59 37 30 71 70 72 69 74 -------JY70qprit
+0190: 4e 74 6c 59 66 51 66 66 5a 74 33 59 63 0d 0a 0d NtlYfQffZt3Yc...
+01a0: 0a                                              .
+=> Send data, 481 bytes (0x1e1)
+0000: 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d ----------------
+0010: 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 4a 59 37 30 71 70 ----------JY70qp
+0020: 72 69 74 4e 74 6c 59 66 51 66 66 5a 74 33 59 63 ritNtlYfQffZt3Yc
+0030: 0d 0a 43 6f 6e 74 65 6e 74 2d 44 69 73 70 6f 73 ..Content-Dispos
+0040: 69 74 69 6f 6e 3a 20 66 6f 72 6d 2d 64 61 74 61 ition: form-data
+0050: 3b 20 6e 61 6d 65 3d 22 78 22 0d 0a 0d 0a 79 3d ; name="x"....y=
+0060: 7a 0d 0a 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d z..-------------
+0070: 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 4a 59 37 -------------JY7
+0080: 30 71 70 72 69 74 4e 74 6c 59 66 51 66 66 5a 74 0qpritNtlYfQffZt
+0090: 33 59 63 0d 0a 43 6f 6e 74 65 6e 74 2d 44 69 73 3Yc..Content-Dis
+00a0: 70 6f 73 69 74 69 6f 6e 3a 20 66 6f 72 6d 2d 64 position: form-d
+00b0: 61 74 61 0d 0a 0d 0a 3d 3d 0d 0a 2d 2d 2d 2d 2d ata....==..-----
+00c0: 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d ----------------
+00d0: 2d 2d 2d 2d 2d 4a 59 37 30 71 70 72 69 74 4e 74 -----JY70qpritNt
+00e0: 6c 59 66 51 66 66 5a 74 33 59 63 0d 0a 43 6f 6e lYfQffZt3Yc..Con
+00f0: 74 65 6e 74 2d 44 69 73 70 6f 73 69 74 69 6f 6e tent-Disposition
+0100: 3a 20 66 6f 72 6d 2d 64 61 74 61 3b 20 6e 61 6d : form-data; nam
+0110: 65 3d 22 72 75 73 74 22 3b 20 66 69 6c 65 6e 61 e="rust"; filena
+0120: 6d 65 3d 22 74 65 73 74 2e 72 73 22 0d 0a 43 6f me="test.rs"..Co
+0130: 6e 74 65 6e 74 2d 54 79 70 65 3a 20 74 65 78 74 ntent-Type: text
+0140: 2f 72 75 73 74 0d 0a 0d 0a 66 6e 20 6d 61 69 6e /rust....fn main
+0150: 28 29 20 7b 0a 20 20 20 20 70 72 69 6e 74 6c 6e () {.    println
+0160: 21 28 22 48 65 6c 6c 6f 2c 20 77 6f 72 6c 64 21 !("Hello, world!
+0170: 22 29 3b 0a 7d 0a 0d 0a 2d 2d 2d 2d 2d 2d 2d 2d ");.}...--------
+0180: 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d ----------------
+0190: 2d 2d 4a 59 37 30 71 70 72 69 74 4e 74 6c 59 66 --JY70qpritNtlYf
+01a0: 51 66 66 5a 74 33 59 63 0d 0a 43 6f 6e 74 65 6e QffZt3Yc..Conten
+01b0: 74 2d 44 69 73 70 6f 73 69 74 69 6f 6e 3a 20 66 t-Disposition: f
+01c0: 6f 72 6d 2d 64 61 74 61 3b 20 6e 61 6d 65 3d 22 orm-data; name="
+01d0: 65 6d 62 65 64 64 65 64 52 75 73 74 22 0d 0a 0d embeddedRust"...
+01e0: 0a                                              .
+=> Send data, 99 bytes (0x63)
+0000: 66 6e 20 6d 61 69 6e 28 29 20 7b 0a 20 20 20 20 fn main() {.    
+0010: 70 72 69 6e 74 6c 6e 21 28 22 48 65 6c 6c 6f 2c println!("Hello,
+0020: 20 77 6f 72 6c 64 21 22 29 3b 0a 7d 0a 0d 0a 2d  world!");.}...-
+0030: 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d ----------------
+0040: 2d 2d 2d 2d 2d 2d 2d 2d 2d 4a 59 37 30 71 70 72 ---------JY70qpr
+0050: 69 74 4e 74 6c 59 66 51 66 66 5a 74 33 59 63 2d itNtlYfQffZt3Yc-
+0060: 2d 0d 0a                                        -..
+== Info: upload completely sent off: 580 bytes
+<= Recv header, 17 bytes (0x11)
+0000: 48 54 54 50 2f 31 2e 31 20 32 30 30 20 4f 4b 0d HTTP/1.1 200 OK.
+0010: 0a                                              .
+<= Recv header, 22 bytes (0x16)
+0000: 43 6f 6e 74 65 6e 74 2d 4c 65 6e 67 74 68 3a 20 Content-Length: 
+0010: 32 32 35 35 0d 0a                               2255..
+<= Recv header, 47 bytes (0x2f)
+0000: 43 6f 6e 74 65 6e 74 2d 54 79 70 65 3a 20 61 70 Content-Type: ap
+0010: 70 6c 69 63 61 74 69 6f 6e 2f 6a 73 6f 6e 3b 20 plication/json; 
+0020: 63 68 61 72 73 65 74 3d 75 74 66 2d 38 0d 0a    charset=utf-8..
+<= Recv header, 37 bytes (0x25)
+0000: 44 61 74 65 3a 20 4d 6f 6e 2c 20 31 38 20 4e 6f Date: Mon, 18 No
+0010: 76 20 32 30 32 34 20 32 32 3a 33 31 3a 33 32 20 v 2024 22:31:32 
+0020: 47 4d 54 0d 0a                                  GMT..
+<= Recv header, 17 bytes (0x11)
+0000: 53 65 72 76 65 72 3a 20 4b 65 73 74 72 65 6c 0d Server: Kestrel.
+0010: 0a                                              .
+<= Recv header, 57 bytes (0x39)
+0000: 78 2d 6d 73 2d 77 6f 72 6b 66 6c 6f 77 2d 72 75 x-ms-workflow-ru
+0010: 6e 2d 69 64 3a 20 30 38 35 38 34 36 39 36 33 37 n-id: 0858469637
+0020: 37 39 33 35 36 39 39 37 33 31 31 32 35 39 39 35 7935699731125995
+0030: 31 38 32 43 55 30 30 0d 0a                      182CU00..
+<= Recv header, 59 bytes (0x3b)
+0000: 78 2d 6d 73 2d 63 6f 72 72 65 6c 61 74 69 6f 6e x-ms-correlation
+0010: 2d 69 64 3a 20 33 36 35 31 36 64 30 37 2d 33 30 -id: 36516d07-30
+0020: 32 38 2d 34 31 34 33 2d 61 34 64 62 2d 65 66 33 28-4143-a4db-ef3
+0030: 38 30 62 34 34 36 36 33 35 0d 0a                80b446635..
+<= Recv header, 63 bytes (0x3f)
+0000: 78 2d 6d 73 2d 63 6c 69 65 6e 74 2d 74 72 61 63 x-ms-client-trac
+0010: 6b 69 6e 67 2d 69 64 3a 20 61 63 34 34 36 31 64 king-id: ac4461d
+0020: 65 2d 39 37 31 30 2d 34 62 34 65 2d 38 34 34 37 e-9710-4b4e-8447
+0030: 2d 32 36 31 34 63 63 35 34 30 34 31 63 0d 0a    -2614cc54041c..
+<= Recv header, 62 bytes (0x3e)
+0000: 78 2d 6d 73 2d 74 72 69 67 67 65 72 2d 68 69 73 x-ms-trigger-his
+0010: 74 6f 72 79 2d 6e 61 6d 65 3a 20 30 38 35 38 34 tory-name: 08584
+0020: 36 39 36 33 37 37 39 33 35 36 39 39 37 33 31 31 6963779356997311
+0030: 32 35 39 39 35 31 38 32 43 55 30 30 0d 0a       25995182CU00..
+<= Recv header, 89 bytes (0x59)
+0000: 78 2d 6d 73 2d 77 6f 72 6b 66 6c 6f 77 2d 73 79 x-ms-workflow-sy
+0010: 73 74 65 6d 2d 69 64 3a 20 2f 73 63 61 6c 65 75 stem-id: /scaleu
+0020: 6e 69 74 73 2f 70 72 6f 64 2d 30 30 2f 77 6f 72 nits/prod-00/wor
+0030: 6b 66 6c 6f 77 73 2f 36 65 33 38 37 33 38 63 38 kflows/6e38738c8
+0040: 39 62 30 34 37 32 66 61 35 38 33 39 39 32 32 35 9b0472fa58399225
+0050: 33 34 30 31 65 36 62 0d 0a                      3401e6b..
+<= Recv header, 52 bytes (0x34)
+0000: 78 2d 6d 73 2d 77 6f 72 6b 66 6c 6f 77 2d 69 64 x-ms-workflow-id
+0010: 3a 20 36 65 33 38 37 33 38 63 38 39 62 30 34 37 : 6e38738c89b047
+0020: 32 66 61 35 38 33 39 39 32 32 35 33 34 30 31 65 2fa583992253401e
+0030: 36 62 0d 0a                                     6b..
+<= Recv header, 45 bytes (0x2d)
+0000: 78 2d 6d 73 2d 77 6f 72 6b 66 6c 6f 77 2d 76 65 x-ms-workflow-ve
+0010: 72 73 69 6f 6e 3a 20 30 38 35 38 34 36 39 36 33 rsion: 085846963
+0020: 39 34 35 33 30 39 32 31 33 30 39 0d 0a          94530921309..
+<= Recv header, 44 bytes (0x2c)
+0000: 78 2d 6d 73 2d 77 6f 72 6b 66 6c 6f 77 2d 6e 61 x-ms-workflow-na
+0010: 6d 65 3a 20 57 68 61 74 48 61 70 70 65 6e 73 49 me: WhatHappensI
+0020: 66 53 74 61 74 65 6d 65 6e 74 0d 0a             fStatement..
+<= Recv header, 56 bytes (0x38)
+0000: 78 2d 6d 73 2d 74 72 61 63 6b 69 6e 67 2d 69 64 x-ms-tracking-id
+0010: 3a 20 33 36 35 31 36 64 30 37 2d 33 30 32 38 2d : 36516d07-3028-
+0020: 34 31 34 33 2d 61 34 64 62 2d 65 66 33 38 30 62 4143-a4db-ef380b
+0030: 34 34 36 36 33 35 0d 0a                         446635..
+<= Recv header, 56 bytes (0x38)
+0000: 78 2d 6d 73 2d 72 65 71 75 65 73 74 2d 69 64 3a x-ms-request-id:
+0010: 20 3a 33 36 35 31 36 64 30 37 2d 33 30 32 38 2d  :36516d07-3028-
+0020: 34 31 34 33 2d 61 34 64 62 2d 65 66 33 38 30 62 4143-a4db-ef380b
+0030: 34 34 36 36 33 35 0d 0a                         446635..
+<= Recv header, 2 bytes (0x2)
+0000: 0d 0a                                           ..
+<= Recv data, 2255 bytes (0x8cf)
+0000: 7b 22 6e 61 6d 65 22 3a 22 57 68 65 6e 5f 61 5f {"name":"When_a_
+0010: 48 54 54 50 5f 72 65 71 75 65 73 74 5f 69 73 5f HTTP_request_is_
+0020: 72 65 63 65 69 76 65 64 22 2c 22 69 6e 70 75 74 received","input
+0030: 73 22 3a 7b 22 6d 65 74 68 6f 64 22 3a 22 50 55 s":{"method":"PU
+0040: 54 22 2c 22 72 65 6c 61 74 69 76 65 50 61 74 68 T","relativePath
+0050: 22 3a 22 62 6f 6f 6d 2f 7b 62 61 6e 67 7d 2f 70 ":"boom/{bang}/p
+0060: 6f 77 2f 7b 77 68 61 63 6b 7d 22 7d 2c 22 6f 75 ow/{whack}"},"ou
+0070: 74 70 75 74 73 22 3a 7b 22 68 65 61 64 65 72 73 tputs":{"headers
+0080: 22 3a 7b 22 41 63 63 65 70 74 22 3a 22 2a 2f 2a ":{"Accept":"*/*
+0090: 22 2c 22 48 6f 73 74 22 3a 22 6c 6f 63 61 6c 68 ","Host":"localh
+00a0: 6f 73 74 3a 37 30 37 31 22 2c 22 55 73 65 72 2d ost:7071","User-
+00b0: 41 67 65 6e 74 22 3a 22 63 75 72 6c 2f 38 2e 31 Agent":"curl/8.1
+00c0: 31 2e 30 22 2c 22 43 6f 6e 74 65 6e 74 2d 54 79 1.0","Content-Ty
+00d0: 70 65 22 3a 22 6d 75 6c 74 69 70 61 72 74 2f 66 pe":"multipart/f
+00e0: 6f 72 6d 2d 64 61 74 61 3b 20 62 6f 75 6e 64 61 orm-data; bounda
+00f0: 72 79 3d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d ry=-------------
+0100: 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 4a 59 37 30 71 -----------JY70q
+0110: 70 72 69 74 4e 74 6c 59 66 51 66 66 5a 74 33 59 pritNtlYfQffZt3Y
+0120: 63 22 2c 22 43 6f 6e 74 65 6e 74 2d 4c 65 6e 67 c","Content-Leng
+0130: 74 68 22 3a 22 35 38 30 22 7d 2c 22 72 65 6c 61 th":"580"},"rela
+0140: 74 69 76 65 50 61 74 68 50 61 72 61 6d 65 74 65 tivePathParamete
+0150: 72 73 22 3a 7b 22 62 61 6e 67 22 3a 22 77 68 69 rs":{"bang":"whi
+0160: 7a 7a 22 2c 22 77 68 61 63 6b 22 3a 22 31 32 33 zz","whack":"123
+0170: 22 7d 2c 22 62 6f 64 79 22 3a 7b 22 24 63 6f 6e "},"body":{"$con
+0180: 74 65 6e 74 2d 74 79 70 65 22 3a 22 6d 75 6c 74 tent-type":"mult
+0190: 69 70 61 72 74 2f 66 6f 72 6d 2d 64 61 74 61 3b ipart/form-data;
+01a0: 20 62 6f 75 6e 64 61 72 79 3d 2d 2d 2d 2d 2d 2d  boundary=------
+01b0: 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d 2d ----------------
+01c0: 2d 2d 4a 59 37 30 71 70 72 69 74 4e 74 6c 59 66 --JY70qpritNtlYf
+01d0: 51 66 66 5a 74 33 59 63 22 2c 22 24 63 6f 6e 74 QffZt3Yc","$cont
+01e0: 65 6e 74 22 3a 22 4c 53 30 74 4c 53 30 74 4c 53 ent":"LS0tLS0tLS
+01f0: 30 74 4c 53 30 74 4c 53 30 74 4c 53 30 74 4c 53 0tLS0tLS0tLS0tLS
+0200: 30 74 4c 53 30 74 4c 53 31 4b 57 54 63 77 63 58 0tLS0tLS1KWTcwcX
+0210: 42 79 61 58 52 4f 64 47 78 5a 5a 6c 46 6d 5a 6c ByaXROdGxZZlFmZl
+0220: 70 30 4d 31 6c 6a 44 51 70 44 62 32 35 30 5a 57 p0M1ljDQpDb250ZW
+0230: 35 30 4c 55 52 70 63 33 42 76 63 32 6c 30 61 57 50LURpc3Bvc2l0aW
+0240: 39 75 4f 69 42 6d 62 33 4a 74 4c 57 52 68 64 47 9uOiBmb3JtLWRhdG
+0250: 45 37 49 47 35 68 62 57 55 39 49 6e 67 69 44 51 E7IG5hbWU9IngiDQ
+0260: 6f 4e 43 6e 6b 39 65 67 30 4b 4c 53 30 74 4c 53 oNCnk9eg0KLS0tLS
+0270: 30 74 4c 53 30 74 4c 53 30 74 4c 53 30 74 4c 53 0tLS0tLS0tLS0tLS
+0280: 30 74 4c 53 30 74 4c 53 30 74 4c 53 31 4b 57 54 0tLS0tLS0tLS1KWT
+0290: 63 77 63 58 42 79 61 58 52 4f 64 47 78 5a 5a 6c cwcXByaXROdGxZZl
+02a0: 46 6d 5a 6c 70 30 4d 31 6c 6a 44 51 70 44 62 32 FmZlp0M1ljDQpDb2
+02b0: 35 30 5a 57 35 30 4c 55 52 70 63 33 42 76 63 32 50ZW50LURpc3Bvc2
+02c0: 6c 30 61 57 39 75 4f 69 42 6d 62 33 4a 74 4c 57 l0aW9uOiBmb3JtLW
+02d0: 52 68 64 47 45 4e 43 67 30 4b 50 54 30 4e 43 69 RhdGENCg0KPT0NCi
+02e0: 30 74 4c 53 30 74 4c 53 30 74 4c 53 30 74 4c 53 0tLS0tLS0tLS0tLS
+02f0: 30 74 4c 53 30 74 4c 53 30 74 4c 53 30 74 4c 53 0tLS0tLS0tLS0tLS
+0300: 30 74 53 6c 6b 33 4d 48 46 77 63 6d 6c 30 54 6e 0tSlk3MHFwcml0Tn
+0310: 52 73 57 57 5a 52 5a 6d 5a 61 64 44 4e 5a 59 77 RsWWZRZmZadDNZYw
+0320: 30 4b 51 32 39 75 64 47 56 75 64 43 31 45 61 58 0KQ29udGVudC1EaX
+0330: 4e 77 62 33 4e 70 64 47 6c 76 62 6a 6f 67 5a 6d Nwb3NpdGlvbjogZm
+0340: 39 79 62 53 31 6b 59 58 52 68 4f 79 42 75 59 57 9ybS1kYXRhOyBuYW
+0350: 31 6c 50 53 4a 79 64 58 4e 30 49 6a 73 67 5a 6d 1lPSJydXN0IjsgZm
+0360: 6c 73 5a 57 35 68 62 57 55 39 49 6e 52 6c 63 33 lsZW5hbWU9InRlc3
+0370: 51 75 63 6e 4d 69 44 51 70 44 62 32 35 30 5a 57 QucnMiDQpDb250ZW
+0380: 35 30 4c 56 52 35 63 47 55 36 49 48 52 6c 65 48 50LVR5cGU6IHRleH
+0390: 51 76 63 6e 56 7a 64 41 30 4b 44 51 70 6d 62 69 QvcnVzdA0KDQpmbi
+03a0: 42 74 59 57 6c 75 4b 43 6b 67 65 77 6f 67 49 43 BtYWluKCkgewogIC
+03b0: 41 67 63 48 4a 70 62 6e 52 73 62 69 45 6f 49 6b AgcHJpbnRsbiEoIk
+03c0: 68 6c 62 47 78 76 4c 43 42 33 62 33 4a 73 5a 43 hlbGxvLCB3b3JsZC
+03d0: 45 69 4b 54 73 4b 66 51 6f 4e 43 69 30 74 4c 53 EiKTsKfQoNCi0tLS
+03e0: 30 74 4c 53 30 74 4c 53 30 74 4c 53 30 74 4c 53 0tLS0tLS0tLS0tLS
+03f0: 30 74 4c 53 30 74 4c 53 30 74 4c 53 30 74 53 6c 0tLS0tLS0tLS0tSl
+0400: 6b 33 4d 48 46 77 63 6d 6c 30 54 6e 52 73 57 57 k3MHFwcml0TnRsWW
+0410: 5a 52 5a 6d 5a 61 64 44 4e 5a 59 77 30 4b 51 32 ZRZmZadDNZYw0KQ2
+0420: 39 75 64 47 56 75 64 43 31 45 61 58 4e 77 62 33 9udGVudC1EaXNwb3
+0430: 4e 70 64 47 6c 76 62 6a 6f 67 5a 6d 39 79 62 53 NpdGlvbjogZm9ybS
+0440: 31 6b 59 58 52 68 4f 79 42 75 59 57 31 6c 50 53 1kYXRhOyBuYW1lPS
+0450: 4a 6c 62 57 4a 6c 5a 47 52 6c 5a 46 4a 31 63 33 JlbWJlZGRlZFJ1c3
+0460: 51 69 44 51 6f 4e 43 6d 5a 75 49 47 31 68 61 57 QiDQoNCmZuIG1haW
+0470: 34 6f 4b 53 42 37 43 69 41 67 49 43 42 77 63 6d 4oKSB7CiAgICBwcm
+0480: 6c 75 64 47 78 75 49 53 67 69 53 47 56 73 62 47 ludGxuISgiSGVsbG
+0490: 38 73 49 48 64 76 63 6d 78 6b 49 53 49 70 4f 77 8sIHdvcmxkISIpOw
+04a0: 70 39 43 67 30 4b 4c 53 30 74 4c 53 30 74 4c 53 p9Cg0KLS0tLS0tLS
+04b0: 30 74 4c 53 30 74 4c 53 30 74 4c 53 30 74 4c 53 0tLS0tLS0tLS0tLS
+04c0: 30 74 4c 53 30 74 4c 53 31 4b 57 54 63 77 63 58 0tLS0tLS1KWTcwcX
+04d0: 42 79 61 58 52 4f 64 47 78 5a 5a 6c 46 6d 5a 6c ByaXROdGxZZlFmZl
+04e0: 70 30 4d 31 6c 6a 4c 53 30 4e 43 67 3d 3d 22 2c p0M1ljLS0NCg==",
+04f0: 22 24 6d 75 6c 74 69 70 61 72 74 22 3a 5b 7b 22 "$multipart":[{"
+0500: 68 65 61 64 65 72 73 22 3a 7b 22 43 6f 6e 74 65 headers":{"Conte
+0510: 6e 74 2d 44 69 73 70 6f 73 69 74 69 6f 6e 22 3a nt-Disposition":
+0520: 22 66 6f 72 6d 2d 64 61 74 61 3b 20 6e 61 6d 65 "form-data; name
+0530: 3d 5c 22 78 5c 22 22 2c 22 43 6f 6e 74 65 6e 74 =\"x\"","Content
+0540: 2d 4c 65 6e 67 74 68 22 3a 22 33 22 7d 2c 22 62 -Length":"3"},"b
+0550: 6f 64 79 22 3a 7b 22 24 63 6f 6e 74 65 6e 74 2d ody":{"$content-
+0560: 74 79 70 65 22 3a 22 61 70 70 6c 69 63 61 74 69 type":"applicati
+0570: 6f 6e 2f 6f 63 74 65 74 2d 73 74 72 65 61 6d 22 on/octet-stream"
+0580: 2c 22 24 63 6f 6e 74 65 6e 74 22 3a 22 65 54 31 ,"$content":"eT1
+0590: 36 22 7d 7d 2c 7b 22 68 65 61 64 65 72 73 22 3a 6"}},{"headers":
+05a0: 7b 22 43 6f 6e 74 65 6e 74 2d 44 69 73 70 6f 73 {"Content-Dispos
+05b0: 69 74 69 6f 6e 22 3a 22 66 6f 72 6d 2d 64 61 74 ition":"form-dat
+05c0: 61 22 2c 22 43 6f 6e 74 65 6e 74 2d 4c 65 6e 67 a","Content-Leng
+05d0: 74 68 22 3a 22 32 22 7d 2c 22 62 6f 64 79 22 3a th":"2"},"body":
+05e0: 7b 22 24 63 6f 6e 74 65 6e 74 2d 74 79 70 65 22 {"$content-type"
+05f0: 3a 22 61 70 70 6c 69 63 61 74 69 6f 6e 2f 6f 63 :"application/oc
+0600: 74 65 74 2d 73 74 72 65 61 6d 22 2c 22 24 63 6f tet-stream","$co
+0610: 6e 74 65 6e 74 22 3a 22 50 54 30 3d 22 7d 7d 2c ntent":"PT0="}},
+0620: 7b 22 68 65 61 64 65 72 73 22 3a 7b 22 43 6f 6e {"headers":{"Con
+0630: 74 65 6e 74 2d 44 69 73 70 6f 73 69 74 69 6f 6e tent-Disposition
+0640: 22 3a 22 66 6f 72 6d 2d 64 61 74 61 3b 20 6e 61 ":"form-data; na
+0650: 6d 65 3d 5c 22 72 75 73 74 5c 22 3b 20 66 69 6c me=\"rust\"; fil
+0660: 65 6e 61 6d 65 3d 5c 22 74 65 73 74 2e 72 73 5c ename=\"test.rs\
+0670: 22 22 2c 22 43 6f 6e 74 65 6e 74 2d 54 79 70 65 "","Content-Type
+0680: 22 3a 22 74 65 78 74 2f 72 75 73 74 22 2c 22 43 ":"text/rust","C
+0690: 6f 6e 74 65 6e 74 2d 4c 65 6e 67 74 68 22 3a 22 ontent-Length":"
+06a0: 34 35 22 7d 2c 22 62 6f 64 79 22 3a 22 66 6e 20 45"},"body":"fn 
+06b0: 6d 61 69 6e 28 29 20 7b 5c 6e 20 20 20 20 70 72 main() {\n    pr
+06c0: 69 6e 74 6c 6e 21 28 5c 22 48 65 6c 6c 6f 2c 20 intln!(\"Hello, 
+06d0: 77 6f 72 6c 64 21 5c 22 29 3b 5c 6e 7d 5c 6e 22 world!\");\n}\n"
+06e0: 7d 2c 7b 22 68 65 61 64 65 72 73 22 3a 7b 22 43 },{"headers":{"C
+06f0: 6f 6e 74 65 6e 74 2d 44 69 73 70 6f 73 69 74 69 ontent-Dispositi
+0700: 6f 6e 22 3a 22 66 6f 72 6d 2d 64 61 74 61 3b 20 on":"form-data; 
+0710: 6e 61 6d 65 3d 5c 22 65 6d 62 65 64 64 65 64 52 name=\"embeddedR
+0720: 75 73 74 5c 22 22 2c 22 43 6f 6e 74 65 6e 74 2d ust\"","Content-
+0730: 4c 65 6e 67 74 68 22 3a 22 34 35 22 7d 2c 22 62 Length":"45"},"b
+0740: 6f 64 79 22 3a 7b 22 24 63 6f 6e 74 65 6e 74 2d ody":{"$content-
+0750: 74 79 70 65 22 3a 22 61 70 70 6c 69 63 61 74 69 type":"applicati
+0760: 6f 6e 2f 6f 63 74 65 74 2d 73 74 72 65 61 6d 22 on/octet-stream"
+0770: 2c 22 24 63 6f 6e 74 65 6e 74 22 3a 22 5a 6d 34 ,"$content":"Zm4
+0780: 67 62 57 46 70 62 69 67 70 49 48 73 4b 49 43 41 gbWFpbigpIHsKICA
+0790: 67 49 48 42 79 61 57 35 30 62 47 34 68 4b 43 4a gIHByaW50bG4hKCJ
+07a0: 49 5a 57 78 73 62 79 77 67 64 32 39 79 62 47 51 IZWxsbywgd29ybGQ
+07b0: 68 49 69 6b 37 43 6e 30 4b 22 7d 7d 5d 7d 7d 2c hIik7Cn0K"}}]}},
+07c0: 22 73 74 61 72 74 54 69 6d 65 22 3a 22 32 30 32 "startTime":"202
+07d0: 34 2d 31 31 2d 31 38 54 32 32 3a 33 31 3a 33 31 4-11-18T22:31:31
+07e0: 2e 39 30 37 36 32 31 33 5a 22 2c 22 65 6e 64 54 .9076213Z","endT
+07f0: 69 6d 65 22 3a 22 32 30 32 34 2d 31 31 2d 31 38 ime":"2024-11-18
+0800: 54 32 32 3a 33 31 3a 33 31 2e 39 30 37 36 32 31 T22:31:31.907621
+0810: 33 5a 22 2c 22 74 72 61 63 6b 69 6e 67 49 64 22 3Z","trackingId"
+0820: 3a 22 33 36 35 31 36 64 30 37 2d 33 30 32 38 2d :"36516d07-3028-
+0830: 34 31 34 33 2d 61 34 64 62 2d 65 66 33 38 30 62 4143-a4db-ef380b
+0840: 34 34 36 36 33 35 22 2c 22 63 6c 69 65 6e 74 54 446635","clientT
+0850: 72 61 63 6b 69 6e 67 49 64 22 3a 22 61 63 34 34 rackingId":"ac44
+0860: 36 31 64 65 2d 39 37 31 30 2d 34 62 34 65 2d 38 61de-9710-4b4e-8
+0870: 34 34 37 2d 32 36 31 34 63 63 35 34 30 34 31 63 447-2614cc54041c
+0880: 22 2c 22 6f 72 69 67 69 6e 48 69 73 74 6f 72 79 ","originHistory
+0890: 4e 61 6d 65 22 3a 22 30 38 35 38 34 36 39 36 33 Name":"085846963
+08a0: 37 37 39 33 35 36 39 39 37 33 31 31 32 35 39 39 7793569973112599
+08b0: 35 31 38 32 43 55 30 30 22 2c 22 73 74 61 74 75 5182CU00","statu
+08c0: 73 22 3a 22 53 75 63 63 65 65 64 65 64 22 7d    s":"Succeeded"}
+== Info: Connection #0 to host localhost left intact

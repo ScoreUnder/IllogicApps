@@ -20,12 +20,15 @@
         <Compile Include="ManipulationFunctionsTests.fs"/>
         <Compile Include="SettingsFilesTests.fs"/>
         <Compile Include="SimulatorInternalsTests.fs"/>
+        <EmbeddedResource Include="TestData\**"/>
+        <Compile Include="WorkflowTraceTests.fs"/>
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="coverlet.collector" Version="6.0.2">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
+        <PackageReference Include="DEdge.Diffract" Version="0.4.0"/>
         <PackageReference Include="Foq" Version="1.8.0"/>
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1"/>
         <PackageReference Include="NUnit" Version="4.2.2"/>

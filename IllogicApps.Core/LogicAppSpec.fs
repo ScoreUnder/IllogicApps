@@ -8,19 +8,18 @@ let actionGraphOfJson resolveAction json =
 type Definition =
     { actions: ActionGraph
       outputs: OrderedMap<string, JsonTree>
-      triggers: ActionGraph }
+      triggers: OrderedMap<string, BaseTrigger> }
 
-let definitionOfJson resolveAction json =
+let definitionOfJson resolveTrigger resolveAction json =
     { actions = JsonTree.getKey "actions" json |> actionGraphOfJson resolveAction
-      outputs =
-        JsonTree.tryGetKey "outputs" json
-        |> Option.map Conversions.ensureObject
-        |> Option.defaultValue OrderedMap.empty
-      triggers = JsonTree.getKey "triggers" json |> actionGraphOfJson resolveAction }
+      outputs = JsonTree.getKeyMapOrElse "outputs" Conversions.ensureObject (fun () -> OrderedMap.empty) json
+      triggers = JsonTree.getKey "triggers" json |> actionGraphOfJson resolveTrigger }
 
 type Root =
     { definition: Definition; kind: string }
 
-let rootOfJson resolveAction json =
-    { definition = JsonTree.getKey "definition" json |> definitionOfJson resolveAction
+let rootOfJson resolveTrigger resolveAction json =
+    { definition =
+        JsonTree.getKey "definition" json
+        |> definitionOfJson resolveTrigger resolveAction
       kind = JsonTree.getKey "kind" json |> Conversions.ensureString }

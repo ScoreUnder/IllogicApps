@@ -109,6 +109,8 @@ type CompletedAction =
       endTime: string
       trackingId: string
       clientTrackingId: string
+      scheduledTime: string option
+      originHistoryName: string option
       status: Status
       code: ActionCode option
       error: ActionError option }
@@ -123,6 +125,8 @@ module CompletedAction =
           endTime = stringOfDateTime DateTime.UtcNow
           trackingId = makeNewTrackingId ()
           clientTrackingId = makeNewWorkflowRunId ()
+          scheduledTime = None
+          originHistoryName = None
           status = Succeeded
           code = None
           error = None }
@@ -138,31 +142,14 @@ let orderedMapBuilderOfCompletedAction (ca: CompletedAction) =
         .Add("endTime", String ca.endTime)
         .Add("trackingId", String ca.trackingId)
         .Add("clientTrackingId", String ca.clientTrackingId)
+        .MaybeAdd("scheduledTime", ca.scheduledTime)
+        .MaybeAdd("originHistoryName", ca.originHistoryName)
         .Add("status", String(ca.status |> stringOfStatus))
         .MaybeAdd("code", ca.code |> Option.map (fun c -> c |> stringOfActionCode |> String))
         .MaybeAdd("error", ca.error |> Option.map jsonOfActionError)
 
 let jsonOfCompletedAction (ca: CompletedAction) =
     Object((orderedMapBuilderOfCompletedAction ca).Build())
-
-type CompletedTrigger =
-    { action: CompletedAction
-      scheduledTime: string option
-      originHistoryName: string }
-
-let orderedMapBuilderOfCompletedTrigger (ct: CompletedTrigger) =
-    (orderedMapBuilderOfCompletedAction ct.action)
-        .MaybeAdd("scheduledTime", ct.scheduledTime)
-        .Add("originHistoryName", String ct.originHistoryName)
-
-let jsonOfCompletedTrigger (ct: CompletedTrigger) =
-    Object((orderedMapBuilderOfCompletedTrigger ct).Build())
-
-module CompletedTrigger =
-    let inline create completedAction =
-        { action = completedAction
-          scheduledTime = None
-          originHistoryName = completedAction.clientTrackingId }
 
 type TerminateRunError =
     { code: string option

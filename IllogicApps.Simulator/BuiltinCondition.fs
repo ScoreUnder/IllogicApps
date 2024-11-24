@@ -117,7 +117,4 @@ let conditions: Map<string, LanguageCondition> =
           "startsWith", condStartsWith
           "endsWith", condEndsWith ]
 
-let (|LanguageCondition|_|) name =
-    match conditions.TryGetValue(name) with
-    | true, f -> Some f
-    | _ -> None
+let (|LanguageCondition|_|) name = Map.tryFind name conditions
