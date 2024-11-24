@@ -63,7 +63,7 @@ type TestRunner
             .Build()
         |> Object
 
-    let defaultHandler (overallResponse: HttpResponseMessage option ref) originWorkflowName (_: SimulatorContext) =
+    let defaultHandler (overallResponse: HttpResponseMessage option ref) originWorkflowName (sim: SimulatorContext) =
         let getMockResponse request =
             try
                 mockDefinition
@@ -73,6 +73,16 @@ type TestRunner
             with e ->
                 Console.WriteLine(string e)
                 new HttpResponseMessage(HttpStatusCode.InternalServerError)
+
+        let mockAsFakeHttpRequest actionName json =
+            let uri = $"{MOCK_HOST_URI}/{actionName}"
+            let content = netHttpContentOfJson json
+            let netHttpRequest = new HttpRequestMessage(HttpMethod.Post, uri, Content = content)
+
+            LogicAppActionSupport.makeWorkflowHttpRequestHeaders actionName sim
+            |> List.iter (fun (k, v) -> netHttpRequest.Headers.TryAddWithoutValidation(k, v) |> ignore)
+
+            netHttpRequest
 
         function
         | HttpResponse(response) when overallResponse.Value.IsNone && workflowName = originWorkflowName ->
@@ -86,31 +96,24 @@ type TestRunner
             reply.Value <- result |> httpRequestReplyOfNetHttpResponseMessage
             true
         | Workflow(request, reply) ->
-            let uri = $"{MOCK_HOST_URI}/{request.actionName}"
+            let fakeHttpRequest =
+                mockAsFakeHttpRequest request.actionName (compatibleJsonOfWorkflowRequest request)
 
-            let requestStr =
-                request |> compatibleJsonOfWorkflowRequest |> Conversions.stringOfJson
-
-            let content = new StringContent(requestStr, Encoding.UTF8, ContentType.Json)
-            let netHttpRequest = new HttpRequestMessage(HttpMethod.Post, uri, Content = content)
-            let result = getMockResponse netHttpRequest
-
+            let result = getMockResponse fakeHttpRequest
             reply.Value <- result |> httpRequestReplyOfNetHttpResponseMessage
             true
         | ServiceProvider(serviceProviderReq, reply) ->
-            let uri = $"{MOCK_HOST_URI}/{serviceProviderReq.actionName}"
-            let content = netHttpContentOfJson serviceProviderReq.parameters
-            let netHttpRequest = new HttpRequestMessage(HttpMethod.Post, uri, Content = content)
+            let fakeHttpRequest =
+                mockAsFakeHttpRequest serviceProviderReq.actionName serviceProviderReq.parameters
 
-            netHttpRequest.Headers.TryAddWithoutValidation(
-                "x-illogicapps-serviceproviderconfig",
-                serviceProviderReq.serviceProviderConfiguration
-                |> jsonOfServiceProviderConfiguration
-                |> Conversions.stringOfJson
-            )
-            |> ignore
+            let result = getMockResponse fakeHttpRequest
+            reply.Value <- result |> httpRequestReplyOfNetHttpResponseMessage
+            true
+        | InvokeFunction(functionReq, reply) ->
+            let fakeHttpRequest =
+                mockAsFakeHttpRequest functionReq.actionName functionReq.parameters
 
-            let result = getMockResponse netHttpRequest
+            let result = getMockResponse fakeHttpRequest
             reply.Value <- result |> httpRequestReplyOfNetHttpResponseMessage
             true
         | _ -> false

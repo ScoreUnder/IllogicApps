@@ -68,10 +68,18 @@ let buildWorkflowFamily
                     receivedResponse.Value <- Ignored
                     result.Value <- createAsyncBeginWorkflowResponse sim
 
+                let injectedHeaaders =
+                    let builder = OrderedMap.Builder().AddRange(workflowReq.headers)
+
+                    makeWorkflowHttpRequestHeaders workflowReq.actionName sim
+                    |> List.iter (fun (k, v) -> builder.Add(k, String v) |> ignore)
+
+                    builder.Build()
+
                 let outputs =
                     OrderedMap
                         .Builder()
-                        .Add("headers", workflowReq.headers |> Object)
+                        .Add("headers", injectedHeaaders |> Object)
                         .MaybeAdd("body", workflowReq.body)
                         .Build()
                     |> Object

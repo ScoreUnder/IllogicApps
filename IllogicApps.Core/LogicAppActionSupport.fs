@@ -1,5 +1,6 @@
 module IllogicApps.Core.LogicAppActionSupport
 
+open System
 open IllogicApps.Core.CompletedStepTypes
 open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.LogicAppSpec
@@ -190,6 +191,25 @@ let jsonOfServiceProviderInputs (inputs: ServiceProviderInputs) =
         .Build()
     |> JsonTree.Object
 
+type InvokeFunctionInputs =
+    { functionName: string
+      parameters: JsonTree }
+
+    member inputs.ToJson() =
+        OrderedMap
+            .Builder()
+            .Add("functionName", JsonTree.String inputs.functionName)
+            .Add("parameters", inputs.parameters)
+            .Build()
+        |> JsonTree.Object
+
+    [<CompiledName("OfJson")>]
+    static member ofJson json =
+        { functionName = JsonTree.getKey "functionName" json |> Conversions.ensureString
+          parameters = JsonTree.getKey "parameters" json }
+
+    override this.ToString() = this.ToJson().ToString()
+
 type HttpResponseInputs =
     { body: JsonTree
       headers: OrderedMap<string, string> option
@@ -212,6 +232,38 @@ let httpResponseInputsOfJson json =
     { body = JsonTree.getKeyOrNull "body" json
       headers = JsonTree.tryGetKey "headers" json |> Option.map Conversions.stringsMapOfJson
       statusCode = JsonTree.getKey "statusCode" json }
+
+let makeWorkflowHttpRequestHeaders (actionName: string) (sim: SimulatorContext) =
+    let workflowDetails = sim.WorkflowDetails
+    let trigger = sim.TriggerResult
+    let correlationId = trigger.trackingId
+    let actionTrackingId = Guid.NewGuid().ToString() // TODO: use real action tracking ID
+    let clientRequestId = Guid.NewGuid().ToString() // TODO: what is this?
+    let runTrackingId = Guid.NewGuid().ToString() // TODO: what is this?
+
+    [ ("x-ms-workflow-id", workflowDetails.id.Split('/') |> Array.last)
+      ("x-ms-workflow-version", workflowDetails.version)
+      ("x-ms-workflow-name", workflowDetails.name)
+      ("x-ms-workflow-system-id", $"/scaleunits/prod-00{workflowDetails.id}")
+      ("x-ms-workflow-run-id", workflowDetails.run.name)
+      ("x-ms-workflow-run-tracking-id", runTrackingId)
+      ("x-ms-workflow-operation-name", actionName)
+      ("x-ms-tracking-id", correlationId)
+      ("x-ms-correlation-id", correlationId)
+      ("x-ms-client-request-id", clientRequestId)
+      ("x-ms-client-tracking-id", trigger.clientTrackingId)
+      ("x-ms-action-tracking-id", actionTrackingId)
+      ("x-ms-activity-vector", "IN.04") ] // TODO: what is this?
+
+let addWorkflowHttpRequestHeadersToBuilder
+    (actionName: string)
+    (sim: SimulatorContext)
+    (headers: OrderedMap.Builder<string, string>)
+    =
+    makeWorkflowHttpRequestHeaders actionName sim
+    |> List.iter (fun (k, v) -> headers.TryAdd(k, v) |> ignore)
+
+    headers
 
 let addWorkflowResponseHeadersToBuilder (sim: SimulatorContext) (headers: OrderedMap.Builder<string, string>) =
     let workflowDetails = sim.WorkflowDetails

@@ -661,6 +661,39 @@ type ServiceProvider(json) =
             inputs = Some(jsonOfServiceProviderInputs processedInputs)
             outputs = Some(jsonOfHttpRequestReply result.Value) }
 
+// Local Function Operations actions
+
+type InvokeFunction(json) =
+    inherit BaseAction(json)
+
+    member val Inputs = JsonTree.getKey "inputs" json |> InvokeFunctionInputs.ofJson with get
+
+    override this.Execute (name: string) (context: SimulatorContext) =
+        let result = ref HttpRequestReply.Default
+
+        let processedInputs =
+            { functionName =
+                this.Inputs.functionName
+                |> String
+                |> context.EvaluateLanguage
+                |> Conversions.ensureString
+              parameters = context.EvaluateLanguage(this.Inputs.parameters) }
+
+        context.ExternalServiceRequest
+        <| ExternalServiceTypes.InvokeFunction(
+            { actionName = name
+              functionName = processedInputs.functionName
+              parameters = processedInputs.parameters },
+            result
+        )
+
+        let success = httpStatusCodeIsSuccess result.Value.statusCode
+
+        { ActionResult.Default with
+            status = if success then Succeeded else Failed
+            inputs = Some(Conversions.createObject [ "body", processedInputs.ToJson() ])
+            outputs = Some(jsonOfHttpRequestReply result.Value) }
+
 // Request actions
 
 type Response(json) =
@@ -766,9 +799,9 @@ type Http(json) =
         processedContent
         |> Option.iter (fun (type_, _) -> headers.TryAdd("Content-Type", type_) |> ignore)
 
-        // Add action name
+        // Add extra headers
         // TODO toggle if requested in json
-        headers.TryAdd(LogicAppHeaders.ActionName, name) |> ignore
+        addWorkflowHttpRequestHeadersToBuilder name context headers |> ignore
 
         context.ExternalServiceRequest
         <| HttpRequest(

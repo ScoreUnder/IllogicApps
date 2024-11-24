@@ -61,6 +61,7 @@ let actionMap =
           "Select", (fun _ v -> Select v)
           "JavaScriptCode", (fun _ v -> JavaScriptCode v)
           "ServiceProvider", (fun _ v -> ServiceProvider v)
+          "InvokeFunction", (fun _ v -> InvokeFunction v)
           "Response", (fun _ v -> Response v)
           "Http", (fun _ v -> Http v)
           "Workflow", (fun _ v -> Workflow v) ]

@@ -8,7 +8,6 @@
         <Compile Include="Support\MeasuredString.fs"/>
         <Compile Include="Support\ContentType.fs"/>
         <Compile Include="Support\Blob.fs"/>
-        <Compile Include="Support\LogicAppHeaders.fs"/>
         <Compile Include="HttpModel\RetryPolicy.fs"/>
         <Compile Include="HttpModel\HttpParsing.fs"/>
         <Compile Include="HttpModel\HttpWriting.fs"/>

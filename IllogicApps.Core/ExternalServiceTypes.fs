@@ -205,9 +205,32 @@ type ServiceProviderRequest =
       parameters: JsonTree
       serviceProviderConfiguration: ServiceProviderConfiguration }
 
+type InvokeFunctionRequest =
+    { actionName: string
+      functionName: string
+      parameters: JsonTree }
+
+    member this.ToJson() =
+        OrderedMap
+            .Builder()
+            .Add("actionName", String this.actionName)
+            .Add("functionName", String this.functionName)
+            .Add("parameters", this.parameters)
+            .Build()
+        |> Object
+
+    [<CompiledName("OfJson")>]
+    static member ofJson json =
+        { actionName = JsonTree.getKey "actionName" json |> Conversions.ensureString
+          functionName = JsonTree.getKey "functionName" json |> Conversions.ensureString
+          parameters = JsonTree.getKey "parameters" json }
+
+    override this.ToString() = this.ToJson().ToString()
+
 type ExternalServiceRequest =
     | HttpRequest of HttpServiceRequest * HttpRequestReply ref
     | HttpResponse of HttpRequestReply
     | Workflow of WorkflowRequest * HttpRequestReply ref
     | ScriptExecution of ScriptExecutionRequest * Result<JsonTree, string> ref
     | ServiceProvider of ServiceProviderRequest * HttpRequestReply ref
+    | InvokeFunction of InvokeFunctionRequest * HttpRequestReply ref
