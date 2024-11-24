@@ -49,6 +49,16 @@ type TestRunner
     let mySim () = simulators |> List.head
 
     let defaultHandler (overallResponse: HttpResponseMessage option ref) originWorkflowName (_: SimulatorContext) =
+        let getMockResponse request =
+            try
+                mockDefinition
+                    .MatchRequestAndBuildResponseAsync(request)
+                    .GetAwaiter()
+                    .GetResult()
+            with e ->
+                Console.WriteLine(string e)
+                new HttpResponseMessage(HttpStatusCode.InternalServerError)
+
         function
         | HttpResponse(response) when overallResponse.Value.IsNone && workflowName = originWorkflowName ->
             // TODO: `workflowName = originWorkflowName` is not recursion-friendly
@@ -56,16 +66,7 @@ type TestRunner
             true
         | HttpRequest(request, reply) ->
             let request = netHttpRequestMessageOfHttpServiceRequest request
-
-            let result =
-                try
-                    mockDefinition
-                        .MatchRequestAndBuildResponseAsync(request)
-                        .GetAwaiter()
-                        .GetResult()
-                with e ->
-                    Console.WriteLine(string e)
-                    new HttpResponseMessage(HttpStatusCode.InternalServerError)
+            let result = getMockResponse request
 
             reply.Value <- result |> httpRequestReplyOfNetHttpResponseMessage
             true
@@ -74,12 +75,7 @@ type TestRunner
             let requestStr = request |> jsonOfWorkflowRequest |> Conversions.stringOfJson
             let content = new StringContent(requestStr, Encoding.UTF8, ContentType.Json)
             let netHttpRequest = new HttpRequestMessage(HttpMethod.Post, uri, Content = content)
-
-            let result =
-                mockDefinition
-                    .MatchRequestAndBuildResponseAsync(netHttpRequest)
-                    .GetAwaiter()
-                    .GetResult()
+            let result = getMockResponse netHttpRequest
 
             reply.Value <- result |> httpRequestReplyOfNetHttpResponseMessage
             true
@@ -96,12 +92,7 @@ type TestRunner
             )
             |> ignore
 
-            let result =
-                mockDefinition
-                    .MatchRequestAndBuildResponseAsync(netHttpRequest)
-                    .GetAwaiter()
-                    .GetResult()
-
+            let result = getMockResponse netHttpRequest
             reply.Value <- result |> httpRequestReplyOfNetHttpResponseMessage
             true
         | _ -> false
