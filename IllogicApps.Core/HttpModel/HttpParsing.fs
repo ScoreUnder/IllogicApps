@@ -1,5 +1,6 @@
 module IllogicApps.Core.HttpModel.HttpParsing
 
+open System.IO
 open System.Net
 open System.Text
 open IllogicApps.Core.Support
@@ -30,7 +31,9 @@ let decodeBodyByContentType (contentType: string) (body: byte array) =
         let charset =
             ContentType.Charset.get contentType |> Option.defaultValue Encoding.UTF8
 
-        charset.GetString(body)
+        use stream = new MemoryStream(body)
+        use reader = new StreamReader(stream, charset)
+        reader.ReadToEnd()
 
     if ContentType.isJson contentType then
         Parser.parse (decodeBody ())
