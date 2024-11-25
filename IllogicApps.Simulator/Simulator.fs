@@ -182,6 +182,10 @@ type TriggerCompletion =
     | Completed of CompletedAction
     | Invoked of HttpRequest
 
+module Simulator =
+    let workflowIsStateless (workflow: LogicAppSpec.Root) =
+        workflow.kind.Equals("stateless", StringComparison.OrdinalIgnoreCase)
+
 [<Struct>]
 type SimulatorCreationOptions =
     { workflowName: string
@@ -215,12 +219,9 @@ type SimulatorCreationOptions =
         { SimulatorCreationOptions.Default with
             runId = runId
             originatingRunId = runId
+            isStateless = Simulator.workflowIsStateless logicApp
             triggerResult = Invoked httpRequest
             externalServiceHandlers = [ loggingHandler; noOpHandler ] }
-
-module Simulator =
-    let workflowIsStateless (workflow: LogicAppSpec.Root) =
-        workflow.kind.Equals("stateless", StringComparison.OrdinalIgnoreCase)
 
 type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     let isBugForBugAccurate = creationOptions.isBugForBugAccurate
