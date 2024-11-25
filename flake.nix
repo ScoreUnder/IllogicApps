@@ -2,7 +2,8 @@
   description = "Dev flake for IllogicApps";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+    #nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+    nixpkgs.url = "github:archevel/nixpkgs?ref=patch-1";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
