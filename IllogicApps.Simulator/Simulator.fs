@@ -182,6 +182,10 @@ type TriggerCompletion =
     | Completed of CompletedAction
     | Invoked of HttpRequest
 
+module Simulator =
+    let workflowIsStateless (workflow: LogicAppSpec.Root) =
+        workflow.kind.Equals("stateless", StringComparison.OrdinalIgnoreCase)
+
 [<Struct>]
 type SimulatorCreationOptions =
     { workflowName: string
@@ -215,14 +219,118 @@ type SimulatorCreationOptions =
         { SimulatorCreationOptions.Default with
             runId = runId
             originatingRunId = runId
+            isStateless = Simulator.workflowIsStateless logicApp
             triggerResult = Invoked httpRequest
             externalServiceHandlers = [ loggingHandler; noOpHandler ] }
 
-module Simulator =
-    let workflowIsStateless (workflow: LogicAppSpec.Root) =
-        workflow.kind.Equals("stateless", StringComparison.OrdinalIgnoreCase)
+type private ScopeContextImpl
+    (
+        actionName: string,
+        isRepeating: bool,
+        potentialChildren: (string * BaseAction) seq,
+        simulator: Simulator,
+        disposeHook: ScopeContextImpl -> unit
+    ) =
+    let mutable overallResult = Succeeded
 
-type Simulator private (creationOptions: SimulatorCreationOptions) as this =
+    let mutable notYetRunChildren = Map.ofSeq potentialChildren
+
+    let actionResults = MutableOrderedMap<string, CompletedAction>()
+
+    let mergeResult result =
+        overallResult <- mergeStatus overallResult result
+
+    let recordResultOf name (action: BaseAction) (f: unit -> ActionResult) =
+        let startTime = DateTime.UtcNow
+        let result = simulator.ExecuteAction startTime name action f
+        actionResults.[name] <- result
+        simulator.RecordActionResult name result
+        result
+
+    member this.ActionResults = actionResults
+
+    member this.ExecuteGraph(actions: ActionGraph) =
+        let dependencyGraph = createDependencyGraph actions
+        let remainingActions = Dictionary<string, BaseAction>(actions)
+
+        let getNextActions name =
+            Map.tryFind name dependencyGraph |> Option.defaultValue []
+
+        let rec executeNext actionQueue =
+            match actionQueue with
+            | [] -> ()
+            | actionName :: rest ->
+                match remainingActions.TryGetValue actionName with
+                | false, _ -> executeNext rest
+                | true, action ->
+                    let status, result =
+                        if Result.isError simulator.TerminationStatus then
+                            // If we're terminating, just skip everything
+                            // (i.e. consider dependencies fulfilled but not in the right state)
+                            DependencyStatus.Completed, skippedTerminatedResult
+                        else
+                            calculateDependencyStatus actionResults action, skippedResult
+
+                    match status with
+                    | Satisfied ->
+                        remainingActions.Remove actionName |> ignore
+
+                        let actionType = action.ActionType
+                        logActionPreRun actionName actionType
+
+                        let result =
+                            recordResultOf actionName action (fun () -> action.Execute actionName simulator)
+
+                        logActionPostRun actionName actionType result
+
+                        rest @ (getNextActions actionName)
+                    | DependencyStatus.Completed ->
+                        // This action's dependencies are in the wrong state, skip it
+                        remainingActions.Remove actionName |> ignore
+                        recordResultOf actionName action (fun () -> result) |> ignore
+                        action.GetChildren() |> this.ForceSkipAll
+
+                        rest @ (getNextActions actionName)
+                    | Incomplete ->
+                        // This action's dependencies are not yet complete, try again once something else finishes
+                        // (it's ok to not put it back in the queue, as it will be re-added when its next dependency is completed)
+                        rest
+                    |> executeNext
+
+        executeNext (getNextActions "")
+
+        if Result.isError simulator.TerminationStatus then
+            Cancelled
+        else
+            dependencyGraph.Keys
+            |> Set.ofSeq
+            |> Set.difference (actions.Keys |> Set.ofSeq)
+            |> Set.toList
+            |> trimLeaves actions actionResults
+            |> Seq.map (fun name -> actionResults.[name].status)
+            |> Seq.fold mergeStatus Succeeded
+
+    member this.ForceSkipAll actions =
+        actions
+        |> Seq.toList
+        |> BaseAction.getAllChildren
+        |> List.iter (fun (name, action) -> recordResultOf name action (fun () -> skippedBranchResult) |> ignore)
+
+    interface ScopeContext with
+        member this.Run actions =
+            let result = this.ExecuteGraph actions
+            mergeResult result
+            notYetRunChildren <- notYetRunChildren |> Map.filter (fun k _ -> not (actions.ContainsKey k))
+            result
+
+        member this.MergeResult result = mergeResult result
+        member this.OverallResult = overallResult
+
+        member this.Dispose() =
+            this.ForceSkipAll(Map.toSeq notYetRunChildren)
+            disposeHook this
+
+and Simulator private (creationOptions: SimulatorCreationOptions) as this =
     let isBugForBugAccurate = creationOptions.isBugForBugAccurate
 
     let mutable triggerResult = creationOptions.triggerResult
@@ -259,12 +367,6 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
             error = result.error
             code = result.code
             clientTrackingId = this.TriggerResult.clientTrackingId }
-
-    let recordResultOf name (action: BaseAction) (f: unit -> ActionResult) =
-        let startTime = DateTime.UtcNow
-        let result = executeAction startTime name action f
-        this.RecordActionResult name result
-        result
 
     let executeTrigger name (trigger: BaseTrigger) (request: HttpRequest) =
         let startTime = DateTime.UtcNow
@@ -312,6 +414,7 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
     let canonicalVarCase = Dictionary<string, string>()
 
     let arrayOperationContextStack = Stack<string option * ArrayOperationContextImpl>()
+    let scopeContextStack = Stack<ScopeContextImpl>()
 
     static member CreateUntriggered(creationOptions: SimulatorCreationOptions) = Simulator(creationOptions)
 
@@ -328,8 +431,9 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
     member this.EditTrigger f = triggerResult <- f triggerResult
 
-    member this.RunWholeWorkflow actions =
-        let result = this.ExecuteGraph actions
+    member this.RunWholeWorkflow(actions: ActionGraph) =
+        use workflowScope = this.PushScopeContext "" false (OrderedMap.toSeq actions)
+        let result = workflowScope.Run actions
         this.CompleteWith result
 
     static member Trigger
@@ -392,74 +496,13 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
             | true, result -> Some result
             | _ -> None
 
-    member private this.RecordActionResult name result = this.ActionResults.[name] <- result
+    member internal this.RecordActionResult name result = this.ActionResults.[name] <- result
 
     member this.GetAppConfig name =
         OrderedMap.tryFindCaseInsensitive name creationOptions.appConfig
 
     member this.GetParameter name =
         OrderedMap.tryFindCaseInsensitive name evaluatedParameters |> Option.map _.Value
-
-    member this.ExecuteGraph(actions: ActionGraph) =
-        let dependencyGraph = createDependencyGraph actions
-        let remainingActions = Dictionary<string, BaseAction>(actions)
-
-        let getNextActions name =
-            Map.tryFind name dependencyGraph |> Option.defaultValue []
-
-        let rec executeNext actionQueue =
-            match actionQueue with
-            | [] -> ()
-            | actionName :: rest ->
-                match remainingActions.TryGetValue actionName with
-                | false, _ -> executeNext rest
-                | true, action ->
-                    let status, result =
-                        if Result.isError this.TerminationStatus then
-                            // If we're terminating, just skip everything
-                            // (i.e. consider dependencies fulfilled but not in the right state)
-                            DependencyStatus.Completed, skippedTerminatedResult
-                        else
-                            calculateDependencyStatus this.ActionResults action, skippedResult
-
-                    match status with
-                    | Satisfied ->
-                        remainingActions.Remove actionName |> ignore
-
-                        let actionType = action.ActionType
-                        logActionPreRun actionName actionType
-
-                        let result =
-                            recordResultOf actionName action (fun () -> action.Execute actionName this)
-
-                        logActionPostRun actionName actionType result
-
-                        rest @ (getNextActions actionName)
-                    | DependencyStatus.Completed ->
-                        // This action's dependencies are in the wrong state, skip it
-                        remainingActions.Remove actionName |> ignore
-                        recordResultOf actionName action (fun () -> result) |> ignore
-                        action.GetChildren() |> this.ForceSkipAll
-
-                        rest @ (getNextActions actionName)
-                    | Incomplete ->
-                        // This action's dependencies are not yet complete, try again once something else finishes
-                        // (it's ok to not put it back in the queue, as it will be re-added when its next dependency is completed)
-                        rest
-                    |> executeNext
-
-        executeNext (getNextActions "")
-
-        if Result.isError this.TerminationStatus then
-            Cancelled
-        else
-            dependencyGraph.Keys
-            |> Set.ofSeq
-            |> Set.difference (actions.Keys |> Set.ofSeq)
-            |> Set.toList
-            |> trimLeaves actions this.ActionResults
-            |> Seq.map (fun name -> this.ActionResults.[name].status)
-            |> Seq.fold mergeStatus Succeeded
 
     member this.EvaluateCondition expr =
         let rec eval expr =
@@ -486,34 +529,45 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
             failwithf "No handler for external service request: %O" request
 
     member this.PushArrayOperationContext (actionName: string option) (array: JsonTree seq) : ArrayOperationContext =
-        this.PushLoopContext(arrayOperationContextStack, actionName, array)
-
-    member private this.PushLoopContext
-        (stack: Stack<string option * ArrayOperationContextImpl>, actionName: string option, values: JsonTree seq)
-        =
         let loopContext =
-            new ArrayOperationContextImpl(List.ofSeq values, this.PopAndCompareLoopContext stack)
+            new ArrayOperationContextImpl(List.ofSeq array, this.PopAndCompareArrayOperationContext)
 
-        stack.Push((actionName, loopContext))
+        arrayOperationContextStack.Push((actionName, loopContext))
         loopContext
 
-    member private this.PopAndCompareLoopContext (stack: Stack<string option * ArrayOperationContextImpl>) context =
-        let top = stack.Peek()
+    member private this.PopAndCompareArrayOperationContext context =
+        let top = arrayOperationContextStack.Pop()
 
-        if LanguagePrimitives.PhysicalEquality (snd top) context then
-            stack.Pop() |> ignore
-        else
+        if not (LanguagePrimitives.PhysicalEquality (snd top) context) then
             raise <| InvalidOperationException("Loop context push/pop mismatch")
+
+    member private this.PushScopeContext
+        (actionName: string)
+        (isRepeating: bool)
+        (potentialActions: (string * BaseAction) seq)
+        : ScopeContext =
+        let scopeContext =
+            new ScopeContextImpl(actionName, isRepeating, potentialActions, this, this.PopAndFinaliseScopeContext)
+
+        scopeContextStack.Push(scopeContext)
+        scopeContext
+
+    member private this.PopAndFinaliseScopeContext(context: ScopeContextImpl) =
+        let top = scopeContextStack.Pop()
+
+        if not (LanguagePrimitives.PhysicalEquality top context) then
+            raise <| InvalidOperationException("Scope context push/pop mismatch")
+
+        // TODO: record whole-scope results
+        // TODO: record scope repetition results
+        // TODO: check if `@result` is able to be used on a partially executed scope and/or from within the same scope
+        ()
+
+    member internal this.ExecuteAction startTime name action f = executeAction startTime name action f
 
     member this.GetArrayOperationContextByName(name) =
         arrayOperationContextStack
         |> Seq.tryPick (fun (n, v) -> n |> Option.filter ((=) name) |> Option.map (fun _ -> v: ArrayOperationContext))
-
-    member this.ForceSkipAll actions =
-        actions
-        |> Seq.toList
-        |> BaseAction.getAllChildren
-        |> List.iter (fun (name, action) -> recordResultOf name action (fun () -> skippedBranchResult) |> ignore)
 
     interface SimulatorContext with
         member this.GetVariable name = this.GetVariable name
@@ -526,7 +580,6 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         member this.AllActionResults = this.AllActionResults
         member this.WorkflowDetails = this.WorkflowDetails
         member this.GetActionResult name = this.GetActionResult name
-        member this.ExecuteGraph actions = this.ExecuteGraph actions
         member this.Terminate status error = this.Terminate status error
         member this.EvaluateCondition expr = this.EvaluateCondition expr
         member this.EvaluateLanguage expr = this.EvaluateLanguage expr
@@ -538,4 +591,5 @@ type Simulator private (creationOptions: SimulatorCreationOptions) as this =
         member this.GetArrayOperationContextByName name =
             this.GetArrayOperationContextByName name
 
-        member this.ForceSkipAll actions = this.ForceSkipAll actions
+        member this.PushScopeContext scopeName isRepeating potentialActions =
+            this.PushScopeContext scopeName isRepeating potentialActions
