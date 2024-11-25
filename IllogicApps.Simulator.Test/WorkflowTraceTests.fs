@@ -11,6 +11,7 @@ open DEdge.Diffract
 open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.HttpModel.HttpParsing
 open IllogicApps.Core.HttpModel.HttpWriting
+open IllogicApps.Core.Support
 open NUnit.Framework
 open Swensen.Unquote
 
@@ -294,7 +295,11 @@ let ``Test IllogicApps output matches logic app trace for workflows that respond
             let sortedInitialHeaders =
                 requestMessage.Headers |> Seq.sortBy (fun (KeyValue(k, _)) -> k)
 
-            Seq.append sortedInitialHeaders requestMessage.Content.Headers
+            let sortedContentHeaders =
+                requestMessage.Content.Headers
+                |> Seq.sortByDescending (fun (KeyValue(k, _)) -> k)
+
+            Seq.append sortedInitialHeaders sortedContentHeaders
             |> Seq.map (fun (KeyValue(k, v)) -> KeyValuePair(k, v |> String.concat ","))
             |> OrderedMap.CreateRange
 

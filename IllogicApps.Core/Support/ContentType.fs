@@ -15,6 +15,9 @@ let Json = "application/json"
 [<Literal>]
 let Text = "text/plain"
 
+[<Literal>]
+let MultipartFormData = "multipart/form-data"
+
 // Content-Types with charsets
 [<Literal>]
 let XmlUtf8 = Xml + ";charset=utf-8"
@@ -41,6 +44,20 @@ let isJson (contentType: string) =
 
 let isAnyText (contentType: string) =
     contentType.StartsWith("text/", StringComparison.OrdinalIgnoreCase)
+
+let isMultipartFormData (contentType: string) =
+    (mimePart contentType)
+        .Equals(MultipartFormData, StringComparison.OrdinalIgnoreCase)
+
+let getMultipartBoundary (contentType: string) =
+    contentType.Split(';', StringSplitOptions.TrimEntries)
+    |> Array.tryPick (fun v ->
+        let prefix = "boundary="
+
+        if v.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) then
+            Some(v.Substring(prefix.Length))
+        else
+            None)
 
 module Charset =
     [<Literal>]
