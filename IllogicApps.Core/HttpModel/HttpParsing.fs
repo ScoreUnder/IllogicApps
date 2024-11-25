@@ -27,6 +27,35 @@ let parseQueryString =
         |> Seq.map (fun (key, values) -> key, (values |> Seq.map snd |> String.concat ","))
         |> OrderedMap.ofSeq
 
+let plainDecodeByContentType contentType (body: byte array) =
+    let charset =
+        ContentType.Charset.get contentType |> Option.defaultValue Encoding.UTF8
+
+    use stream = new MemoryStream(body)
+    use reader = new StreamReader(stream, charset)
+    reader.ReadToEnd()
+
+let decodeFormUrlEncoded (contentType: string) (body: byte array) =
+    let decoded = plainDecodeByContentType contentType body
+
+    let formData =
+        decoded.Split('&')
+        |> Seq.map (fun part ->
+            let key, value =
+                match part.Split('=', 2) with
+                | [| key; value |] -> WebUtility.UrlDecode(key), WebUtility.UrlDecode(value)
+                | [| key |] -> WebUtility.UrlDecode(key), ""
+                | _ -> failwith "Should never happen"
+
+            OrderedMap.Builder().Add("key", String key).Add("value", String value).Build()
+            |> Object)
+        |> Conversions.createArray
+
+    Blob.ofBytes contentType body
+    |> Conversions.ensureObject
+    |> OrderedMap.setAtEnd "$formdata" formData
+    |> Object
+
 let private multipartEndMarker = Encoding.UTF8.GetBytes("--")
 let private httpNewline = Encoding.UTF8.GetBytes("\r\n")
 let private doubleHttpNewline = Encoding.UTF8.GetBytes("\r\n\r\n")
@@ -127,12 +156,7 @@ let rec decodeMultipartFormData (contentType: string) (body: byte array) : JsonT
 
 and decodeBodyByContentType (contentType: string) (body: byte array) =
     let decodeBody () =
-        let charset =
-            ContentType.Charset.get contentType |> Option.defaultValue Encoding.UTF8
-
-        use stream = new MemoryStream(body)
-        use reader = new StreamReader(stream, charset)
-        reader.ReadToEnd()
+        plainDecodeByContentType contentType body
 
     if ContentType.isJson contentType then
         Parser.parse (decodeBody ())
@@ -140,6 +164,8 @@ and decodeBodyByContentType (contentType: string) (body: byte array) =
         String(decodeBody ())
     elif ContentType.isMultipartFormData contentType then
         decodeMultipartFormData contentType body
+    elif ContentType.isFormUrlEncoded contentType then
+        decodeFormUrlEncoded contentType body
     else
         Blob.ofBytes contentType body
 

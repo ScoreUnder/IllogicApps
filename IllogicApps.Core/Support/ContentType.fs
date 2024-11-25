@@ -18,6 +18,9 @@ let Text = "text/plain"
 [<Literal>]
 let MultipartFormData = "multipart/form-data"
 
+[<Literal>]
+let FormUrlEncoded = "application/x-www-form-urlencoded"
+
 // Content-Types with charsets
 [<Literal>]
 let XmlUtf8 = Xml + ";charset=utf-8"
@@ -48,6 +51,10 @@ let isAnyText (contentType: string) =
 let isMultipartFormData (contentType: string) =
     (mimePart contentType)
         .Equals(MultipartFormData, StringComparison.OrdinalIgnoreCase)
+
+let isFormUrlEncoded (contentType: string) =
+    (mimePart contentType)
+        .Equals(FormUrlEncoded, StringComparison.OrdinalIgnoreCase)
 
 let getMultipartBoundary (contentType: string) =
     contentType.Split(';', StringSplitOptions.TrimEntries)
