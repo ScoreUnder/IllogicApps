@@ -130,8 +130,10 @@ type Scope(resolveAction, json) =
 
     member val Actions = JsonTree.getKey "actions" json |> actionGraphOfJson resolveAction with get
 
-    override this.Execute (_: string) (context: SimulatorContext) =
-        let result = context.ExecuteGraph this.Actions in
+    override this.Execute (name: string) (context: SimulatorContext) =
+        use scopeContext = context.PushScopeContext name false (this.GetChildren())
+
+        let result = scopeContext.Run this.Actions in
 
         let code, error = codeAndErrorFromScopeResult result
 
@@ -148,21 +150,17 @@ type If(resolveAction, json) =
     member val Expression = JsonTree.getKey "expression" json with get
     member val Else = JsonTree.getKey "else" json |> actionGraphContainerOfJson resolveAction with get
 
-    override this.Execute (_: string) (context: SimulatorContext) =
+    override this.Execute (name: string) (context: SimulatorContext) =
+        use scopeContext = context.PushScopeContext name false (this.GetChildren())
+
         let conditionResult =
-            this.Expression |> context.EvaluateLanguage |> context.EvaluateCondition in
+            this.Expression |> context.EvaluateLanguage |> context.EvaluateCondition
 
         printfn "If Condition: %b" conditionResult
 
-        let actions, otherActions =
-            if conditionResult then
-                this.Actions, this.Else.actions
-            else
-                this.Else.actions, this.Actions in
+        let actions = if conditionResult then this.Actions else this.Else.actions
 
-        otherActions |> OrderedMap.toSeq |> context.ForceSkipAll
-
-        let result = context.ExecuteGraph actions in
+        let result = scopeContext.Run actions
 
         let code, error = codeAndErrorFromScopeResult result
 
@@ -181,6 +179,8 @@ type ForEach(resolveAction, json) =
     member val ForEach = JsonTree.getKey "foreach" json with get
 
     override this.Execute (name: string) (context: SimulatorContext) =
+        use scopeContext = context.PushScopeContext name true (this.GetChildren())
+
         printfn "ForEach: %s" (Conversions.prettyStringOfJson this.ForEach)
 
         let elems = this.ForEach |> context.EvaluateLanguage
@@ -188,29 +188,18 @@ type ForEach(resolveAction, json) =
         use loopContext =
             elems |> Conversions.ensureArray |> context.PushArrayOperationContext(Some name)
 
-        // TODO: this is going into the simulator as soon as possible
-        let mergeStatuses =
-            function
-            | _, Failed
-            | Failed, _ -> Failed
-            | _, TimedOut
-            | TimedOut, _ -> TimedOut
-            | _, Cancelled
-            | Cancelled, _ -> Cancelled
-            | _, n -> n
-
-        let rec executeInnerScope acc =
+        let rec executeInnerScope () =
             if loopContext.Advance() then
-                let result = context.ExecuteGraph this.Actions
-                executeInnerScope (mergeStatuses (acc, result))
-            else
-                acc
+                scopeContext.Run this.Actions |> ignore
+                executeInnerScope ()
 
-        let result = executeInnerScope Succeeded
+        executeInnerScope ()
+
+        let result = scopeContext.OverallResult
         let code, error = codeAndErrorFromScopeResult result
 
         { ActionResult.Default with
-            status = result
+            status = scopeContext.OverallResult
             inputs = Some(elems)
             code = Some code
             error = error }
@@ -227,23 +216,19 @@ type Switch(resolveAction, json) =
         |> OrderedMap.mapValuesOnly (switchCaseOfJson resolveAction) with get
 
     override this.Execute (_: string) (context: SimulatorContext) =
-        let value = context.EvaluateLanguage this.Expression in
+        use scopeContext =
+            context.PushScopeContext this.ActionType false (this.GetChildren())
+
+        let value = context.EvaluateLanguage this.Expression
         printfn "Switch Value: %O" value
 
         let actions =
             this.Cases.Values
             |> Seq.tryFind (fun case -> case.case = value)
             |> Option.map _.actions
-            |> Option.defaultValue this.Default.actions in
+            |> Option.defaultValue this.Default.actions
 
-        this.Cases.Values
-        |> Seq.map _.actions
-        |> Seq.append [ this.Default.actions ]
-        |> Seq.filter (fun selectedActions -> selectedActions <> actions)
-        |> Seq.collect OrderedMap.toSeq
-        |> context.ForceSkipAll
-
-        let result = context.ExecuteGraph actions in
+        let result = scopeContext.Run actions
 
         let code, error = codeAndErrorFromScopeResult result
 
@@ -264,34 +249,33 @@ type Until(resolveAction, json) =
     member val Limit = JsonTree.getKey "limit" json |> untilLimitOfJson with get
 
     override this.Execute (_: string) (context: SimulatorContext) =
+        use scopeContext =
+            context.PushScopeContext this.ActionType true (this.GetChildren())
+
         let parsedTimeout = XmlConvert.ToTimeSpan(this.Limit.timeout)
         let timeout = System.DateTime.Now.Add(parsedTimeout)
 
         let rec attempt num =
             printfn "Until Attempt %d" num
-            let result = context.ExecuteGraph this.Actions in
+            scopeContext.Run this.Actions |> ignore
 
-            match result with
-            | Succeeded ->
-                if System.DateTime.Now >= timeout then
-                    printfn "Until Timeout"
-                    TimedOut
-                else if num >= this.Limit.count then
-                    printfn "Until Limit"
-                    result
-                else
-                    let condition =
-                        context.EvaluateLanguage(this.Expression) |> Conversions.ensureBoolean in
+            if System.DateTime.Now >= timeout then
+                printfn "Until Timeout"
+                scopeContext.MergeResult TimedOut
+            else if num >= this.Limit.count then
+                printfn "Until Limit"
+            else
+                let condition =
+                    context.EvaluateLanguage(this.Expression) |> Conversions.ensureBoolean
 
-                    printfn "Until Condition: %b" condition
-                    if not condition then attempt (num + 1L) else result
-            | Skipped -> failwith "Overall result is Skipped"
-            | Cancelled
-            | Failed
-            | TimedOut -> result
+                printfn "Until Condition: %b" condition
 
-        let result = attempt 1L
+                if not condition then
+                    attempt (num + 1L)
 
+        attempt 1L
+
+        let result = scopeContext.OverallResult
         let code, error = codeAndErrorFromScopeResult result
 
         { status = result

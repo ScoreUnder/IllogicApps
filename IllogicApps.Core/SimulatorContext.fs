@@ -52,6 +52,12 @@ type BaseAction(json: JsonTree) =
 
 and ActionGraph = OrderedMap<string, BaseAction>
 
+and ScopeContext =
+    inherit IDisposable
+    abstract Run: ActionGraph -> Status
+    abstract MergeResult: Status -> unit
+    abstract OverallResult: Status
+
 and SimulatorContext =
     /// Get a variable from the current execution context.
     abstract GetVariable: string -> JsonTree option
@@ -84,9 +90,6 @@ and SimulatorContext =
     /// Gets the result of an action by its name.
     abstract GetActionResult: string -> CompletedAction option
 
-    /// Executes a graph of actions.
-    abstract ExecuteGraph: ActionGraph -> Status
-
     /// Stops the execution with a given status. Used by the Terminate action.
     abstract Terminate: Status -> TerminateRunError option -> unit
 
@@ -107,13 +110,15 @@ and SimulatorContext =
 
     /// Pushes a new array operation context (i.e. sets a new context for the item()/items() expression)
     /// Remember to call Dispose() on the returned context when done.
-    abstract PushArrayOperationContext: string option -> JsonTree seq -> ArrayOperationContext
+    abstract PushArrayOperationContext: scopeName: string option -> arrayItems: JsonTree seq -> ArrayOperationContext
 
     /// Gets a current array operation context by name.
     abstract GetArrayOperationContextByName: string -> ArrayOperationContext option
 
-    /// Mark all provided actions, and their children, as skipped
-    abstract ForceSkipAll: (string * BaseAction) seq -> unit
+    /// Pushes a new scope context.
+    /// Remember to call Dispose() on the returned context when done.
+    abstract PushScopeContext:
+        scopeName: string -> isRepeating: bool -> potentialActions: (string * BaseAction) seq -> ScopeContext
 
 [<AbstractClass>]
 type BaseTrigger(json) =
