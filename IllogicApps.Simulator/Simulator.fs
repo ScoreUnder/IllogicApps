@@ -91,13 +91,13 @@ module private SimulatorHelper =
 
     let mergeStatus overall next =
         match (overall, next) with
+        | first, Succeeded -> first
+        | first, Cancelled -> first
         | first, Skipped -> first
         | Failed, _ -> Failed
         | _, Failed -> Failed
         | TimedOut, _ -> TimedOut
         | _, TimedOut -> TimedOut
-        | Succeeded, Succeeded -> Succeeded
-        | c -> failwithf "Unexpected status combination %O" c
 
     let unpackObject (node: JsonTree) =
         node |> Conversions.ensureObject |> OrderedMap.toSeq
