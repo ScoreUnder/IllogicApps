@@ -206,7 +206,7 @@ module OrderedMap =
 
     let inline ofList list = ofSeq list
     let inline ofArray array = ofSeq array
-    let inline ofMap (map: Map<'K, 'V>) = OrderedMap.CreateRange(map)
+    let inline ofKeyValuePairs (map: IEnumerable<KeyValuePair<'K, 'V>>) = OrderedMap.CreateRange(map)
 
     let tryCaseInsensitiveKey (key: string) (m: OrderedMap<string, _>) =
         if m.ContainsKey key then
