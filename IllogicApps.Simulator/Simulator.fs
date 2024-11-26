@@ -227,14 +227,14 @@ type private ScopeContextImpl
     (
         actionName: string,
         isRepeating: bool,
+        precedingRepetitions: (string * int) list,
         potentialChildren: (string * BaseAction) seq,
         simulator: Simulator,
         disposeHook: ScopeContextImpl -> unit
     ) =
     let mutable overallResult = Succeeded
-
     let mutable notYetRunChildren = Map.ofSeq potentialChildren
-
+    let mutable currentIteration = 0
     let actionResults = MutableOrderedMap<string, CompletedAction>()
 
     let mergeResult result =
@@ -248,6 +248,12 @@ type private ScopeContextImpl
         result
 
     member this.ActionResults = actionResults
+
+    member this.CurrentRepetitionStack =
+        if isRepeating then
+            (actionName, currentIteration) :: precedingRepetitions
+        else
+            precedingRepetitions
 
     member this.ExecuteGraph(actions: ActionGraph) =
         let dependencyGraph = createDependencyGraph actions
@@ -321,6 +327,7 @@ type private ScopeContextImpl
             let result = this.ExecuteGraph actions
             mergeResult result
             notYetRunChildren <- notYetRunChildren |> Map.filter (fun k _ -> not (actions.ContainsKey k))
+            currentIteration <- currentIteration + 1
             result
 
         member this.MergeResult result = mergeResult result
@@ -541,13 +548,25 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
         if not (LanguagePrimitives.PhysicalEquality (snd top) context) then
             raise <| InvalidOperationException("Loop context push/pop mismatch")
 
-    member private this.PushScopeContext
+    member this.PushScopeContext
         (actionName: string)
         (isRepeating: bool)
         (potentialActions: (string * BaseAction) seq)
         : ScopeContext =
+        let repetitionStack =
+            match scopeContextStack.TryPeek() with
+            | true, context -> context.CurrentRepetitionStack
+            | _ -> []
+
         let scopeContext =
-            new ScopeContextImpl(actionName, isRepeating, potentialActions, this, this.PopAndFinaliseScopeContext)
+            new ScopeContextImpl(
+                actionName,
+                isRepeating,
+                repetitionStack,
+                potentialActions,
+                this,
+                this.PopAndFinaliseScopeContext
+            )
 
         scopeContextStack.Push(scopeContext)
         scopeContext
