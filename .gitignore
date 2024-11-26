@@ -1,2 +1,10 @@
+# .NET Core build artifacts
 /*/bin
 /*/obj
+
+# BenchmarkDotNet artifacts
+BenchmarkDotNet.Artifacts
+
+# Rider/ReSharper local user settings
+.idea
+*.DotSettings.user

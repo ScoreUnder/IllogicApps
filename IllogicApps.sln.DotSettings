@@ -1,0 +1,4 @@
+﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<s:String x:Key="/Default/CodeInspection/Highlighting/InspectionSeverities/=FSharpInterpolatedString/@EntryIndexedValue">DO_NOT_SHOW</s:String>
+	<s:String x:Key="/Default/FSharp/FsiOptions/FsiArgs/@EntryValue">--optimize+ -r ./IllogicApps.Json/bin/Debug/net8.0/IllogicApps.Json.dll -r ./IllogicApps.Core/bin/Release/net8.0/IllogicApps.Core.dll -r ./IllogicApps.Console/bin/Debug/net8.0/IllogicApps.Console.dll -r ./IllogicApps.Simulator/bin/Release/net8.0/IllogicApps.Simulator.dll -r ./IllogicApps.Simulator.Test/bin/Debug/net8.0/IllogicApps.Simulator.Test.dll</s:String>
+	<s:Boolean x:Key="/Default/FSharp/FsiOptions/UseAnyCpu/@EntryValue">True</s:Boolean></wpf:ResourceDictionary>
