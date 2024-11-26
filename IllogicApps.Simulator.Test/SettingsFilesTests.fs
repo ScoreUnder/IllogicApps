@@ -223,7 +223,7 @@ let ``Test parameter value retrieval from simulator`` () =
 
     let sim =
         Simulator.CreateUntriggered
-            { SimulatorCreationOptions.Default with
+            { SimulatorCreationOptions.dummy with
                 appConfig = appConfig
                 parameters = parameters }
 
@@ -250,7 +250,7 @@ let ``Test that parameters cannot use any function other than appsetting`` () =
 
     let sim =
         Simulator.CreateUntriggered
-            { SimulatorCreationOptions.Default with
+            { SimulatorCreationOptions.dummy with
                 parameters = data }
 
     raises <@ sim.GetParameter "BadFunctionTest" @>
@@ -261,7 +261,7 @@ let ``Test that appsetting parameters which evaluate to null are valid`` () =
 
     let sim =
         Simulator.CreateUntriggered
-            { SimulatorCreationOptions.Default with
+            { SimulatorCreationOptions.dummy with
                 parameters = parameters }
 
     test <@ sim.GetParameter "AppSettingTest" = Some Null @>

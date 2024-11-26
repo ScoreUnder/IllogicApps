@@ -312,7 +312,7 @@ let ``Test IllogicApps output matches logic app trace for workflows that respond
           body = decodeOptionalBodyByContentType contentType request.body }
 
     let simCreationOptions =
-        { SimulatorCreationOptions.Default with
+        { SimulatorCreationOptions.dummy with
             workflowName = workflowName
             workflowId = workflowId
             workflowVersion = workflowVersion

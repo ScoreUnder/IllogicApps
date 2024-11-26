@@ -7,7 +7,7 @@ open Swensen.Unquote
 open IllogicApps.Simulator
 
 let makeSimulator () =
-    Simulator.CreateUntriggered(SimulatorCreationOptions.Default)
+    Simulator.CreateUntriggered(SimulatorCreationOptions.dummy)
 
 [<Test>]
 let ``Test variable names are case-insensitive`` () =

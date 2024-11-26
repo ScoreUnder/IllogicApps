@@ -200,7 +200,8 @@ type SimulatorCreationOptions =
       appConfig: OrderedMap<string, string>
       parameters: OrderedMap<string, Parameter> }
 
-    static member Default =
+    [<CompiledName("Dummy")>]
+    static member dummy =
         { workflowName = "unnamed_workflow"
           workflowId = "dummy_workflow_id"
           workflowVersion = "01234567890123456789"
@@ -213,10 +214,11 @@ type SimulatorCreationOptions =
           appConfig = OrderedMap.empty
           parameters = OrderedMap.empty }
 
+    [<CompiledName("CreateSimple")>]
     static member createSimple (logicApp: LogicAppSpec.Root) httpRequest =
         let runId = Guid.NewGuid().ToString()
 
-        { SimulatorCreationOptions.Default with
+        { SimulatorCreationOptions.dummy with
             runId = runId
             originatingRunId = runId
             isStateless = Simulator.workflowIsStateless logicApp
@@ -491,7 +493,7 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
     member this.AllActionResults = this.ActionResults |> OrderedMap.CreateRange
 
     member this.WorkflowDetails =
-        WorkflowDetails.Create
+        WorkflowDetails.create
             creationOptions.workflowId
             creationOptions.workflowName
             creationOptions.workflowVersion

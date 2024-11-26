@@ -33,7 +33,7 @@ let buildWorkflowFamily
         let defn = workflow.definition
 
         let optionsBase =
-            { SimulatorCreationOptions.Default with
+            { SimulatorCreationOptions.dummy with
                 workflowName = name
                 runId = runId
                 originatingRunId = rootWorkflowId

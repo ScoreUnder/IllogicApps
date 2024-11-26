@@ -142,7 +142,8 @@ type WorkflowDetails =
       type_: string
       run: WorkflowRunDetails }
 
-    static member Create workflowId workflowName workflowVersion runName =
+    [<CompiledName("Create")>]
+    static member create workflowId workflowName workflowVersion runName =
         { id = $"/workflows/{workflowId}"
           name = workflowName
           version = workflowVersion

@@ -28,7 +28,7 @@ let makeRequest actions code result =
           language = JavaScript
           source = Inline code
           trigger = defaultAction
-          workflow = WorkflowDetails.Create "123" "TestWorkflow" "123" "0abc" },
+          workflow = WorkflowDetails.create "123" "TestWorkflow" "123" "0abc" },
         result
     )
 
