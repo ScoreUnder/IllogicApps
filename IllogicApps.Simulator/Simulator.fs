@@ -229,7 +229,7 @@ type private ScopeContextImpl
     (
         actionName: string,
         isRepeating: bool,
-        precedingRepetitions: (string * int) list,
+        precedingRepetitions: ActionRepetition list,
         potentialChildren: (string * BaseAction) seq,
         simulator: Simulator,
         disposeHook: ScopeContextImpl -> unit
@@ -242,20 +242,28 @@ type private ScopeContextImpl
     let mergeResult result =
         overallResult <- mergeStatus overallResult result
 
+    let currentRepetitionStack () =
+        if isRepeating then
+            { loopName = actionName
+              repetitionCount = currentIteration }
+            :: precedingRepetitions
+        else
+            precedingRepetitions
+
     let recordResultOf name (action: BaseAction) (f: unit -> ActionResult) =
         let startTime = DateTime.UtcNow
         let result = simulator.ExecuteAction startTime name action f
         actionResults.[name] <- result
         simulator.RecordActionResult name result
+
+        if isRepeating then
+            simulator.RecordActionRepetition (currentRepetitionStack ()) name result
+
         result
 
     member this.ActionResults = actionResults
 
-    member this.CurrentRepetitionStack =
-        if isRepeating then
-            (actionName, currentIteration) :: precedingRepetitions
-        else
-            precedingRepetitions
+    member this.CurrentRepetitionStack = currentRepetitionStack ()
 
     member this.ExecuteGraph(actions: ActionGraph) =
         let dependencyGraph = createDependencyGraph actions
@@ -468,6 +476,7 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
 
     member val TerminationStatus: Result<Status, Status * TerminateRunError option> = Ok Skipped with get, set
     member val ActionResults = MutableOrderedMap<string, CompletedAction>() with get
+    member val ActionIterations = MutableOrderedMap<string, (ActionRepetition list * CompletedAction) list>() with get
     member this.Variables = variables
 
     member this.GetVariable(name: string) =
@@ -506,6 +515,19 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
             | _ -> None
 
     member internal this.RecordActionResult name result = this.ActionResults.[name] <- result
+
+    member internal this.RecordActionRepetition stack name result =
+        let previousRepetitions =
+            match this.ActionIterations.TryGetValue(name) with
+            | true, p -> p
+            | _ -> []
+
+        this.ActionIterations.[name] <- (stack, result) :: previousRepetitions
+
+    member this.GetActionRepetitions name =
+        this.ActionIterations.[name]
+        |> List.map (fun (stack, result) -> List.rev stack, result)
+        |> List.rev
 
     member this.GetAppConfig name =
         OrderedMap.tryFindCaseInsensitive name creationOptions.appConfig
@@ -601,6 +623,7 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
         member this.AllActionResults = this.AllActionResults
         member this.WorkflowDetails = this.WorkflowDetails
         member this.GetActionResult name = this.GetActionResult name
+        member this.GetActionRepetitions name = this.GetActionRepetitions name
         member this.Terminate status error = this.Terminate status error
         member this.EvaluateCondition expr = this.EvaluateCondition expr
         member this.EvaluateLanguage expr = this.EvaluateLanguage expr

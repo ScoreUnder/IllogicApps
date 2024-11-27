@@ -22,6 +22,10 @@ type ActionResult =
           inputs = None
           outputs = None }
 
+type ActionRepetition =
+    { loopName: string
+      repetitionCount: int }
+
 type ArrayOperationContext =
     inherit IDisposable
     abstract Advance: unit -> bool
@@ -89,6 +93,9 @@ and SimulatorContext =
 
     /// Gets the result of an action by its name.
     abstract GetActionResult: string -> CompletedAction option
+
+    /// Gets the results from each repetition of an action in a loop.
+    abstract GetActionRepetitions: string -> (ActionRepetition list * CompletedAction) list
 
     /// Stops the execution with a given status. Used by the Terminate action.
     abstract Terminate: Status -> TerminateRunError option -> unit

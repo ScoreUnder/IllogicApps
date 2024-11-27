@@ -5,7 +5,6 @@ open System.Collections.Generic
 open System.Net
 open System.Net.Http
 
-open System.Text
 open IllogicApps.Compat.LogicAppUnit.InternalHelper
 open IllogicApps.Compat.LogicAppUnit.LogicAppUnitConversions
 open IllogicApps.Compat.LogicAppUnit.NewtonsoftJsonConversions
@@ -16,7 +15,6 @@ open IllogicApps.Core.ExternalServiceTypeConversions
 open IllogicApps.Core.HttpModel.HttpParsing
 open IllogicApps.Core.HttpModel.HttpWriting
 open IllogicApps.Core.HttpModel.RetryPolicy
-open IllogicApps.Core.Support
 open IllogicApps.Json
 open IllogicApps.Simulator
 open IllogicApps.Simulator.Parameters
@@ -277,8 +275,16 @@ type TestRunner
             |> newtonsoftJsonOfIllogicJson
 
         member this.GetWorkflowActionOutput(actionName, repetitionNumber) = failwith "todo"
-        member this.GetWorkflowActionRepetition(actionName, repetitionNumber) = failwith "todo"
-        member this.GetWorkflowActionRepetitionCount(actionName) = failwith "todo"
+
+        member this.GetWorkflowActionRepetition(actionName, repetitionNumber) =
+            mySim().GetActionRepetitions actionName
+            |> List.item repetitionNumber
+            |> snd
+            |> jsonOfCompletedAction
+            |> newtonsoftJsonOfIllogicJson
+
+        member this.GetWorkflowActionRepetitionCount(actionName) =
+            mySim().GetActionRepetitions actionName |> List.length
 
         member this.GetWorkflowActionStatus(actionName) =
             mySim().ActionResults.[actionName].status |> actionStatusOfIllogic
