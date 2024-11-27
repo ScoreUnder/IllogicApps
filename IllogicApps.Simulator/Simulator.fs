@@ -255,10 +255,7 @@ type private ScopeContextImpl
         let result = simulator.ExecuteAction startTime name action f
         actionResults.[name] <- result
         simulator.RecordActionResult name result
-
-        if isRepeating then
-            simulator.RecordActionRepetition (currentRepetitionStack ()) name result
-
+        simulator.RecordActionRepetition (currentRepetitionStack ()) name result
         result
 
     member this.ActionResults = actionResults
