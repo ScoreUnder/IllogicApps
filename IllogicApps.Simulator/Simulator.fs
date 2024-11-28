@@ -333,6 +333,17 @@ type private ScopeContextImpl
         member this.Run actions =
             let result = this.ExecuteGraph actions
             mergeResult result
+
+            if isRepeating then
+                // Also record the result of this scope as a repetition of itself
+                let result =
+                    // Not sure what to put here, maybe we'll need yet another interface method on BaseTrigger
+                    // (but that can wait until we have tests for the accuracy of these results)
+                    { CompletedAction.create actionName (stringOfDateTime DateTime.UtcNow) with
+                        status = result }
+
+                simulator.RecordActionRepetition (currentRepetitionStack ()) actionName result
+
             notYetRunChildren <- notYetRunChildren |> Map.filter (fun k _ -> not (actions.ContainsKey k))
             currentIteration <- currentIteration + 1
             result
@@ -519,7 +530,12 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
             | true, p -> p
             | _ -> []
 
-        this.ActionIterations.[name] <- (stack, result) :: previousRepetitions
+        match previousRepetitions with
+        | (oldStack, _) :: _ when oldStack.Length > stack.Length ->
+            // This is only intended to catch the case where the scope action itself is already recorded via a scope
+            // repetition, and then it comes in to get recorded again after fully finishing.
+            ()
+        | _ -> this.ActionIterations.[name] <- (stack, result) :: previousRepetitions
 
     member this.GetActionRepetitions name =
         this.ActionIterations.[name]
@@ -599,7 +615,6 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
             raise <| InvalidOperationException("Scope context push/pop mismatch")
 
         // TODO: record whole-scope results
-        // TODO: record scope repetition results
         // TODO: check if `@result` is able to be used on a partially executed scope and/or from within the same scope
         ()
 
