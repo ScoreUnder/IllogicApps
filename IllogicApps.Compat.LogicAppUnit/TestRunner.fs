@@ -267,14 +267,26 @@ type TestRunner
             |> Conversions.jsonOfOption
             |> newtonsoftJsonOfIllogicJson
 
-        member this.GetWorkflowActionInput(actionName, repetitionNumber) = failwith "todo"
+        member this.GetWorkflowActionInput(actionName, repetitionNumber) =
+            mySim().GetActionRepetitions actionName
+            |> List.item repetitionNumber
+            |> snd
+            |> _.inputs
+            |> Conversions.jsonOfOption
+            |> newtonsoftJsonOfIllogicJson
 
         member this.GetWorkflowActionOutput(actionName) =
             mySim().ActionResults.[actionName].outputs
             |> Conversions.jsonOfOption
             |> newtonsoftJsonOfIllogicJson
 
-        member this.GetWorkflowActionOutput(actionName, repetitionNumber) = failwith "todo"
+        member this.GetWorkflowActionOutput(actionName, repetitionNumber) =
+            mySim().GetActionRepetitions actionName
+            |> List.item repetitionNumber
+            |> snd
+            |> _.outputs
+            |> Conversions.jsonOfOption
+            |> newtonsoftJsonOfIllogicJson
 
         member this.GetWorkflowActionRepetition(actionName, repetitionNumber) =
             mySim().GetActionRepetitions actionName
@@ -289,7 +301,12 @@ type TestRunner
         member this.GetWorkflowActionStatus(actionName) =
             mySim().ActionResults.[actionName].status |> actionStatusOfIllogic
 
-        member this.GetWorkflowActionStatus(actionName, repetitionNumber) = failwith "todo"
+        member this.GetWorkflowActionStatus(actionName, repetitionNumber) =
+            mySim().GetActionRepetitions actionName
+            |> List.item repetitionNumber
+            |> snd
+            |> _.status
+            |> actionStatusOfIllogic
 
         member this.GetWorkflowActionTrackedProperties(actionName) =
             mySim().ActionResults.[actionName].trackedProperties
@@ -300,7 +317,17 @@ type TestRunner
                 |> Dictionary<string, string>)
             |> Option.toObj
 
-        member this.GetWorkflowActionTrackedProperties(actionName, repetitionNumber) = failwith "todo"
+        member this.GetWorkflowActionTrackedProperties(actionName, repetitionNumber) =
+            mySim().GetActionRepetitions actionName
+            |> List.item repetitionNumber
+            |> snd
+            |> _.trackedProperties
+            |> Option.map (fun map ->
+                map
+                |> OrderedMap.toSeq
+                |> Seq.map (fun (k, v) -> KeyValuePair(k, Conversions.rawStringOfJson v))
+                |> Dictionary<string, string>)
+            |> Option.toObj
 
         member this.MockRequests = mockDefinition.MockRequests
 
