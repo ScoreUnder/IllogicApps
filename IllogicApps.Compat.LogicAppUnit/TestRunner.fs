@@ -269,7 +269,7 @@ type TestRunner
 
         member this.GetWorkflowActionInput(actionName, repetitionNumber) =
             mySim().GetActionRepetitions actionName
-            |> List.item repetitionNumber
+            |> List.item (repetitionNumber - 1)
             |> snd
             |> _.inputs
             |> Conversions.jsonOfOption
@@ -282,7 +282,7 @@ type TestRunner
 
         member this.GetWorkflowActionOutput(actionName, repetitionNumber) =
             mySim().GetActionRepetitions actionName
-            |> List.item repetitionNumber
+            |> List.item (repetitionNumber - 1)
             |> snd
             |> _.outputs
             |> Conversions.jsonOfOption
@@ -290,7 +290,7 @@ type TestRunner
 
         member this.GetWorkflowActionRepetition(actionName, repetitionNumber) =
             mySim().GetActionRepetitions actionName
-            |> List.item repetitionNumber
+            |> List.item (repetitionNumber - 1)
             |> snd
             |> jsonOfCompletedAction
             |> newtonsoftJsonOfIllogicJson
@@ -303,7 +303,7 @@ type TestRunner
 
         member this.GetWorkflowActionStatus(actionName, repetitionNumber) =
             mySim().GetActionRepetitions actionName
-            |> List.item repetitionNumber
+            |> List.item (repetitionNumber - 1)
             |> snd
             |> _.status
             |> actionStatusOfIllogic
@@ -319,7 +319,7 @@ type TestRunner
 
         member this.GetWorkflowActionTrackedProperties(actionName, repetitionNumber) =
             mySim().GetActionRepetitions actionName
-            |> List.item repetitionNumber
+            |> List.item (repetitionNumber - 1)
             |> snd
             |> _.trackedProperties
             |> Option.map (fun map ->
