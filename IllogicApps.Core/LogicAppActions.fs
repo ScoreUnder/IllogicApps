@@ -215,9 +215,8 @@ type Switch(resolveAction, json) =
         |> Conversions.ensureObject
         |> OrderedMap.mapValuesOnly (switchCaseOfJson resolveAction) with get
 
-    override this.Execute (_: string) (context: SimulatorContext) =
-        use scopeContext =
-            context.PushScopeContext this.ActionType false (this.GetChildren())
+    override this.Execute (name: string) (context: SimulatorContext) =
+        use scopeContext = context.PushScopeContext name false (this.GetChildren())
 
         let value = context.EvaluateLanguage this.Expression
         printfn "Switch Value: %O" value
@@ -248,9 +247,8 @@ type Until(resolveAction, json) =
     member val Expression = JsonTree.getKey "expression" json with get
     member val Limit = JsonTree.getKey "limit" json |> untilLimitOfJson with get
 
-    override this.Execute (_: string) (context: SimulatorContext) =
-        use scopeContext =
-            context.PushScopeContext this.ActionType true (this.GetChildren())
+    override this.Execute (name: string) (context: SimulatorContext) =
+        use scopeContext = context.PushScopeContext name true (this.GetChildren())
 
         let parsedTimeout = XmlConvert.ToTimeSpan(this.Limit.timeout)
         let timeout = System.DateTime.Now.Add(parsedTimeout)
