@@ -264,7 +264,7 @@ type TestRunner
 
         member this.GetWorkflowActionInput(actionName) =
             mySim().ActionResults.[actionName].inputs
-            |> Conversions.jsonOfOption
+            |> Option.get
             |> newtonsoftJsonOfIllogicJson
 
         member this.GetWorkflowActionInput(actionName, repetitionNumber) =
@@ -272,12 +272,12 @@ type TestRunner
             |> List.item (repetitionNumber - 1)
             |> snd
             |> _.inputs
-            |> Conversions.jsonOfOption
+            |> Option.get
             |> newtonsoftJsonOfIllogicJson
 
         member this.GetWorkflowActionOutput(actionName) =
             mySim().ActionResults.[actionName].outputs
-            |> Conversions.jsonOfOption
+            |> Option.get
             |> newtonsoftJsonOfIllogicJson
 
         member this.GetWorkflowActionOutput(actionName, repetitionNumber) =
@@ -285,7 +285,7 @@ type TestRunner
             |> List.item (repetitionNumber - 1)
             |> snd
             |> _.outputs
-            |> Conversions.jsonOfOption
+            |> Option.get
             |> newtonsoftJsonOfIllogicJson
 
         member this.GetWorkflowActionRepetition(actionName, repetitionNumber) =
