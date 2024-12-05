@@ -124,13 +124,13 @@ module private SimulatorHelper =
     let evaluateParameter sim v =
         jsonMapStrs (LanguageEvaluator.altEvaluateIfNecessary evaluateLanguageSandboxedForParameter sim) v.value
 
-    let logActionPreRun actionName actionType =
-        printfn "[Action %s (%s) started]" actionName actionType
+    let logActionPreRun workflowTag actionName actionType =
+        printfn "[Action %s:%s (%s) started]" workflowTag actionName actionType
 
-    let logActionPostRun actionName actionType result =
+    let logActionPostRun workflowTag actionName actionType result =
         match result.error with
-        | None -> printfn "[Action %s (%s) ended: %O]" actionName actionType result.status
-        | Some err -> printfn "[Action %s (%s) ended: %O (%O)]" actionName actionType result.status err
+        | None -> printfn "[Action %s:%s (%s) ended: %O]" workflowTag actionName actionType result.status
+        | Some err -> printfn "[Action %s:%s (%s) ended: %O (%O)]" workflowTag actionName actionType result.status err
 
     let skippedResult =
         { ActionResult.Default with
@@ -289,12 +289,13 @@ type private ScopeContextImpl
                         remainingActions.Remove actionName |> ignore
 
                         let actionType = action.ActionType
-                        logActionPreRun actionName actionType
+                        let workflowTag = simulator.WorkflowDetails.name
+                        logActionPreRun workflowTag actionName actionType
 
                         let result =
                             recordResultOf actionName action (fun () -> action.Execute actionName simulator)
 
-                        logActionPostRun actionName actionType result
+                        logActionPostRun workflowTag actionName actionType result
 
                         rest @ (getNextActions actionName)
                     | DependencyStatus.Completed ->
