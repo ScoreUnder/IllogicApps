@@ -339,7 +339,7 @@ type InitializeVariable(json) =
 
         processedVars
         |> List.iter (fun (name, _, value) ->
-            printfn "InitializeVariable: %s = %s" name (Conversions.prettyStringOfJson value)
+            printfn "Set %s to %s" name (Conversions.prettyStringOfJson value)
 
             if context.GetVariable name |> Option.isSome then
                 failwithf "Variable '%s' already exists" name
@@ -384,6 +384,8 @@ type SetVariable(json) =
 
             let inputs =
                 Conversions.createObject [ "name", String this.Inputs.name; "value", value ]
+
+            printfn "Set %s to %s" this.Inputs.name (Conversions.prettyStringOfJson value)
 
             { ActionResult.Default with
                 inputs = Some(inputs)

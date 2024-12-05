@@ -50,9 +50,11 @@ for sim in sims do
     |> Conversions.createObject
     |> Conversions.writePrettyJson System.Console.Out
 
-    printfn "\nVariable results:\n-----------------\n"
+    printfn "\n\nVariable results:\n-----------------\n"
 
     sim.Variables
     |> Seq.map (fun (KeyValue(k, v)) -> k, v)
     |> Conversions.createObject
     |> Conversions.writePrettyJson System.Console.Out
+
+    printfn ""

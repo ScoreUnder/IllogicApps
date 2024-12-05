@@ -66,7 +66,6 @@ let rec writePrettyJson (writer: TextWriter) json =
         | j -> writer.Write(stringOfJson j)
 
     write' json ""
-    writer.WriteLine()
 
 let prettyStringOfJson json =
     use writer = new StringWriter()
