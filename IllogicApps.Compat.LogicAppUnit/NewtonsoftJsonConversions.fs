@@ -48,4 +48,4 @@ let rec newtonsoftJsonOfIllogicJson (json: JsonTree) : JToken =
     | Decimal d -> JValue(d)
     | String s -> JValue(s)
     | Boolean b -> JValue(b)
-    | Null -> JValue(JTokenType.Null)
+    | Null -> JValue.CreateNull()
