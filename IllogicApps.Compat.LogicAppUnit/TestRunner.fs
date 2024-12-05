@@ -97,6 +97,8 @@ type TestRunner
             let fakeHttpRequest =
                 mockAsFakeHttpRequest request.actionName (compatibleJsonOfWorkflowRequest request)
 
+            printfn "Workflow %s was mocked out and sent to mock HTTP handler" request.workflowId
+
             let result = getMockResponse fakeHttpRequest
             reply.Value <- result |> httpRequestReplyOfNetHttpResponseMessage
             true
