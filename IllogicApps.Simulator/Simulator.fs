@@ -510,7 +510,7 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
     member this.IsBugForBugAccurate = isBugForBugAccurate
     member this.AllActionResults = this.ActionResults |> OrderedMap.CreateRange
 
-    member this.WorkflowDetails =
+    member this.WorkflowDetails: WorkflowDetails =
         WorkflowDetails.create
             creationOptions.workflowId
             creationOptions.workflowName
