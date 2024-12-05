@@ -18,6 +18,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.Compat.LogicApp
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.JavaScript.Jint.Test", "IllogicApps.JavaScript.Jint.Test\IllogicApps.JavaScript.Jint.Test.fsproj", "{9EEC0F29-508C-4F5C-9B13-CC2F8A8B3027}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.Compat.LogicAppUnit.Test", "IllogicApps.Compat.LogicAppUnit.Test\IllogicApps.Compat.LogicAppUnit.Test.fsproj", "{D3A890A1-1096-4656-AF21-7C1E00A765BA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -79,5 +81,11 @@ Global
 		{9EEC0F29-508C-4F5C-9B13-CC2F8A8B3027}.Release|Any CPU.Build.0 = Release|Any CPU
 		{9EEC0F29-508C-4F5C-9B13-CC2F8A8B3027}.Debug except JSON|Any CPU.ActiveCfg = Debug|Any CPU
 		{9EEC0F29-508C-4F5C-9B13-CC2F8A8B3027}.Debug except JSON|Any CPU.Build.0 = Debug|Any CPU
+		{D3A890A1-1096-4656-AF21-7C1E00A765BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D3A890A1-1096-4656-AF21-7C1E00A765BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D3A890A1-1096-4656-AF21-7C1E00A765BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D3A890A1-1096-4656-AF21-7C1E00A765BA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D3A890A1-1096-4656-AF21-7C1E00A765BA}.Debug except JSON|Any CPU.ActiveCfg = Debug|Any CPU
+		{D3A890A1-1096-4656-AF21-7C1E00A765BA}.Debug except JSON|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 EndGlobal
