@@ -40,7 +40,6 @@
   (fetchNuGet { pname = "Microsoft.TestPlatform.TestHost"; version = "17.11.1"; hash = "sha256-wSkY0H1fQAq0H3LcKT4u7Y5RzhAAPa6yueVN84g8HxU="; })
   (fetchNuGet { pname = "Microsoft.Win32.Registry"; version = "4.4.0"; hash = "sha256-ZumsykAAIYKmVtP4QI5kZ0J10n2zcOZZ69PmAK0SEiE="; })
   (fetchNuGet { pname = "Microsoft.Win32.Registry"; version = "5.0.0"; hash = "sha256-9kylPGfKZc58yFqNKa77stomcoNnMeERXozWJzDcUIA="; })
-  (fetchNuGet { pname = "Newtonsoft.Json"; version = "13.0.1"; hash = "sha256-K2tSVW4n4beRPzPu3rlVaBEMdGvWSv/3Q1fxaDh4Mjo="; })
   (fetchNuGet { pname = "Newtonsoft.Json"; version = "13.0.3"; hash = "sha256-hy/BieY4qxBWVVsDqqOPaLy1QobiIapkbrESm6v2PHc="; })
   (fetchNuGet { pname = "NUnit"; version = "4.2.2"; hash = "sha256-+0OS67ITalmG9arYCgQF/+YbmPRnB3pIIykew0kvoCc="; })
   (fetchNuGet { pname = "NUnit.Analyzers"; version = "4.3.0"; hash = "sha256-L/agsdfGdIICWmBeD/dm3lHGnTDyOF0hArLd42n09SY="; })
