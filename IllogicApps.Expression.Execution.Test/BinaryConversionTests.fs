@@ -1,4 +1,4 @@
-module IllogicApps.Simulator.Test.BinaryConversionTests
+module IllogicApps.Expression.Execution.Test.BinaryConversionTests
 
 open System
 open NUnit.Framework

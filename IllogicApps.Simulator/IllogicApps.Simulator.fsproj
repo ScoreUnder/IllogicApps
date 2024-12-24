@@ -5,12 +5,6 @@
         <TailCalls>true</TailCalls>
     </PropertyGroup>
     <ItemGroup>
-        <Compile Include="LanguageLexer.fs"/>
-        <Compile Include="LanguageParser.fs"/>
-        <Compile Include="JsonXmlWriter.fs"/>
-        <Compile Include="BuiltinCondition.fs"/>
-        <Compile Include="BuiltinFunctions.fs"/>
-        <Compile Include="LanguageEvaluator.fs"/>
         <Compile Include="ExternalServices.fs"/>
         <Compile Include="Parameters.fs"/>
         <Compile Include="ReadSupportingData.fs"/>
@@ -19,6 +13,8 @@
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\IllogicApps.Core\IllogicApps.Core.fsproj"/>
+        <ProjectReference Include="..\IllogicApps.Expression.Execution\IllogicApps.Expression.Execution.fsproj" />
+        <ProjectReference Include="..\IllogicApps.Expression.Parsing\IllogicApps.Expression.Parsing.fsproj" />
         <ProjectReference Include="..\IllogicApps.Json\IllogicApps.Json.fsproj"/>
     </ItemGroup>
 </Project>

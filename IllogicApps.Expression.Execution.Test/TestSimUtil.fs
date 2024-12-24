@@ -1,9 +1,12 @@
-module IllogicApps.Simulator.Test.TestSimUtil
+module IllogicApps.Expression.Execution.Test.TestSimUtil
 
+open IllogicApps.Expression.Execution
 open IllogicApps.Json
 open Swensen.Unquote
 open IllogicApps.Core
-open IllogicApps.Simulator
+
+module LanguageLexer = IllogicApps.Expression.Parsing.Lexer
+module LanguageParser = IllogicApps.Expression.Parsing.Parser
 
 let makeSimulator () =
     Foq.Mock<SimulatorContext>()
@@ -11,7 +14,7 @@ let makeSimulator () =
         .Create()
 
 let testExpressionEvaluation expr =
-    LanguageEvaluator.evaluateIfNecessary (makeSimulator ()) expr
+    Evaluator.evaluateIfNecessary (makeSimulator ()) expr
 
 let lexExpr expr =
     test
@@ -25,7 +28,7 @@ let lexExpr expr =
 let parseExpr lexed = LanguageParser.parse lexed
 
 let evaluateParsed expr =
-    LanguageEvaluator.evaluate (makeSimulator ()) expr
+    Evaluator.evaluate (makeSimulator ()) expr
 
 type private 'a TraceResult =
     | NoChanges of 'a
@@ -122,21 +125,21 @@ let traceEvaluationParsed expr =
                             (fun _ ->
                                 TraceError
                                     $"Internal error: Expected evaluation of argument {i} of {parent} to change, but it didn't")
-                | _ -> TraceError <| LanguageEvaluator.ErrorMessages.badFunctionCall name
+                | _ -> TraceError <| Evaluator.ErrorMessages.badFunctionCall name
         | LanguageParser.Member(parent, mem) ->
             TraceResult.tuple2 (trace' parent) (trace' mem)
             |> TraceResult.step LanguageParser.Member (fun (parent, mem) ->
-                match LanguageEvaluator.accessMember (unpackLiteral parent) (unpackLiteral mem) with
-                | LanguageEvaluator.AccessOk value -> Changes(LanguageParser.Literal(value))
-                | LanguageEvaluator.ForgivableError err -> TraceError err
-                | LanguageEvaluator.SeriousError err -> TraceError err)
+                match Evaluator.accessMember (unpackLiteral parent) (unpackLiteral mem) with
+                | Evaluator.AccessOk value -> Changes(LanguageParser.Literal(value))
+                | Evaluator.ForgivableError err -> TraceError err
+                | Evaluator.SeriousError err -> TraceError err)
         | LanguageParser.ForgivingMember(parent, mem) ->
             TraceResult.tuple2 (trace' parent) (trace' mem)
             |> TraceResult.step LanguageParser.ForgivingMember (fun (parent, mem) ->
-                match LanguageEvaluator.accessMember (unpackLiteral parent) (unpackLiteral mem) with
-                | LanguageEvaluator.AccessOk value -> Changes(LanguageParser.Literal(value))
-                | LanguageEvaluator.ForgivableError _ -> Changes(LanguageParser.Literal(Null))
-                | LanguageEvaluator.SeriousError err -> TraceError err)
+                match Evaluator.accessMember (unpackLiteral parent) (unpackLiteral mem) with
+                | Evaluator.AccessOk value -> Changes(LanguageParser.Literal(value))
+                | Evaluator.ForgivableError _ -> Changes(LanguageParser.Literal(Null))
+                | Evaluator.SeriousError err -> TraceError err)
         | LanguageParser.BuiltinConcat(args) ->
             args
             |> List.map trace'

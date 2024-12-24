@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+    <ItemGroup>
+        <Compile Include="JsonXmlWriter.fs"/>
+        <Compile Include="BuiltinCondition.fs"/>
+        <Compile Include="BuiltinFunctions.fs"/>
+        <Compile Include="Evaluator.fs"/>
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\IllogicApps.Core\IllogicApps.Core.fsproj"/>
+        <ProjectReference Include="..\IllogicApps.Expression.Parsing\IllogicApps.Expression.Parsing.fsproj"/>
+    </ItemGroup>
+</Project>

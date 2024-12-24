@@ -1,6 +1,6 @@
-module IllogicApps.Simulator.LanguageParser
+module IllogicApps.Expression.Parsing.Parser
 
-open LanguageLexer
+open Lexer
 open IllogicApps.Json
 
 type Ast =
@@ -73,8 +73,8 @@ let parse (items: (int * Token) list list) =
                     Token token :: stack
                     |> tryParse collapseMemberAccess
                     |> Option.defaultValue (Ast(Literal(v)) :: stack)
-                | LanguageLexer.String str -> Ast(Literal(String str)) :: stack
-                | LanguageLexer.Integer num -> Ast(Literal(Integer num)) :: stack
+                | Lexer.String str -> Ast(Literal(String str)) :: stack
+                | Lexer.Integer num -> Ast(Literal(Integer num)) :: stack
                 | Number num -> Ast(Literal(Float num)) :: stack
                 | CloseParen -> Token token :: stack |> must collapseCall
                 | CloseBracket -> Token token :: stack |> must collapseIndexAccess

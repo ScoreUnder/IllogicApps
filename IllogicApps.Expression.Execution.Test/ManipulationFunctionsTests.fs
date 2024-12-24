@@ -1,4 +1,4 @@
-module IllogicApps.Simulator.Test.ManipulationFunctionsTests
+module IllogicApps.Expression.Execution.Test.ManipulationFunctionsTests
 
 open NUnit.Framework
 open Swensen.Unquote

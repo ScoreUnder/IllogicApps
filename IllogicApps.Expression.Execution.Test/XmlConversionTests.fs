@@ -1,4 +1,4 @@
-module IllogicApps.Simulator.Test.XmlConversionTests
+module IllogicApps.Expression.Execution.Test.XmlConversionTests
 
 open System.Xml
 open NUnit.Framework

@@ -1,4 +1,4 @@
-module IllogicApps.Simulator.Test.NumericLimitsTests
+module IllogicApps.Expression.Execution.Test.NumericLimitsTests
 
 open System
 open NUnit.Framework

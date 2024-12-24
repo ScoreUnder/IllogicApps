@@ -1,4 +1,4 @@
-module IllogicApps.Simulator.Test.BasicLanguageTests
+module IllogicApps.Expression.Execution.Test.BasicLanguageTests
 
 open System
 open NUnit.Framework

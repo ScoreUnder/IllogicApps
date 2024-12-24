@@ -1,4 +1,4 @@
-module IllogicApps.Simulator.Test.LogicTests
+module IllogicApps.Expression.Execution.Test.LogicTests
 
 open NUnit.Framework
 open IllogicApps.Json

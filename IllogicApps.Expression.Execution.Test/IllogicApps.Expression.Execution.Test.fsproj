@@ -7,13 +7,6 @@
         <TailCalls>true</TailCalls>
     </PropertyGroup>
     <ItemGroup>
-        <Compile Include="AssemblyInfo.fs"/>
-        <Compile Include="SettingsFilesTests.fs"/>
-        <Compile Include="SimulatorInternalsTests.fs"/>
-        <EmbeddedResource Include="TestData\**"/>
-        <Compile Include="WorkflowTraceTests.fs"/>
-    </ItemGroup>
-    <ItemGroup>
         <PackageReference Include="coverlet.collector" Version="6.0.2">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
@@ -32,6 +25,19 @@
         <PackageReference Include="Unquote" Version="7.0.0"/>
     </ItemGroup>
     <ItemGroup>
-        <ProjectReference Include="..\IllogicApps.Simulator\IllogicApps.Simulator.fsproj"/>
+      <Compile Include="AssemblyInfo.fs" />
+      <Compile Include="TestSimUtil.fs" />
+      <Compile Include="XmlConversionTests.fs" />
+      <Compile Include="BasicLanguageTests.fs" />
+      <Compile Include="NumericLimitsTests.fs" />
+      <Compile Include="NumericConversionTests.fs" />
+      <Compile Include="BinaryConversionTests.fs" />
+      <Compile Include="LogicTests.fs" />
+      <Compile Include="StringFunctionsTests.fs" />
+      <Compile Include="CollectionFunctionsTests.fs" />
+      <Compile Include="ManipulationFunctionsTests.fs" />
+    </ItemGroup>
+    <ItemGroup>
+      <ProjectReference Include="..\IllogicApps.Expression.Execution\IllogicApps.Expression.Execution.fsproj" />
     </ItemGroup>
 </Project>

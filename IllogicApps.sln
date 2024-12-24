@@ -20,6 +20,12 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.JavaScript.Jint
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.Compat.LogicAppUnit.Test", "IllogicApps.Compat.LogicAppUnit.Test\IllogicApps.Compat.LogicAppUnit.Test.fsproj", "{D3A890A1-1096-4656-AF21-7C1E00A765BA}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.Expression.Parsing", "IllogicApps.Expression.Parsing\IllogicApps.Expression.Parsing.fsproj", "{D3FA4FFE-5C37-460A-847F-1A00280443DD}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.Expression.Execution", "IllogicApps.Expression.Execution\IllogicApps.Expression.Execution.fsproj", "{8534A9CE-87D3-4CB9-B423-4A689BEFC770}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.Expression.Execution.Test", "IllogicApps.Expression.Execution.Test\IllogicApps.Expression.Execution.Test.fsproj", "{639A933E-B2EE-4FD3-B13E-F041FC39E353}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,5 +93,23 @@ Global
 		{D3A890A1-1096-4656-AF21-7C1E00A765BA}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D3A890A1-1096-4656-AF21-7C1E00A765BA}.Debug except JSON|Any CPU.ActiveCfg = Debug|Any CPU
 		{D3A890A1-1096-4656-AF21-7C1E00A765BA}.Debug except JSON|Any CPU.Build.0 = Debug|Any CPU
+		{D3FA4FFE-5C37-460A-847F-1A00280443DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D3FA4FFE-5C37-460A-847F-1A00280443DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D3FA4FFE-5C37-460A-847F-1A00280443DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D3FA4FFE-5C37-460A-847F-1A00280443DD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D3FA4FFE-5C37-460A-847F-1A00280443DD}.Debug except JSON|Any CPU.ActiveCfg = Debug|Any CPU
+		{D3FA4FFE-5C37-460A-847F-1A00280443DD}.Debug except JSON|Any CPU.Build.0 = Debug|Any CPU
+		{8534A9CE-87D3-4CB9-B423-4A689BEFC770}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8534A9CE-87D3-4CB9-B423-4A689BEFC770}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8534A9CE-87D3-4CB9-B423-4A689BEFC770}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8534A9CE-87D3-4CB9-B423-4A689BEFC770}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8534A9CE-87D3-4CB9-B423-4A689BEFC770}.Debug except JSON|Any CPU.ActiveCfg = Debug|Any CPU
+		{8534A9CE-87D3-4CB9-B423-4A689BEFC770}.Debug except JSON|Any CPU.Build.0 = Debug|Any CPU
+		{639A933E-B2EE-4FD3-B13E-F041FC39E353}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{639A933E-B2EE-4FD3-B13E-F041FC39E353}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{639A933E-B2EE-4FD3-B13E-F041FC39E353}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{639A933E-B2EE-4FD3-B13E-F041FC39E353}.Release|Any CPU.Build.0 = Release|Any CPU
+		{639A933E-B2EE-4FD3-B13E-F041FC39E353}.Debug except JSON|Any CPU.ActiveCfg = Debug|Any CPU
+		{639A933E-B2EE-4FD3-B13E-F041FC39E353}.Debug except JSON|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 EndGlobal

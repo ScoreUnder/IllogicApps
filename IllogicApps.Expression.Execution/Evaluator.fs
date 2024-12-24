@@ -1,7 +1,9 @@
-module IllogicApps.Simulator.LanguageEvaluator
+module IllogicApps.Expression.Execution.Evaluator
 
 open IllogicApps.Core
 open IllogicApps.Json
+module LanguageLexer = IllogicApps.Expression.Parsing.Lexer
+module LanguageParser = IllogicApps.Expression.Parsing.Parser
 
 module ErrorMessages =
     let badFunctionCall name =

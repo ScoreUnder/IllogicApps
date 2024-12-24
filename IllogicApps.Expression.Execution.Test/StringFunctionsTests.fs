@@ -1,4 +1,4 @@
-module IllogicApps.Simulator.Test.StringFunctionsTests
+module IllogicApps.Expression.Execution.Test.StringFunctionsTests
 
 open NUnit.Framework
 open TestSimUtil

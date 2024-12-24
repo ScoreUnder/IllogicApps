@@ -1,4 +1,4 @@
-module IllogicApps.Simulator.Test.NumericConversionTests
+module IllogicApps.Expression.Execution.Test.NumericConversionTests
 
 open System
 open NUnit.Framework

@@ -7,8 +7,9 @@ open System.Diagnostics
 open IllogicApps.Core
 open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.LogicAppSpec
+open IllogicApps.Expression.Execution
 open IllogicApps.Json
-open IllogicApps.Simulator.BuiltinCondition
+open IllogicApps.Expression.Execution.BuiltinCondition
 open CompletedStepTypes
 open IllogicApps.Simulator.ExternalServices
 open IllogicApps.Simulator.Parameters
@@ -117,12 +118,12 @@ module private SimulatorHelper =
         | _ -> node
 
     let evaluateLanguageSandboxedForParameter =
-        LanguageEvaluator.evaluateSandboxed
+        Evaluator.evaluateSandboxed
             (OrderedMap.ofList [ "appsetting", BuiltinFunctions.f_appsetting ])
             OrderedMap.empty
 
     let evaluateParameter sim v =
-        jsonMapStrs (LanguageEvaluator.altEvaluateIfNecessary evaluateLanguageSandboxedForParameter sim) v.value
+        jsonMapStrs (Evaluator.altEvaluateIfNecessary evaluateLanguageSandboxedForParameter sim) v.value
 
     let logActionPreRun workflowTag actionName actionType =
         printfn "[Action %s:%s (%s) started]" workflowTag actionName actionType
@@ -564,7 +565,7 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
         expr |> unpackObject |> eval
 
     member this.EvaluateLanguage expr =
-        expr |> jsonMapStrs (LanguageEvaluator.evaluateIfNecessary this)
+        expr |> jsonMapStrs (Evaluator.evaluateIfNecessary this)
 
     member this.Terminate status error =
         this.TerminationStatus <- Error(status, error)

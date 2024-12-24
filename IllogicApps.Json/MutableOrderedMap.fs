@@ -1,4 +1,4 @@
-namespace IllogicApps.Simulator
+namespace IllogicApps.Json
 
 open System
 open System.Collections
