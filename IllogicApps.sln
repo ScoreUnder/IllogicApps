@@ -26,6 +26,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.Expression.Exec
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.Expression.Execution.Test", "IllogicApps.Expression.Execution.Test\IllogicApps.Expression.Execution.Test.fsproj", "{639A933E-B2EE-4FD3-B13E-F041FC39E353}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.Extra.ExpressionInfixer", "IllogicApps.Extra.ExpressionInfixer\IllogicApps.Extra.ExpressionInfixer.fsproj", "{436436E7-AE9D-4C5F-B3FF-1A68E67BBFC0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -111,5 +113,11 @@ Global
 		{639A933E-B2EE-4FD3-B13E-F041FC39E353}.Release|Any CPU.Build.0 = Release|Any CPU
 		{639A933E-B2EE-4FD3-B13E-F041FC39E353}.Debug except JSON|Any CPU.ActiveCfg = Debug|Any CPU
 		{639A933E-B2EE-4FD3-B13E-F041FC39E353}.Debug except JSON|Any CPU.Build.0 = Debug|Any CPU
+		{436436E7-AE9D-4C5F-B3FF-1A68E67BBFC0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{436436E7-AE9D-4C5F-B3FF-1A68E67BBFC0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{436436E7-AE9D-4C5F-B3FF-1A68E67BBFC0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{436436E7-AE9D-4C5F-B3FF-1A68E67BBFC0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{436436E7-AE9D-4C5F-B3FF-1A68E67BBFC0}.Debug except JSON|Any CPU.ActiveCfg = Debug|Any CPU
+		{436436E7-AE9D-4C5F-B3FF-1A68E67BBFC0}.Debug except JSON|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 EndGlobal
