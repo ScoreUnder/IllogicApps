@@ -20,3 +20,6 @@ let ``Test variable names are case-insensitive`` () =
     sim.SetVariable "otherVar" (String "Other")
 
     test <@ sim.GetVariable("testvar") = Some value @>
+
+// TODO: test that action names in GetActionResult are case-insensitive
+// (or test via workflow trace tests)

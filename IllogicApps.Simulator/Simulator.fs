@@ -118,9 +118,7 @@ module private SimulatorHelper =
         | _ -> node
 
     let evaluateLanguageSandboxedForParameter =
-        Evaluator.evaluateSandboxed
-            (OrderedMap.ofList [ "appsetting", BuiltinFunctions.f_appsetting ])
-            OrderedMap.empty
+        Evaluator.evaluateSandboxed (OrderedMap.ofList [ "appsetting", BuiltinFunctions.f_appsetting ]) OrderedMap.empty
 
     let evaluateParameter sim v =
         jsonMapStrs (Evaluator.altEvaluateIfNecessary evaluateLanguageSandboxedForParameter sim) v.value
@@ -440,6 +438,8 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
     let variables = Dictionary<string, JsonTree>()
     let canonicalVarCase = Dictionary<string, string>()
 
+    let canonicalActionResultCase = Dictionary<string, string>()
+
     let arrayOperationContextStack = Stack<string option * ArrayOperationContextImpl>()
     let scopeContextStack = Stack<ScopeContextImpl>()
 
@@ -518,13 +518,15 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
             creationOptions.workflowVersion
             creationOptions.runId
 
-    member this.GetActionResult name =
-        this.ActionResults.TryGetValue name
+    member this.GetActionResult(name: string) =
+        canonicalActionResultCase.TryGetValue(name.ToLowerInvariant())
         |> function
-            | true, result -> Some result
+            | true, result -> Some this.ActionResults.[result]
             | _ -> None
 
-    member internal this.RecordActionResult name result = this.ActionResults.[name] <- result
+    member internal this.RecordActionResult name result =
+        canonicalActionResultCase.[name.ToLowerInvariant()] <- name
+        this.ActionResults.[name] <- result
 
     member internal this.RecordActionRepetition stack name result =
         let previousRepetitions =
