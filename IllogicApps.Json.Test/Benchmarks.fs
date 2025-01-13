@@ -85,3 +85,22 @@ type ParserBenchmark() =
     [<Benchmark>]
     member _.SystemTextJson() =
         System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.Nodes.JsonNode>(bigJson.Value)
+
+type SerialiserBenchmark() =
+    let alreadyParsed = Parser.parse bigJson.Value
+
+    let alreadyParsedSystemTextNode = JsonNode.Parse(bigJson.Value)
+
+    let alreadyParsedSystemTextDocument = JsonDocument.Parse(bigJson.Value)
+
+    [<Benchmark(Baseline = true)>]
+    member _.SerialiseBigJson() = alreadyParsed |> Conversions.stringOfJson
+
+    [<Benchmark>]
+    member _.PrettySerialiseBigJson() = alreadyParsed |> Conversions.prettyStringOfJson
+
+    [<Benchmark>]
+    member _.SystemTextJsonNode() = alreadyParsedSystemTextNode.ToString()
+
+    [<Benchmark>]
+    member _.SystemTextJsonDocument() = alreadyParsedSystemTextDocument.RootElement.ToString()
