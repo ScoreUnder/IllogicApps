@@ -1,6 +1,7 @@
 namespace LogicAppUnit
 
 open System
+open System.Collections.Concurrent
 open System.Collections.Generic
 open System.IO
 open IllogicApps.Compat.LogicAppUnit
@@ -53,6 +54,7 @@ type WorkflowTestBase() =
 
     let mutable mockResponses = []
     let mutable initialised = None
+    let mutable workflowCache = None
 
     let makeMockDefinition (testConfiguration: TestConfiguration) =
         MockDefinition(
@@ -72,6 +74,11 @@ type WorkflowTestBase() =
         resp
 
     static member MockTestWorkflowHostUri = "http://mockHost.localhost"
+
+    // Extension: Allow workflow reads to be cached to prevent re-reading and re-parsing of
+    // the same workflow over and over again.
+    member this.SetWorkflowCache(workflowCacheDict: ConcurrentDictionary<string, LogicAppSpec.Root>) : unit =
+        workflowCache <- Some workflowCacheDict
 
     member this.Initialize(logicAppBasePath: string, workflowName: string) : unit =
         this.Initialize(logicAppBasePath, workflowName, null, Array.Empty<string>())
@@ -109,10 +116,16 @@ type WorkflowTestBase() =
         let childWorkflows = otherWorkflows |> sanitiseNull Array.empty
         let allWorkflowNames = Seq.append [| workflowName |] childWorkflows
 
+        let readLogicApp path =
+            match workflowCache with
+            | Some cache -> cache.GetOrAdd(path, ReadLogicApp.readLogicApp)
+            | None -> ReadLogicApp.readLogicApp path
+
         let workflows =
             allWorkflowNames
             |> Seq.map (fun name ->
-                name, (ReadLogicApp.readLogicApp (Path.Combine(logicAppBasePath, name, WORKFLOW_FILENAME))))
+                let workflowPath = Path.Combine(logicAppBasePath, name, WORKFLOW_FILENAME)
+                name, readLogicApp workflowPath)
             |> Seq.toList
 
         let appSettings =
