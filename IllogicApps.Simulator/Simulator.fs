@@ -8,11 +8,14 @@ open IllogicApps.Core
 open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Expression.Execution
+open IllogicApps.Expression.Parsing
 open IllogicApps.Json
 open IllogicApps.Expression.Execution.BuiltinCondition
 open CompletedStepTypes
 open IllogicApps.Simulator.ExternalServices
 open IllogicApps.Simulator.Parameters
+
+module ExpressionParser = IllogicApps.Expression.Parsing.Parser
 
 module private SimulatorHelper =
     let private emptyDependencyList = OrderedMap.ofList [ ("", []) ]
@@ -553,18 +556,44 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
         OrderedMap.tryFindCaseInsensitive name evaluatedParameters |> Option.map _.Value
 
     member this.EvaluateCondition expr =
-        let rec eval expr =
-            let kv = expr |> Seq.exactlyOne
-            let key, value = kv
+        let rec validate (expr: (string * JsonTree) seq) =
+            let func, args = expr |> Seq.exactlyOne
 
-            match key with
-            | "and" -> value |> arrayOfObjects |> Seq.forall eval
-            | "or" -> value |> arrayOfObjects |> Seq.exists eval
-            | "not" -> value |> unpackObject |> eval |> not
-            | LanguageCondition fn -> value |> Conversions.ensureArray |> List.ofSeq |> fn
-            | _ -> failwithf "Unexpected expression %O" expr
+            if
+                (OrderedMap.tryFindCaseInsensitive func BuiltinFunctions.functions).IsNone
+                || (OrderedMap.tryFindCaseInsensitive func BuiltinFunctions.lazyFunctions).IsNone
+            then
+                failwithf "Unknown function %s" func
 
-        expr |> unpackObject |> eval
+            args
+            |> Conversions.ensureArray
+            |> Seq.iter (function
+                | Object o -> o |> OrderedMap.toSeq |> validate
+                | _ -> ())
+
+        let rec transform (expr: (string * JsonTree) seq) : ExpressionParser.Ast =
+            let func, args = expr |> Seq.exactlyOne
+
+            let args =
+                args
+                |> Conversions.ensureArray
+                |> Seq.map (function
+                    | Object o -> o |> OrderedMap.toSeq |> transform
+                    | String v -> v |> Lexer.lex |> ExpressionParser.parse
+                    | Integer _
+                    | Float _
+                    | Decimal _
+                    | Boolean _
+                    | Null as v -> ExpressionParser.Literal(v)
+                    | Array _ -> failwith "Array not allowed as argument in condition")
+
+            Parser.Call(func, args |> List.ofSeq)
+
+        expr
+        |> unpackObject
+        |> transform
+        |> Evaluator.evaluate this
+        |> Conversions.ensureBoolean
 
     member this.EvaluateLanguage expr =
         expr |> jsonMapStrs (Evaluator.evaluateIfNecessary this)

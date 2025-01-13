@@ -167,16 +167,11 @@ let traceEvaluationParsed expr =
     trace'' [] expr |> List.rev
 
 let traceEvaluation expr =
-    if LanguageLexer.isLiteralStringWithAtSign expr then
-        [ String expr.[1..] |> Conversions.stringOfJson ]
-    else if LanguageLexer.requiresInterpolation expr then
-        expr
-        |> LanguageLexer.lex
-        |> LanguageParser.parse
-        |> traceEvaluationParsed
-        |> List.map stringOfAstResult
-    else
-        [ String expr |> Conversions.stringOfJson ]
+    expr
+    |> LanguageLexer.lex
+    |> LanguageParser.parse
+    |> traceEvaluationParsed
+    |> List.map stringOfAstResult
 
 let traceEvaluationTo f expr = traceEvaluation expr |> List.iter f
 

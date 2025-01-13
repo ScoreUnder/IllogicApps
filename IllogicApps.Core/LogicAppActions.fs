@@ -153,8 +153,7 @@ type If(resolveAction, json) =
     override this.Execute (name: string) (context: SimulatorContext) =
         use scopeContext = context.PushScopeContext name false (this.GetChildren())
 
-        let conditionResult =
-            this.Expression |> context.EvaluateLanguage |> context.EvaluateCondition
+        let conditionResult = this.Expression |> context.EvaluateCondition
 
         printfn "If Condition: %b" conditionResult
 

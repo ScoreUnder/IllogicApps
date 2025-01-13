@@ -76,12 +76,7 @@ let inline evaluate simContext (ast: LanguageParser.Ast) =
     evaluateSandboxed BuiltinFunctions.functions BuiltinFunctions.lazyFunctions simContext ast
 
 let altEvaluateIfNecessary altEvaluate (simContext: SimulatorContext) (rawStr: string) : JsonTree =
-    if LanguageLexer.isLiteralStringWithAtSign rawStr then
-        String(rawStr.[1..])
-    else if LanguageLexer.requiresInterpolation rawStr then
-        rawStr |> LanguageLexer.lex |> LanguageParser.parse |> altEvaluate simContext
-    else
-        String(rawStr)
+    rawStr |> LanguageLexer.lex |> LanguageParser.parse |> altEvaluate simContext
 
 let inline evaluateIfNecessary simContext rawStr =
     altEvaluateIfNecessary evaluate simContext rawStr

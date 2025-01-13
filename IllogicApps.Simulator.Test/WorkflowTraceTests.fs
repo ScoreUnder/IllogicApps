@@ -189,17 +189,7 @@ let namedTestCases names =
 
 let logicAppHostQueryKeys = [| "api-version"; "sp"; "sv"; "sig" |]
 
-let ``Test cases for workflows that respond with trigger`` =
-    namedTestCases [ "simpleRelativePath"; "simpleEcho" ]
-
-[<TestCaseSource(nameof ``Test cases for workflows that respond with trigger``)>]
-let ``Test IllogicApps output matches logic app trace for workflows that respond with trigger`` workflowName traceName =
-    let workflowName, logicApp, request, expectedResponse =
-        readTestCase (workflowName, traceName)
-
-    let expectedResponseStr = Encoding.UTF8.GetString(expectedResponse.body)
-    let parsedExpectedResponse = Parser.parse expectedResponseStr
-
+let parsePathAndQuery request =
     let relativePathPart =
         let invokePart = "/invoke/"
         let invocation = request.relativePath.IndexOf(invokePart, StringComparison.Ordinal)
@@ -226,6 +216,21 @@ let ``Test IllogicApps output matches logic app trace for workflows that respond
         parseQueryString query
         |> OrderedMap.filter (fun k _ -> not (Array.contains k logicAppHostQueryKeys))
         |> fun m -> if m.Count = 0 then None else Some m
+
+    relativePathPart, parsedQuery
+
+let ``Test cases for workflows that respond with trigger`` =
+    namedTestCases [ "simpleRelativePath"; "simpleEcho" ]
+
+[<TestCaseSource(nameof ``Test cases for workflows that respond with trigger``)>]
+let ``Test IllogicApps output matches logic app trace for workflows that respond with trigger`` workflowName traceName =
+    let workflowName, logicApp, request, expectedResponse =
+        readTestCase (workflowName, traceName)
+
+    let expectedResponseStr = Encoding.UTF8.GetString(expectedResponse.body)
+    let parsedExpectedResponse = Parser.parse expectedResponseStr
+
+    let relativePathPart, parsedQuery = parsePathAndQuery request
 
     // We can't reasonably be expected to match these without faking it:
     let workflowRunId =
@@ -398,5 +403,108 @@ let ``Test IllogicApps output matches logic app trace for workflows that respond
                 param =
                     { Differ.AssertPrintParams with
                         neutralName = "Response headers" }
+            )
+        @>
+
+let ``Test cases for workflows that respond with expected constant`` =
+    namedTestCases [ "conditionCaseInsensitiveFunction" ]
+
+[<TestCaseSource(nameof ``Test cases for workflows that respond with expected constant``)>]
+let ``Test IllogicApps output matches logic app trace for workflows that respond with expected constant``
+    workflowName
+    traceName
+    =
+    let workflowName, logicApp, request, expectedResponse =
+        readTestCase (workflowName, traceName)
+
+    let expectedResponseStr = Encoding.UTF8.GetString(expectedResponse.body)
+
+    let relativePathPart, parsedQuery = parsePathAndQuery request
+
+    let workflowId =
+        expectedResponse.headers
+        |> List.pick (function
+            | "x-ms-workflow-id", v -> Some v
+            | _ -> None)
+
+    let workflowVersion =
+        expectedResponse.headers
+        |> List.pick (function
+            | "x-ms-workflow-version", v -> Some v
+            | _ -> None)
+
+    let triggerName, triggerAction =
+        logicApp.definition.triggers |> OrderedMap.toSeq |> Seq.head
+
+    let actualResponse = ref None
+
+    let responseHandler _sim request =
+        match request with
+        | HttpResponse(resp) when actualResponse.Value = None ->
+            actualResponse.Value <- Some resp
+            true
+        | _ -> false
+
+    let triggerRequest =
+        let headers =
+            // Round-trip the headers via HttpRequestHeaders (which can only be instantiated by a HttpRequestMessage)
+            // and sort the header keys from the Headers slot (but not the Content.Headers slot)
+            // to ensure that they are ordered the same way the Logic Apps host orders them
+            use requestContent = new ByteArrayContent(Array.empty)
+            use requestMessage = new HttpRequestMessage(Content = requestContent)
+
+            request.headers
+            |> List.iter (fun (k, v) ->
+                if not (requestMessage.Headers.TryAddWithoutValidation(k, v)) then
+                    if not (requestMessage.Content.Headers.TryAddWithoutValidation(k, v)) then
+                        failwithf "Don't know where to put the %s header" k)
+
+            let sortedInitialHeaders =
+                requestMessage.Headers |> Seq.sortBy (fun (KeyValue(k, _)) -> k)
+
+            let sortedContentHeaders =
+                requestMessage.Content.Headers
+                |> Seq.sortByDescending (fun (KeyValue(k, _)) -> k)
+
+            Seq.append sortedInitialHeaders sortedContentHeaders
+            |> Seq.map (fun (KeyValue(k, v)) -> KeyValuePair(k, v |> String.concat ","))
+            |> OrderedMap.CreateRange
+
+        let contentType = headers |> OrderedMap.tryFind "Content-Type"
+
+        { method = HttpMethod.Parse request.httpMethod
+          relativePath = relativePathPart
+          queries = parsedQuery
+          headers = Some headers
+          body = decodeOptionalBodyByContentType contentType request.body }
+
+    let simCreationOptions =
+        { SimulatorCreationOptions.dummy with
+            workflowName = workflowName
+            workflowId = workflowId
+            workflowVersion = workflowVersion
+            externalServiceHandlers = [ responseHandler ]
+            triggerResult = Invoked triggerRequest
+            isStateless = Simulator.workflowIsStateless logicApp }
+
+    let sim = Simulator.CreateUntriggered simCreationOptions
+
+    sim.ExecuteTrigger triggerName triggerAction
+
+    sim.RunWholeWorkflow logicApp.definition.actions
+
+    let actualResponse = trap <@ actualResponse.Value.Value @>
+    let actualResponseBody = trap <@ actualResponse.body.Value @>
+
+    test <@ expectedResponse.statusCode = actualResponse.statusCode @>
+
+    trap
+        <@
+            Differ.Assert(
+                expectedResponseStr,
+                Conversions.rawStringOfJson actualResponseBody,
+                param =
+                    { Differ.AssertPrintParams with
+                        neutralName = "Response body string" }
             )
         @>

@@ -173,8 +173,13 @@ let lex rawStr =
             let start, lexed, remaining = lex' start [] remaining
             lexStringified start (lexed :: acc) remaining
 
-    if isStringified then
-        lexStringified 0 [] rawStr
+    if isLiteralStringWithAtSign rawStr then
+        [ [ (1, String(rawStr.[1..])) ] ]
+    else if requiresInterpolation rawStr then
+        if isStringified then
+            lexStringified 0 [] rawStr
+        else
+            let _, lexed, _ = lex' 1 [] rawStr.[1..]
+            [ lexed ]
     else
-        let _, lexed, _ = lex' 1 [] rawStr.[1..]
-        [ lexed ]
+        [ [ (0, String rawStr) ] ]
