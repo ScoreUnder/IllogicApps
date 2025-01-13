@@ -1,0 +1,100 @@
+== Info: Host localhost:7071 was resolved.
+== Info: IPv6: ::1
+== Info: IPv4: 127.0.0.1
+== Info:   Trying [::1]:7071...
+== Info: connect to ::1 port 7071 from ::1 port 57946 failed: Connection refused
+== Info:   Trying 127.0.0.1:7071...
+== Info: Connected to localhost (127.0.0.1) port 7071
+== Info: using HTTP/1.x
+=> Send header, 285 bytes (0x11d)
+0000: 47 45 54 20 2f 61 70 69 2f 57 68 61 74 48 61 70 GET /api/WhatHap
+0010: 70 65 6e 73 49 66 53 74 61 74 65 6d 65 6e 74 2f pensIfStatement/
+0020: 74 72 69 67 67 65 72 73 2f 57 68 65 6e 5f 61 5f triggers/When_a_
+0030: 48 54 54 50 5f 72 65 71 75 65 73 74 5f 69 73 5f HTTP_request_is_
+0040: 72 65 63 65 69 76 65 64 2f 69 6e 76 6f 6b 65 3f received/invoke?
+0050: 61 70 69 2d 76 65 72 73 69 6f 6e 3d 32 30 32 32 api-version=2022
+0060: 2d 30 35 2d 30 31 26 73 70 3d 25 32 46 74 72 69 -05-01&sp=%2Ftri
+0070: 67 67 65 72 73 25 32 46 57 68 65 6e 5f 61 5f 48 ggers%2FWhen_a_H
+0080: 54 54 50 5f 72 65 71 75 65 73 74 5f 69 73 5f 72 TTP_request_is_r
+0090: 65 63 65 69 76 65 64 25 32 46 72 75 6e 26 73 76 eceived%2Frun&sv
+00a0: 3d 31 2e 30 26 73 69 67 3d 6a 72 46 41 70 68 7a =1.0&sig=jrFAphz
+00b0: 4d 74 6b 5f 6c 54 65 49 49 6f 66 4c 5a 33 41 52 Mtk_lTeIIofLZ3AR
+00c0: 33 71 70 54 53 2d 45 30 62 4b 50 42 4b 34 2d 4d 3qpTS-E0bKPBK4-M
+00d0: 4c 63 76 38 20 48 54 54 50 2f 31 2e 31 0d 0a 48 Lcv8 HTTP/1.1..H
+00e0: 6f 73 74 3a 20 6c 6f 63 61 6c 68 6f 73 74 3a 37 ost: localhost:7
+00f0: 30 37 31 0d 0a 55 73 65 72 2d 41 67 65 6e 74 3a 071..User-Agent:
+0100: 20 63 75 72 6c 2f 38 2e 31 31 2e 31 0d 0a 41 63  curl/8.11.1..Ac
+0110: 63 65 70 74 3a 20 2a 2f 2a 0d 0a 0d 0a          cept: */*....
+== Info: Request completely sent off
+<= Recv header, 17 bytes (0x11)
+0000: 48 54 54 50 2f 31 2e 31 20 32 30 30 20 4f 4b 0d HTTP/1.1 200 OK.
+0010: 0a                                              .
+<= Recv header, 19 bytes (0x13)
+0000: 43 6f 6e 74 65 6e 74 2d 4c 65 6e 67 74 68 3a 20 Content-Length: 
+0010: 36 0d 0a                                        6..
+<= Recv header, 41 bytes (0x29)
+0000: 43 6f 6e 74 65 6e 74 2d 54 79 70 65 3a 20 74 65 Content-Type: te
+0010: 78 74 2f 70 6c 61 69 6e 3b 20 63 68 61 72 73 65 xt/plain; charse
+0020: 74 3d 75 74 66 2d 38 0d 0a                      t=utf-8..
+<= Recv header, 37 bytes (0x25)
+0000: 44 61 74 65 3a 20 4d 6f 6e 2c 20 31 33 20 4a 61 Date: Mon, 13 Ja
+0010: 6e 20 32 30 32 35 20 31 33 3a 31 35 3a 33 38 20 n 2025 13:15:38 
+0020: 47 4d 54 0d 0a                                  GMT..
+<= Recv header, 17 bytes (0x11)
+0000: 53 65 72 76 65 72 3a 20 4b 65 73 74 72 65 6c 0d Server: Kestrel.
+0010: 0a                                              .
+<= Recv header, 57 bytes (0x39)
+0000: 78 2d 6d 73 2d 77 6f 72 6b 66 6c 6f 77 2d 72 75 x-ms-workflow-ru
+0010: 6e 2d 69 64 3a 20 30 38 35 38 34 36 34 38 33 32 n-id: 0858464832
+0020: 37 35 31 31 33 35 34 33 30 30 36 33 30 30 39 32 7511354300630092
+0030: 32 39 31 43 55 30 30 0d 0a                      291CU00..
+<= Recv header, 59 bytes (0x3b)
+0000: 78 2d 6d 73 2d 63 6f 72 72 65 6c 61 74 69 6f 6e x-ms-correlation
+0010: 2d 69 64 3a 20 64 34 62 30 31 36 39 65 2d 64 63 -id: d4b0169e-dc
+0020: 64 63 2d 34 64 33 31 2d 38 63 61 33 2d 35 65 64 dc-4d31-8ca3-5ed
+0030: 66 61 32 63 61 32 35 37 30 0d 0a                fa2ca2570..
+<= Recv header, 60 bytes (0x3c)
+0000: 78 2d 6d 73 2d 63 6c 69 65 6e 74 2d 74 72 61 63 x-ms-client-trac
+0010: 6b 69 6e 67 2d 69 64 3a 20 30 38 35 38 34 36 34 king-id: 0858464
+0020: 38 33 32 37 35 31 31 33 35 34 33 30 30 36 33 30 8327511354300630
+0030: 30 39 32 32 39 31 43 55 30 30 0d 0a             092291CU00..
+<= Recv header, 62 bytes (0x3e)
+0000: 78 2d 6d 73 2d 74 72 69 67 67 65 72 2d 68 69 73 x-ms-trigger-his
+0010: 74 6f 72 79 2d 6e 61 6d 65 3a 20 30 38 35 38 34 tory-name: 08584
+0020: 36 34 38 33 32 37 35 31 31 33 35 34 33 30 30 36 6483275113543006
+0030: 33 30 30 39 32 32 39 31 43 55 30 30 0d 0a       30092291CU00..
+<= Recv header, 89 bytes (0x59)
+0000: 78 2d 6d 73 2d 77 6f 72 6b 66 6c 6f 77 2d 73 79 x-ms-workflow-sy
+0010: 73 74 65 6d 2d 69 64 3a 20 2f 73 63 61 6c 65 75 stem-id: /scaleu
+0020: 6e 69 74 73 2f 70 72 6f 64 2d 30 30 2f 77 6f 72 nits/prod-00/wor
+0030: 6b 66 6c 6f 77 73 2f 36 34 62 65 37 62 66 34 39 kflows/64be7bf49
+0040: 62 32 37 34 39 30 31 39 30 30 37 30 33 33 32 32 b274901900703322
+0050: 35 66 30 65 34 33 30 0d 0a                      5f0e430..
+<= Recv header, 52 bytes (0x34)
+0000: 78 2d 6d 73 2d 77 6f 72 6b 66 6c 6f 77 2d 69 64 x-ms-workflow-id
+0010: 3a 20 36 34 62 65 37 62 66 34 39 62 32 37 34 39 : 64be7bf49b2749
+0020: 30 31 39 30 30 37 30 33 33 32 32 35 66 30 65 34 019007033225f0e4
+0030: 33 30 0d 0a                                     30..
+<= Recv header, 45 bytes (0x2d)
+0000: 78 2d 6d 73 2d 77 6f 72 6b 66 6c 6f 77 2d 76 65 x-ms-workflow-ve
+0010: 72 73 69 6f 6e 3a 20 30 38 35 38 34 36 34 38 33 rsion: 085846483
+0020: 32 38 33 36 36 35 31 35 36 33 39 0d 0a          28366515639..
+<= Recv header, 44 bytes (0x2c)
+0000: 78 2d 6d 73 2d 77 6f 72 6b 66 6c 6f 77 2d 6e 61 x-ms-workflow-na
+0010: 6d 65 3a 20 57 68 61 74 48 61 70 70 65 6e 73 49 me: WhatHappensI
+0020: 66 53 74 61 74 65 6d 65 6e 74 0d 0a             fStatement..
+<= Recv header, 56 bytes (0x38)
+0000: 78 2d 6d 73 2d 74 72 61 63 6b 69 6e 67 2d 69 64 x-ms-tracking-id
+0010: 3a 20 64 34 62 30 31 36 39 65 2d 64 63 64 63 2d : d4b0169e-dcdc-
+0020: 34 64 33 31 2d 38 63 61 33 2d 35 65 64 66 61 32 4d31-8ca3-5edfa2
+0030: 63 61 32 35 37 30 0d 0a                         ca2570..
+<= Recv header, 56 bytes (0x38)
+0000: 78 2d 6d 73 2d 72 65 71 75 65 73 74 2d 69 64 3a x-ms-request-id:
+0010: 20 3a 64 34 62 30 31 36 39 65 2d 64 63 64 63 2d  :d4b0169e-dcdc-
+0020: 34 64 33 31 2d 38 63 61 33 2d 35 65 64 66 61 32 4d31-8ca3-5edfa2
+0030: 63 61 32 35 37 30 0d 0a                         ca2570..
+<= Recv header, 2 bytes (0x2)
+0000: 0d 0a                                           ..
+<= Recv data, 6 bytes (0x6)
+0000: 79 69 70 70 65 65                               yippee
+== Info: Connection #0 to host localhost left intact
