@@ -407,7 +407,7 @@ let ``Test IllogicApps output matches logic app trace for workflows that respond
         @>
 
 let ``Test cases for workflows that respond with expected constant`` =
-    namedTestCases [ "conditionCaseInsensitiveFunction" ]
+    namedTestCases [ "conditionCaseInsensitiveFunction"; "conditionNestedWithoutArray" ]
 
 [<TestCaseSource(nameof ``Test cases for workflows that respond with expected constant``)>]
 let ``Test IllogicApps output matches logic app trace for workflows that respond with expected constant``

@@ -575,17 +575,20 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
             let func, args = expr |> Seq.exactlyOne
 
             let args =
-                args
-                |> Conversions.ensureArray
-                |> Seq.map (function
-                    | Object o -> o |> OrderedMap.toSeq |> transform
-                    | String v -> v |> Lexer.lex |> ExpressionParser.parse
-                    | Integer _
-                    | Float _
-                    | Decimal _
-                    | Boolean _
-                    | Null as v -> ExpressionParser.Literal(v)
-                    | Array _ -> failwith "Array not allowed as argument in condition")
+                match args with
+                | Array a ->
+                    a
+                    |> Seq.map (function
+                        | Object o -> o |> OrderedMap.toSeq |> transform
+                        | String v -> v |> Lexer.lex |> ExpressionParser.parse
+                        | Integer _
+                        | Float _
+                        | Decimal _
+                        | Boolean _
+                        | Null as v -> ExpressionParser.Literal(v)
+                        | Array _ -> failwith "Array not allowed as argument in condition")
+                | Object o -> [ o |> OrderedMap.toSeq |> transform ]
+                | _ -> failwith "Condition parameters must be an array or object"
 
             Parser.Call(func, args |> List.ofSeq)
 
