@@ -91,6 +91,11 @@ let ExecInvalidConvertFromBinaryTest (expr: string) =
 let ExecIsStringifiedFloatTest (expr: string) (expected: string) =
     testOrTrace expr <@ String expected = testExpressionEvaluation expr @>
 
+[<TestCase("@{isInt('nan')}", "False")>]
+[<TestCase("@{isInt('123')}", "True")>]
+let ExecIsStringifiedIntTest (expr: string) (expected: string) =
+    testOrTrace expr <@ String expected = testExpressionEvaluation expr @>
+
 [<TestCase("@{isFloat(3.14)}")>]
 let ExecIsNotStringifiedFloatTest (expr: string) =
     raisesOrTrace<Exception> expr <@ testExpressionEvaluation expr @>
