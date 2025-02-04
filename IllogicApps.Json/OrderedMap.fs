@@ -183,6 +183,10 @@ module OrderedMap =
             seq |> Seq.iter (fun (KeyValue(k, v)) -> this.Set(k, v) |> ignore)
             this
 
+        member this.SetRange(seq: ('K * 'V) seq) =
+            seq |> Seq.iter (fun (k, v) -> this.Set(k, v) |> ignore)
+            this
+
         member this.SetAtEnd(key: 'K, value: 'V) =
             let oldSize = backingMap.Count
             backingMap.[key] <- value

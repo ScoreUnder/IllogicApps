@@ -2,6 +2,8 @@ module IllogicApps.Expression.Execution.Test.CollectionFunctionsTests
 
 open NUnit.Framework
 open TestSimUtil
+open IllogicApps.Json
+open IllogicApps.Json.Conversions
 
 let ``empty test cases`` =
     [ "@empty('')", Ok true // empty string
@@ -86,3 +88,172 @@ let ``join test cases`` =
 
 [<TestCaseSource(nameof ``join test cases``)>]
 let ``Test join`` expr expected = stringOrFailTest expr expected
+
+let ``intersection test cases`` =
+    [ "@intersection(createArray(5,4,3,2,1),createArray('a','b','c','d','e'))", Ok emptyArray
+      "@intersection(createArray(5,4,3,2,1),createArray('a','b',3,5,1))",
+      Ok <| createArray [ Integer 5; Integer 3; Integer 1 ]
+      "@intersection(createArray('a','b',3,5,1),createArray(5,4,3,2,1))",
+      Ok <| createArray [ Integer 3; Integer 5; Integer 1 ]
+      "@intersection(createArray(1,2,3,4,4,5),createArray(3,4,5))",
+      Ok <| createArray [ Integer 3; Integer 4; Integer 5 ]
+      "@intersection(createArray(1,2,3,4,4,5),createArray(3,4,4,5))",
+      Ok <| createArray [ Integer 3; Integer 4; Integer 5 ]
+      "@intersection(createArray(1,2,3,4,5),createArray(3,4,4,5))",
+      Ok <| createArray [ Integer 3; Integer 4; Integer 5 ]
+      "@intersection(createArray(3,4,5),createArray(1,2,3,4,4,5))",
+      Ok <| createArray [ Integer 3; Integer 4; Integer 5 ]
+      "@intersection(createArray(3,4,4,5),createArray(1,2,3,4,4,5))",
+      Ok <| createArray [ Integer 3; Integer 4; Integer 5 ]
+      "@intersection(createArray(3,4,4,5),createArray(1,2,3,4,5))",
+      Ok <| createArray [ Integer 3; Integer 4; Integer 5 ]
+      "@intersection(json('{\"spam\":3,\"food\":\"eggs\"}'),createArray('spam','eggs'))",
+      Error "expects parameters of same type"
+      "@intersection(createArray('spam','eggs'),json('{\"spam\":3,\"food\":\"eggs\"}'))",
+      Error "expects parameters of same type"
+      "@intersection(json('{\"spam\":\"eggs\",\"thing\":3}'),json('{\"spam\":3,\"food\":\"eggs\"}'))", Ok emptyObject
+      "@intersection(json('{\"spam\":\"eggs\",\"food\":\"bard\"}'),json('{\"spam\":3,\"food\":\"eggs\"}'))",
+      Ok emptyObject
+      "@intersection(json('{\"spam\":3,\"food\":\"eggs\"}'),json('{\"spam\":\"eggs\",\"food\":\"bard\"}'))",
+      Ok emptyObject
+      "@intersection(json('{\"spam\":\"eggs\",\"food\":\"fungus\"}'),json('{\"spam\":\"eggs\",\"food\":\"plant\"}'))",
+      Ok <| createObject [ "spam", String "eggs" ]
+      "@intersection(json('{\"spam\":\"eggs\",\"food\":[1,2,3]}'),json('{\"spam\":\"eggs\",\"food\":[5,4,1,-1]}'))",
+      Ok <| createObject [ "spam", String "eggs" ]
+      "@intersection(json('{\"spam\":\"eggs\",\"food\":[5,4,1,-1]}'),json('{\"spam\":\"eggs\",\"food\":[5,4,1,-1]}'))",
+      Ok
+      <| createObject
+          [ "spam", String "eggs"
+            "food", createArray [ Integer 5; Integer 4; Integer 1; Integer -1 ] ]
+      "@intersection(json('{\"spam\":\"eggs\",\"food\":[5,4,1,-1]}'),json('{\"spam\":\"eggs\",\"food\":[1,2,3]}'))",
+      Ok <| createObject [ "spam", String "eggs" ]
+      "@intersection(createArray(0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30),createArray(0,3,6,9,12,15,18,21,24,27,30),createArray(0,5,10,15,20,25,30))",
+      Ok <| createArray [ Integer 0; Integer 30 ]
+      "@intersection(createArray(30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0),createArray(0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30),createArray(0,3,6,9,12,15,18,21,24,27,30),createArray(0,5,10,15,20,25,30))",
+      Ok <| createArray [ Integer 30; Integer 0 ]
+      "@intersection(createArray(5,4,5,5,4,5,4,4,5,4,5,5,4),json('[]'))", Ok emptyArray
+      "@intersection(json('[]'),createArray(5,4,5,5,4,5,4,4,5,4,5,5,4))", Ok emptyArray
+      "@intersection(createArray(5,4,5,5,4,5,4,4,5,4,5,5,4),createArray(4,4,4,4,5,4,5,5,5))",
+      Ok <| createArray [ Integer 5; Integer 4 ]
+      "@intersection(createArray(4,4,4,4,5,4,5,5,5),createArray(5,4,5,5,4,5,4,4,5,4,5,5,4))",
+      Ok <| createArray [ Integer 4; Integer 5 ] ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``intersection test cases``)>]
+let ``Test intersection`` expr expected = jsonOrFailTest expr expected
+
+let ``union test cases`` =
+    [ "@union(createArray(5,4,3,2,1),createArray('a','b','c','d','e'))",
+      Ok
+      <| createArray
+          [ Integer 5
+            Integer 4
+            Integer 3
+            Integer 2
+            Integer 1
+            String "a"
+            String "b"
+            String "c"
+            String "d"
+            String "e" ]
+      "@union(createArray(5,4,3,2,1),createArray('a','b',3,5,1))",
+      Ok
+      <| createArray
+          [ Integer 5
+            Integer 4
+            Integer 3
+            Integer 2
+            Integer 1
+            String "a"
+            String "b" ]
+      "@union(createArray('a','b',3,5,1),createArray(5,4,3,2,1))",
+      Ok
+      <| createArray
+          [ String "a"
+            String "b"
+            Integer 3
+            Integer 5
+            Integer 1
+            Integer 4
+            Integer 2 ]
+      "@union(createArray(1,2,3,4,4,5),createArray(3,4,5))",
+      Ok <| createArray [ Integer 1; Integer 2; Integer 3; Integer 4; Integer 5 ]
+      "@union(createArray(1,2,3,4,4,5),createArray(3,4,4,5))",
+      Ok <| createArray [ Integer 1; Integer 2; Integer 3; Integer 4; Integer 5 ]
+      "@union(createArray(1,2,3,4,5),createArray(3,4,4,5))",
+      Ok <| createArray [ Integer 1; Integer 2; Integer 3; Integer 4; Integer 5 ]
+      "@union(createArray(3,4,5),createArray(1,2,3,4,4,5))",
+      Ok <| createArray [ Integer 3; Integer 4; Integer 5; Integer 1; Integer 2 ]
+      "@union(createArray(3,4,4,5),createArray(1,2,3,4,4,5))",
+      Ok <| createArray [ Integer 3; Integer 4; Integer 5; Integer 1; Integer 2 ]
+      "@union(createArray(3,4,4,5),createArray(1,2,3,4,5))",
+      Ok <| createArray [ Integer 3; Integer 4; Integer 5; Integer 1; Integer 2 ]
+      "@union(json('{\"spam\":3,\"food\":\"eggs\"}'),createArray('spam','eggs'))",
+      Error "expects parameters of same type"
+      "@union(createArray('spam','eggs'),json('{\"spam\":3,\"food\":\"eggs\"}'))",
+      Error "expects parameters of same type"
+      "@union(json('{\"spam\":\"eggs\",\"thing\":3}'),json('{\"spam\":3,\"food\":\"eggs\"}'))",
+      Ok
+      <| createObject [ "spam", Integer 3; "thing", Integer 3; "food", String "eggs" ]
+      "@union(json('{\"spam\":\"eggs\",\"food\":\"bard\"}'),json('{\"spam\":3,\"food\":\"eggs\"}'))",
+      Ok <| createObject [ "spam", Integer 3; "food", String "eggs" ]
+      "@union(json('{\"spam\":3,\"food\":\"eggs\"}'),json('{\"spam\":\"eggs\",\"food\":\"bard\"}'))",
+      Ok <| createObject [ "spam", String "eggs"; "food", String "bard" ]
+      "@union(json('{\"spam\":\"eggs\",\"food\":\"fungus\"}'),json('{\"spam\":\"eggs\",\"food\":\"plant\"}'))",
+      Ok <| createObject [ "spam", String "eggs"; "food", String "plant" ]
+      "@union(json('{\"spam\":\"eggs\",\"food\":[1,2,3]}'),json('{\"spam\":\"eggs\",\"food\":[5,4,1,-1]}'))",
+      Ok
+      <| createObject
+          [ "spam", String "eggs"
+            "food", createArray [ Integer 5; Integer 4; Integer 1; Integer -1 ] ]
+      "@union(json('{\"spam\":\"eggs\",\"food\":[5,4,1,-1]}'),json('{\"spam\":\"eggs\",\"food\":[5,4,1,-1]}'))",
+      Ok
+      <| createObject
+          [ "spam", String "eggs"
+            "food", createArray [ Integer 5; Integer 4; Integer 1; Integer -1 ] ]
+      "@union(json('{\"spam\":\"eggs\",\"food\":[5,4,1,-1]}'),json('{\"spam\":\"eggs\",\"food\":[1,2,3]}'))",
+      Ok
+      <| createObject
+          [ "spam", String "eggs"
+            "food", createArray [ Integer 1; Integer 2; Integer 3 ] ]
+      "@union(createArray(0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30),createArray(0,3,6,9,12,15,18,21,24,27,30),createArray(0,5,10,15,20,25,30))",
+      Ok
+      <| createArray (
+          List.map
+              Integer
+              [ 0
+                2
+                4
+                6
+                8
+                10
+                12
+                14
+                16
+                18
+                20
+                22
+                24
+                26
+                28
+                30
+                3
+                9
+                15
+                21
+                27
+                5
+                25 ]
+      )
+      "@union(createArray(30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0),createArray(0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30),createArray(0,3,6,9,12,15,18,21,24,27,30),createArray(0,5,10,15,20,25,30))",
+      Ok <| createArray (List.init 31 (fun i -> Integer(30L - int64 i)))
+      "@union(createArray(5,4,5,5,4,5,4,4,5,4,5,5,4),json('[]'))", Ok <| createArray [ Integer 5; Integer 4 ]
+      "@union(json('[]'),createArray(5,4,5,5,4,5,4,4,5,4,5,5,4))", Ok <| createArray [ Integer 5; Integer 4 ]
+      "@union(createArray(5,4,5,5,4,5,4,4,5,4,5,5,4),createArray(4,4,4,4,5,4,5,5,5))",
+      Ok <| createArray [ Integer 5; Integer 4 ]
+      "@union(createArray(4,4,4,4,5,4,5,5,5),createArray(5,4,5,5,4,5,4,4,5,4,5,5,4))",
+      Ok <| createArray [ Integer 4; Integer 5 ] ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``union test cases``)>]
+let ``Test union`` expr expected = jsonOrFailTest expr expected

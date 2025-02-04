@@ -1,6 +1,7 @@
 module IllogicApps.Expression.Execution.BuiltinFunctions
 
 open System
+open System.Collections.Immutable
 open System.Globalization
 open System.Net
 open System.Text
@@ -117,7 +118,46 @@ let arrayReduceArithmetic2 op (args: Args) : JsonTree =
     | _ :: _ :: _ -> aux args
     | _ -> failwith "Expected 2 or more arguments, or an array"
 
-let myRand = lazy (Random())
+type ArrayOperation =
+    | Union
+    | Intersection
+
+let performArrayOperation op (a: 'a ResizeArray) (b: 'a seq) =
+    match op with
+    | Union ->
+        b
+        |> Seq.iter (fun v ->
+            if not (a.Contains v) then
+                a.Add(v))
+    | Intersection -> a.RemoveAll(fun v -> not (Seq.contains v b)) |> ignore
+
+let performArrayOperationMany op (args: JsonTree list) =
+    match args with
+    | [] -> failwith "Expected at least one argument"
+    | Array a :: tail ->
+        let result = a |> Seq.distinct |> ResizeArray
+
+        // TODO: (perf) this could be made faster for large tails by combining the tail args into a single set + list of order first
+        tail
+        |> List.iter (function
+            | Array arg -> performArrayOperation op result arg
+            | _ -> failwith "This function expects parameters of same type")
+
+        Conversions.createArray result
+    | Object o :: tail ->
+        let result = o |> OrderedMap.toSeq |> ResizeArray
+
+        tail
+        |> List.iter (function
+            | Object arg -> performArrayOperation op result (arg |> OrderedMap.toSeq)
+            | _ -> failwith "This function expects parameters of same type")
+
+        // Rebuild object with later pairs taking priority
+        let builder = OrderedMap.Builder()
+        result |> builder.SetRange |> _.Build() |> Object
+    | _ -> failwith "Expected array or object arguments"
+
+let myRand = lazy Random()
 
 let dateTimeFunc2f (f: DateTime -> int -> DateTime) (args: Args) : JsonTree =
     let dateTimeFunc2f' (a: JsonTree) (b: JsonTree) (fmt: string) =
@@ -415,6 +455,12 @@ let f_first _ (args: Args) : JsonTree =
     | [ _ ] -> failwith "Expected parameter to be an array or a string"
     | _ -> failwith "This function expects one parameter"
 
+let f_intersection _ (args: Args) : JsonTree =
+    match args with
+    | []
+    | [ _ ] -> failwith "Expected at least two arguments"
+    | _ -> performArrayOperationMany Intersection args
+
 let f_item (sim: SimulatorContext) (args: Args) : JsonTree =
     expectArgs 0 args
 
@@ -437,6 +483,12 @@ let f_last _ (args: Args) : JsonTree =
             String(s.[s.Length - 1 ..])
     | [ _ ] -> failwith "Expected parameter to be an array or a string"
     | _ -> failwith "This function expects one parameter"
+
+let f_union _ (args: Args) : JsonTree =
+    match args with
+    | []
+    | [ _ ] -> failwith "Expected at least two arguments"
+    | _ -> performArrayOperationMany Union args
 
 // Logical comparison functions
 
@@ -1012,9 +1064,11 @@ let functions: OrderedMap<string, LanguageFunction> =
       "trim", f_trim
       "empty", f_empty
       "first", f_first
+      "intersection", f_intersection
       "item", f_item
       "join", f_join
       "last", f_last
+      "union", f_union
       "not", f_not
       "array", f_array
       "base64", f_base64
