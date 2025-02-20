@@ -565,6 +565,20 @@ let f_binary _ (args: Args) : JsonTree =
     | [ a ] -> Blob.binaryOfString (objectToString a)
     | _ -> failwith "Expected 1 argument"
 
+let f_bool _ (args: Args) : JsonTree =
+    args
+    |> expectSingleArg
+    |> function
+        | Integer 0L
+        | Float 0.0
+        | Decimal 0.0m -> Boolean false
+        | Integer _
+        | Float _
+        | Decimal _ -> Boolean true
+        | String s -> Boolean(System.Boolean.Parse(s))
+        | Boolean b -> Boolean b
+        | _ -> failwith "Expected number, string, or boolean"
+
 let f_createArray _ (args: Args) : JsonTree =
     expectArgsAtLeast 1 args
 
@@ -1075,6 +1089,7 @@ let functions: OrderedMap<string, LanguageFunction> =
       "base64ToBinary", f_base64ToBinary
       "base64ToString", f_base64ToString
       "binary", f_binary
+      "bool", f_bool
       "createArray", f_createArray
       "dataUri", f_dataUri
       "dataUriToBinary", f_dataUriToBinary

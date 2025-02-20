@@ -131,3 +131,25 @@ let ``Test decimal-of-float does not add decimal places`` expr expected = string
 [<TestCase("""@string(add(decimal(float('0')),float('3')))""", "3")>]
 let ``Test decimal-of-float does not add decimal places in arithmetic operations`` expr expected =
     stringTest expr expected
+
+let ``boolean conversion test cases`` =
+    [ "@bool(1)", Ok (Boolean true)
+      "@bool(-1)", Ok (Boolean true)
+      "@bool(0.3)", Ok (Boolean true)
+      "@bool(0.9)", Ok (Boolean true)
+      "@bool(1.0)", Ok (Boolean true)
+      "@bool(true)", Ok (Boolean true)
+      "@bool('true')", Ok (Boolean true)
+      "@bool('True')", Ok (Boolean true)
+      "@bool(0)", Ok (Boolean false)
+      "@bool(0.0)", Ok (Boolean false)
+      "@bool(false)", Ok (Boolean false)
+      "@bool('false')", Ok (Boolean false)
+      "@bool('False')", Ok (Boolean false)
+      "@bool('troo')", Error ""
+      "@bool('')", Error ""
+      "@bool(null)", Error "" ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``boolean conversion test cases``)>]
+let ``Test boolean conversion`` expr expected = jsonOrFailTest expr expected
