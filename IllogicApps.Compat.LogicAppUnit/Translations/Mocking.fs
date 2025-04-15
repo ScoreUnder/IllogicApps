@@ -14,6 +14,7 @@ open System.Runtime.ExceptionServices
 open System.Text
 open System.Threading.Tasks
 
+open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.HttpModel
 open IllogicApps.Json
 open Newtonsoft.Json.Linq
@@ -510,6 +511,9 @@ type internal MockDefinition
     let _mockRequestLog = ConcurrentBag<MockRequestLog>()
     let mutable _mockRequestsAsList: List<MockRequest> = null
 
+    let workflowRequests = ConcurrentBag<int64 * WorkflowRequest>()
+    let mutable workflowRequestsAsList: List<WorkflowRequest> = null
+
     static member internal Random = Random.Shared
 
     member _.MockResponseDelegate
@@ -539,6 +543,8 @@ type internal MockDefinition
 
     member _.MockRequests = _mockRequestsAsList
 
+    member _.WorkflowRequests = workflowRequestsAsList
+
     member this.TestRunStarting() : unit =
         _mockResponses <-
             Seq.append _mockResponsesFromTestCase _mockResponsesFromBase
@@ -561,6 +567,8 @@ type internal MockDefinition
             |> Seq.sortBy _.Timestamp
             |> List<MockRequest>
 
+        workflowRequestsAsList <- workflowRequests |> Seq.sortBy fst |> Seq.map snd |> List<WorkflowRequest>
+
         if _mockRequestLog.IsEmpty then
             Console.WriteLine("No mocked requests were logged")
         else
@@ -577,6 +585,9 @@ type internal MockDefinition
                     req.Log |> Seq.iter (fun s -> Console.WriteLine("      " + s))
 
                 Console.WriteLine())
+
+    member _.RecordWorkflowRequest(request: WorkflowRequest) : unit =
+        workflowRequests.Add((DateTime.UtcNow.Ticks, request))
 
     member this.MatchRequestAndBuildResponseAsync(request: HttpRequestMessage) : HttpResponseMessage Task =
         ArgumentNullException.ThrowIfNull(request, nameof request)

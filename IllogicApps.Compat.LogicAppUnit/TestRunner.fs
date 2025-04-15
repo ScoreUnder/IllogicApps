@@ -61,6 +61,13 @@ type TestRunner
             .Build()
         |> Object
 
+    let workflowRecorderHandler (_: SimulatorContext) =
+        function
+        | Workflow(request, _) ->
+            mockDefinition.RecordWorkflowRequest request
+            false
+        | _ -> false
+
     let defaultHandler (overallResponse: HttpResponseMessage option ref) originWorkflowName (sim: SimulatorContext) =
         let getMockResponse request =
             try
@@ -216,7 +223,8 @@ type TestRunner
                         appConfig = appSettings
                         isBugForBugAccurate = true
                         externalServiceHandlers =
-                            [ handler
+                            [ workflowRecorderHandler
+                              handler
                               defaultHandler overallResponse options.workflowName
                               IllogicApps.JavaScript.Jint.Handler.jintJavascriptHandler
                               ExternalServices.loggingHandler ] })
@@ -239,6 +247,8 @@ type TestRunner
                 | _ -> HttpStatusCode.BadGateway
 
             new HttpResponseMessage(status)
+
+    member this.WorkflowRequests = mockDefinition.WorkflowRequests
 
     // Let's be nice to those who inherit from us
     abstract Dispose: disposing: bool -> unit
