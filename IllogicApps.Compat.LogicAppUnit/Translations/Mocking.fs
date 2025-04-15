@@ -371,8 +371,7 @@ type MockRequestMatcher private () =
         let matchQueryParams =
             lazy
                 if _requestQueryParams.Count > 0 then
-                    let parsedParamsAsDictionary =
-                        HttpParsing.parseQueryString request.RequestUri.Query
+                    let parsedParamsAsDictionary = HttpParsing.parseQueryString request.RequestUri.Query
 
                     if parsedParamsAsDictionary.Count = 0 then
                         MockRequestMatchResult(
