@@ -150,6 +150,8 @@ type TestRunner
 
     member _.MockHostUri = MOCK_HOST_URI
 
+    member _.Simulators = simulators
+
     member this.TriggerWorkflow
         (
             queryParams: Dictionary<string, string>,
