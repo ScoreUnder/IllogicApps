@@ -8,13 +8,12 @@ open IllogicApps.Core
 open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.LogicAppSpec
 open IllogicApps.Expression.Execution
-open IllogicApps.Expression.Parsing
 open IllogicApps.Json
-open IllogicApps.Expression.Execution.BuiltinCondition
 open CompletedStepTypes
 open IllogicApps.Simulator.ExternalServices
 open IllogicApps.Simulator.Parameters
 
+module ExpressionLexer = IllogicApps.Expression.Parsing.Lexer
 module ExpressionParser = IllogicApps.Expression.Parsing.Parser
 
 module private SimulatorHelper =
@@ -598,7 +597,7 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
                     a
                     |> Seq.map (function
                         | Object o -> o |> OrderedMap.toSeq |> transform
-                        | String v -> v |> Lexer.lex |> ExpressionParser.parse
+                        | String v -> v |> ExpressionLexer.lex |> ExpressionParser.parse
                         | Integer _
                         | Float _
                         | Decimal _
@@ -608,7 +607,7 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
                 | Object o -> [ o |> OrderedMap.toSeq |> transform ]
                 | _ -> failwith "Condition parameters must be an array or object"
 
-            Parser.Call(func, args |> List.ofSeq)
+            ExpressionParser.Call(func, args |> List.ofSeq)
 
         expr
         |> unpackObject
