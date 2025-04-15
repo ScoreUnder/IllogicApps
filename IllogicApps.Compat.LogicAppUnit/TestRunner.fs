@@ -124,7 +124,7 @@ type TestRunner
         sims
         |> List.iter (fun sim ->
             Console.WriteLine($"Run: {sim.WorkflowDetails.run.id}")
-            Console.WriteLine($"Run status: {sim.TerminationStatus}")
+            Console.WriteLine($"Run status: {Simulator.stringOfTerminationStatus sim.TerminationStatus}")
 
             sim.Variables
             |> Seq.iter (fun (KeyValue(k, v)) ->

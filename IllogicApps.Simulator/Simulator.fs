@@ -188,6 +188,12 @@ module Simulator =
     let workflowIsStateless (workflow: LogicAppSpec.Root) =
         workflow.kind.Equals("stateless", StringComparison.OrdinalIgnoreCase)
 
+    let stringOfTerminationStatus (status: Result<Status, Status * TerminateRunError option>) =
+        match status with
+        | Ok result -> $"Completed, {result}"
+        | Error(status, None) -> $"Terminated, {status}"
+        | Error(status, Some error) -> $"Terminated, {status}: {error}"
+
 [<Struct>]
 type SimulatorCreationOptions =
     { workflowName: string
