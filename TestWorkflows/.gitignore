@@ -1,0 +1,11 @@
+# VSCode
+.vscode/
+
+# Logic Apps designer
+workflow-designtime/
+
+# Azurite
+.azurite/
+__azurite_db*__.json
+__blobstorage__/
+__queuestorage__/
