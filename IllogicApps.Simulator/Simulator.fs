@@ -205,6 +205,7 @@ type SimulatorCreationOptions =
       externalServiceHandlers: ExternalServiceHandler list
       isBugForBugAccurate: bool
       isStateless: bool
+      isNondeterministic: bool
       appConfig: OrderedMap<string, string>
       parameters: OrderedMap<string, Parameter> }
 
@@ -219,6 +220,7 @@ type SimulatorCreationOptions =
           externalServiceHandlers = []
           isBugForBugAccurate = true
           isStateless = false
+          isNondeterministic = true
           appConfig = OrderedMap.empty
           parameters = OrderedMap.empty }
 
@@ -277,6 +279,11 @@ type private ScopeContextImpl
         let getNextActions name =
             Map.tryFind name dependencyGraph |> Option.defaultValue []
 
+        let maybeShuffle lst =
+            match lst with
+            | _ :: _ :: _ when simulator.IsNondeterministic -> List.randomShuffle lst
+            | _ -> lst
+
         let rec executeNext actionQueue =
             match actionQueue with
             | [] -> ()
@@ -317,9 +324,10 @@ type private ScopeContextImpl
                         // This action's dependencies are not yet complete, try again once something else finishes
                         // (it's ok to not put it back in the queue, as it will be re-added when its next dependency is completed)
                         rest
+                    |> maybeShuffle
                     |> executeNext
 
-        executeNext (getNextActions "")
+        executeNext (maybeShuffle (getNextActions ""))
 
         if Result.isError simulator.TerminationStatus then
             Cancelled
@@ -518,6 +526,7 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
         | Completed completedTrigger -> completedTrigger
 
     member this.IsBugForBugAccurate = isBugForBugAccurate
+    member this.IsNondeterministic = creationOptions.isNondeterministic
     member this.AllActionResults = this.ActionResults |> OrderedMap.CreateRange
 
     member this.WorkflowDetails: WorkflowDetails =
