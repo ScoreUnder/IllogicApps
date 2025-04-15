@@ -35,6 +35,7 @@ let buildWorkflowFamily
         let optionsBase =
             { SimulatorCreationOptions.dummy with
                 workflowName = name
+                workflowId = $"id_of_{name}"
                 runId = runId
                 originatingRunId = rootWorkflowId
                 triggerResult = triggerResult
