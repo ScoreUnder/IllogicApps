@@ -220,7 +220,7 @@ type SimulatorCreationOptions =
           externalServiceHandlers = []
           isBugForBugAccurate = true
           isStateless = false
-          isNondeterministic = true
+          isNondeterministic = false
           appConfig = OrderedMap.empty
           parameters = OrderedMap.empty }
 
@@ -280,9 +280,12 @@ type private ScopeContextImpl
             Map.tryFind name dependencyGraph |> Option.defaultValue []
 
         let maybeShuffle lst =
-            match lst with
-            | _ :: _ :: _ when simulator.IsNondeterministic -> List.randomShuffle lst
-            | _ -> lst
+            if simulator.IsNondeterministic then
+                match lst with
+                | _ :: _ :: _ -> List.randomShuffle lst
+                | _ -> lst
+            else
+                lst
 
         let rec executeNext actionQueue =
             match actionQueue with
