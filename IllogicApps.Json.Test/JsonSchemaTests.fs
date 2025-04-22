@@ -198,7 +198,8 @@ let ``parsed array with prefix items schema`` =
 
 let ``array with prefix items schema matching test cases`` =
     [ createArray [ String "hello"; Integer 1; Boolean true; Null ]
-      createArray [ String ""; Integer 0; Null; Boolean false; Null ] ]
+      createArray [ String ""; Integer 0; Null; Boolean false; Null ]
+      String "who says it has to be an array" ]
     |> List.map TestCaseData
 
 [<TestCaseSource(nameof ``array with prefix items schema matching test cases``)>]
@@ -216,5 +217,58 @@ let ``array with prefix items schema non-matching test cases`` =
 [<TestCaseSource(nameof ``array with prefix items schema non-matching test cases``)>]
 let ``Test non-matching jsons against array with prefix items schema`` json =
     let (Lazy schema) = ``parsed array with prefix items schema``
+
+    test <@ not (validateJsonSchema schema json) @>
+
+
+let ``refs test schema`` =
+    """
+    {
+        "type": "object",
+        "properties": {
+            "fail": { "$ref": "#/$defs/fail" },
+            "recursive": { "$ref": "#" },
+            "foo": { "$ref": "#/$defs/foo" }
+        },
+        "$defs": {
+            "fail": {
+                "const": false
+            },
+            "foo": {
+                "type": "array",
+                "items": {
+                    "$ref": "#/$defs/foo"
+                }
+            }
+        }
+    }
+    """
+
+let ``parsed refs test schema`` =
+    lazy trap <@ jsonSchemaOfJson (Parser.parse ``refs test schema``) @>
+
+let ``refs test schema matching test cases`` =
+    [ emptyObject
+      createObject [ "fail", Boolean false; "recursive", emptyObject; "foo", emptyArray ]
+      createObject [ "foo", createArray [ emptyArray; createArray [ emptyArray ]; emptyArray ] ]
+      createObject [ "recursive", createObject [ "recursive", emptyObject ] ] ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``refs test schema matching test cases``)>]
+let ``Test matching jsons against refs test schema`` json =
+    let (Lazy schema) = ``parsed refs test schema``
+
+    test <@ validateJsonSchema schema json @>
+
+let ``refs test schema non-matching test cases`` =
+    [ createObject [ "fail", Boolean true; "recursive", emptyObject; "foo", emptyArray ]
+      createObject [ "foo", createArray [ emptyArray; createArray [ emptyObject ]; emptyArray ] ]
+      createObject [ "recursive", createObject [ "recursive", createObject [ "fail", Boolean true ] ] ]
+      String "string" ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``refs test schema non-matching test cases``)>]
+let ``Test non-matching jsons against refs test schema`` json =
+    let (Lazy schema) = ``parsed refs test schema``
 
     test <@ not (validateJsonSchema schema json) @>

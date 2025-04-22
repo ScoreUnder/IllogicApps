@@ -108,7 +108,11 @@ type JsonSchema =
       minProperties: int option
       maxProperties: int option
       dependentRequired: OrderedMap<string, string list> option
-      dependentSchemas: OrderedMap<string, JsonSchema> option }
+      dependentSchemas: OrderedMap<string, JsonSchema> option
+
+      // Defs and refs
+      ``$defs``: OrderedMap<string, JsonSchema> option
+      ``$ref``: string option }
 
 let emptyJsonSchema =
     { type_ = None
@@ -159,7 +163,11 @@ let emptyJsonSchema =
       minProperties = None
       maxProperties = None
       dependentRequired = None
-      dependentSchemas = None }
+      dependentSchemas = None
+
+      // Defs and refs
+      ``$defs`` = None
+      ``$ref`` = None }
 
 let private mapArrayOrSingle f =
     function
@@ -235,7 +243,11 @@ let rec jsonSchemaOfJson json =
                 ensureObject
                 >> OrderedMap.mapValuesOnly (ensureArray >> Seq.map ensureString >> List.ofSeq)
             )
-          dependentSchemas = readOptionalSubSchemaMap "dependentSchemas" json }
+          dependentSchemas = readOptionalSubSchemaMap "dependentSchemas" json
+          ``$defs`` =
+            JsonTree.tryGetKey "$defs" json
+            |> Option.map (ensureObject >> OrderedMap.mapValuesOnly jsonSchemaOfJson)
+          ``$ref`` = JsonTree.tryGetKey "$ref" json |> Option.map ensureString }
     | _ -> failwith "Invalid JSON schema"
 
 let typesMatch (schemaType: SchemaType) (json: JsonTree) =
@@ -261,120 +273,151 @@ let private listOfDistinct eqf seq =
     Seq.fold (fun acc x -> if List.exists (eqf x) acc then acc else x :: acc) [] seq
     |> List.rev
 
-let rec validateJsonSchema (schema: JsonSchema) (json: JsonTree) =
-    Option.forall (List.exists (fun schemaType -> typesMatch schemaType json)) schema.type_
-    && let validateWith subSchema = validateJsonSchema subSchema json in
+let resolveRef (schema: JsonSchema) (refName: string) =
+    if refName = "#" then
+        Ok schema
+    else if not (refName.StartsWith("#/")) then
+        Error $"Invalid $ref: {refName}"
+    else if not (refName.StartsWith("#/$defs/")) then
+        Error $"Unsupported $ref: {refName}"
+    else
+        match schema.``$defs`` with
+        | Some defs ->
+            let refName = refName.[8..] in
 
-       Option.forall (not << validateWith) schema.not
-       && Option.forall (List.forall validateWith) schema.allOf
-       && Option.forall (List.exists validateWith) schema.anyOf
-       && Option.forall
-           (fun subSchemas ->
-               subSchemas
-               |> List.sumBy (fun subSchema -> if validateWith subSchema then 1 else 0)
-               |> (=) 1)
-           schema.oneOf
-       && Option.forall (List.exists (jsonsEqual json)) schema.enum
-       && Option.forall (jsonsEqual json) schema.``const``
-       && Option.forall
-           (fun subSchema ->
-               if validateWith subSchema then
-                   Option.forall validateWith schema.``then``
-               else
-                   Option.forall validateWith schema.``else``)
-           schema.``if``
-       && match json with
-          | String s ->
-              Option.forall (fun minLength -> s.Length >= minLength) schema.minLength
-              && Option.forall (fun maxLength -> s.Length <= maxLength) schema.maxLength
-              && Option.forall (fun pattern -> System.Text.RegularExpressions.Regex.IsMatch(s, pattern)) schema.pattern
-          | Integer _
-          | Float _
-          | Decimal _ ->
-              let number = numberAsDecimal json in
+            defs
+            |> OrderedMap.findMapOrElse refName Ok (fun () -> Error $"$ref {refName} not found")
+        | None -> Error "Reference used, but no $defs block found"
 
-              Option.forall (fun multipleOf -> number % multipleOf = 0m) schema.multipleOf
-              && Option.forall (fun minimum -> number >= minimum) schema.minimum
-              && Option.forall (fun exclusiveMinimum -> number > exclusiveMinimum) schema.exclusiveMinimum
-              && Option.forall (fun maximum -> number <= maximum) schema.maximum
-              && Option.forall (fun exclusiveMaximum -> number < exclusiveMaximum) schema.exclusiveMaximum
-          | Array a ->
-              Option.forall (fun subSchemas -> Seq.forall2 validateJsonSchema subSchemas a) schema.prefixItems
-              && let numPrefixItems =
-                  match schema.prefixItems with
-                  | None -> 0
-                  | Some prefixItems -> List.length prefixItems in
+let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) =
+    let rec aux isInsideRef (schema: JsonSchema) (json: JsonTree) =
+        Option.forall (List.exists (fun schemaType -> typesMatch schemaType json)) schema.type_
+        && let validateWith subSchema = aux isInsideRef subSchema json in
 
-                 Option.forall
-                     (fun subSchema -> a |> Seq.skip numPrefixItems |> Seq.forall (validateJsonSchema subSchema))
-                     schema.items
-                 && Option.forall
-                     (fun subSchema ->
-                         a
-                         |> Seq.skip (* Todo: wrong number, needs to take subschemas into account *) numPrefixItems
-                         |> Seq.forall (validateJsonSchema subSchema))
-                     schema.unevaluatedItems
-                 && let numContains =
-                     Option.map (fun subSchema -> seqCount (validateJsonSchema subSchema) a) schema.contains in
+           Option.forall (not << validateWith) schema.not
+           && Option.forall (List.forall validateWith) schema.allOf
+           && Option.forall (List.exists validateWith) schema.anyOf
+           && Option.forall
+               (fun subSchemas ->
+                   subSchemas
+                   |> List.sumBy (fun subSchema -> if validateWith subSchema then 1 else 0)
+                   |> (=) 1)
+               schema.oneOf
+           && Option.forall (List.exists (jsonsEqual json)) schema.enum
+           && Option.forall (jsonsEqual json) schema.``const``
+           && Option.forall
+               (fun subSchema ->
+                   if validateWith subSchema then
+                       Option.forall validateWith schema.``then``
+                   else
+                       Option.forall validateWith schema.``else``)
+               schema.``if``
+           && Option.forall
+               (fun refName ->
+                   if isInsideRef then (* Not allowed to nest refs (infinite recursion possible) *)
+                       false
+                   else
+                       resolveRef rootSchema refName
+                       |> Result.exists (fun schema -> aux true schema json))
+               schema.``$ref``
+           && match json with
+              | String s ->
+                  Option.forall (fun minLength -> s.Length >= minLength) schema.minLength
+                  && Option.forall (fun maxLength -> s.Length <= maxLength) schema.maxLength
+                  && Option.forall
+                      (fun pattern -> System.Text.RegularExpressions.Regex.IsMatch(s, pattern))
+                      schema.pattern
+              | Integer _
+              | Float _
+              | Decimal _ ->
+                  let number = numberAsDecimal json in
 
-                    numContains <> Some 0
-                    && Option.forall
-                        (fun minContains -> Option.forall (fun numContains -> numContains >= minContains) numContains)
-                        schema.minContains
-                    && Option.forall
-                        (fun maxContains -> Option.forall (fun numContains -> numContains <= maxContains) numContains)
-                        schema.maxContains
-                    && Option.forall (fun minItems -> a.Length >= minItems) schema.minItems
-                    && Option.forall (fun maxItems -> a.Length <= maxItems) schema.maxItems
-                    && Option.forall
-                        (fun uniqueItems ->
-                            if uniqueItems then
-                                a |> listOfDistinct jsonsEqual |> List.length = a.Length
-                            else
-                                true)
-                        schema.uniqueItems
-          | Object o ->
-              Option.forall
-                  (OrderedMap.forall (fun k subSchema ->
-                      match OrderedMap.tryFind k o with
-                      | Some v -> validateJsonSchema subSchema v
-                      | None -> true))
-                  schema.properties
-              && Option.forall
-                  (OrderedMap.forall (fun pattern subSchema ->
-                      o
-                      |> OrderedMap.toSeq
-                      |> Seq.filter (fun (prop, _) -> System.Text.RegularExpressions.Regex.IsMatch(prop, pattern))
-                      |> Seq.forall (fun (_, v) -> validateJsonSchema subSchema v)))
-                  schema.patternProperties
-              && if schema.additionalProperties = Some false then
-                     true //TODO
-                 // Checks for anything not in properties or patternProperties
-                 else
-                     true
-              && if schema.unevaluatedProperties = Some false then
-                     true //TODO
-                 // Checks for anything not in properties or patternProperties,
-                 // but this time it's recursive and will need a restructure of the
-                 // function signature
-                 else
-                     true
-              && Option.forall (List.forall o.ContainsKey) schema.required
-              && Option.forall
-                  (fun subSchema -> OrderedMap.forall (fun k _ -> validateJsonSchema subSchema (String k)) o)
-                  schema.propertyNames
-              && Option.forall (fun min -> o.Count >= min) schema.minProperties
-              && Option.forall (fun max -> o.Count <= max) schema.maxProperties
-              && Option.forall
-                  (OrderedMap.forall (fun k required ->
-                      match OrderedMap.tryFind k o with
-                      | Some _ -> List.forall o.ContainsKey required
-                      | None -> true))
-                  schema.dependentRequired
-              && Option.forall
-                  (OrderedMap.forall (fun k subSchema ->
-                      match OrderedMap.tryFind k o with
-                      | Some v -> validateJsonSchema subSchema v
-                      | None -> true))
-                  schema.dependentSchemas
-          | _ -> true
+                  Option.forall (fun multipleOf -> number % multipleOf = 0m) schema.multipleOf
+                  && Option.forall (fun minimum -> number >= minimum) schema.minimum
+                  && Option.forall (fun exclusiveMinimum -> number > exclusiveMinimum) schema.exclusiveMinimum
+                  && Option.forall (fun maximum -> number <= maximum) schema.maximum
+                  && Option.forall (fun exclusiveMaximum -> number < exclusiveMaximum) schema.exclusiveMaximum
+              | Array a ->
+                  Option.forall (fun subSchemas -> Seq.forall2 (aux false) subSchemas a) schema.prefixItems
+                  && let numPrefixItems =
+                      match schema.prefixItems with
+                      | None -> 0
+                      | Some prefixItems -> List.length prefixItems in
+
+                     Option.forall
+                         (fun subSchema -> a |> Seq.skip numPrefixItems |> Seq.forall (aux false subSchema))
+                         schema.items
+                     && Option.forall
+                         (fun subSchema ->
+                             a
+                             |> Seq.skip (* Todo: wrong number, needs to take subschemas into account *) numPrefixItems
+                             |> Seq.forall (aux false subSchema))
+                         schema.unevaluatedItems
+                     && let numContains =
+                         Option.map (fun subSchema -> seqCount (aux false subSchema) a) schema.contains in
+
+                        numContains <> Some 0
+                        && Option.forall
+                            (fun minContains ->
+                                Option.forall (fun numContains -> numContains >= minContains) numContains)
+                            schema.minContains
+                        && Option.forall
+                            (fun maxContains ->
+                                Option.forall (fun numContains -> numContains <= maxContains) numContains)
+                            schema.maxContains
+                        && Option.forall (fun minItems -> a.Length >= minItems) schema.minItems
+                        && Option.forall (fun maxItems -> a.Length <= maxItems) schema.maxItems
+                        && Option.forall
+                            (fun uniqueItems ->
+                                if uniqueItems then
+                                    a |> listOfDistinct jsonsEqual |> List.length = a.Length
+                                else
+                                    true)
+                            schema.uniqueItems
+              | Object o ->
+                  Option.forall
+                      (OrderedMap.forall (fun k subSchema ->
+                          match OrderedMap.tryFind k o with
+                          | Some v -> aux false subSchema v
+                          | None -> true))
+                      schema.properties
+                  && Option.forall
+                      (OrderedMap.forall (fun pattern subSchema ->
+                          o
+                          |> OrderedMap.toSeq
+                          |> Seq.filter (fun (prop, _) -> System.Text.RegularExpressions.Regex.IsMatch(prop, pattern))
+                          |> Seq.forall (fun (_, v) -> aux false subSchema v)))
+                      schema.patternProperties
+                  && if schema.additionalProperties = Some false then
+                         true //TODO
+                     // Checks for anything not in properties or patternProperties
+                     else
+                         true
+                  && if schema.unevaluatedProperties = Some false then
+                         true //TODO
+                     // Checks for anything not in properties or patternProperties,
+                     // but this time it's recursive and will need a restructure of the
+                     // function signature
+                     else
+                         true
+                  && Option.forall (List.forall o.ContainsKey) schema.required
+                  && Option.forall
+                      (fun subSchema -> OrderedMap.forall (fun k _ -> aux false subSchema (String k)) o)
+                      schema.propertyNames
+                  && Option.forall (fun min -> o.Count >= min) schema.minProperties
+                  && Option.forall (fun max -> o.Count <= max) schema.maxProperties
+                  && Option.forall
+                      (OrderedMap.forall (fun k required ->
+                          match OrderedMap.tryFind k o with
+                          | Some _ -> List.forall o.ContainsKey required
+                          | None -> true))
+                      schema.dependentRequired
+                  && Option.forall
+                      (OrderedMap.forall (fun k subSchema ->
+                          match OrderedMap.tryFind k o with
+                          | Some v -> aux isInsideRef subSchema v
+                          | None -> true))
+                      schema.dependentSchemas
+              | _ -> true
+
+    aux false rootSchema rootJson
