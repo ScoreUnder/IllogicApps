@@ -356,11 +356,9 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) =
                      && let numContains =
                          Option.map (fun subSchema -> seqCount (aux false subSchema) a) schema.contains in
 
-                        numContains <> Some 0
-                        && Option.forall
-                            (fun minContains ->
-                                Option.forall (fun numContains -> numContains >= minContains) numContains)
-                            schema.minContains
+                        let minContains = schema.minContains |> Option.defaultValue 1 in
+
+                        Option.forall (fun numContains -> numContains >= minContains) numContains
                         && Option.forall
                             (fun maxContains ->
                                 Option.forall (fun numContains -> numContains <= maxContains) numContains)
