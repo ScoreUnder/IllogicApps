@@ -101,8 +101,8 @@ type JsonSchema =
       // Object schemas
       properties: OrderedMap<string, JsonSchema> option
       patternProperties: OrderedMap<string, JsonSchema> option
-      additionalProperties: bool option
-      unevaluatedProperties: bool option
+      additionalProperties: JsonSchema option
+      unevaluatedProperties: JsonSchema option
       required: string list option
       propertyNames: JsonSchema option
       minProperties: int option
@@ -231,8 +231,8 @@ let rec jsonSchemaOfJson json =
           uniqueItems = JsonTree.tryGetKey "uniqueItems" json |> Option.map ensureBoolean
           properties = readOptionalSubSchemaMap "properties" json
           patternProperties = readOptionalSubSchemaMap "patternProperties" json
-          additionalProperties = JsonTree.tryGetKey "additionalProperties" json |> Option.map ensureBoolean
-          unevaluatedProperties = JsonTree.tryGetKey "unevaluatedProperties" json |> Option.map ensureBoolean
+          additionalProperties = readOptionalSubSchema "additionalProperties" json
+          unevaluatedProperties = readOptionalSubSchema "unevaluatedProperties" json
           required = readOptionalStringList "required" json
           propertyNames = readOptionalSubSchema "propertyNames" json
           minProperties = readOptionalInt "minProperties" json
@@ -375,6 +375,16 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) =
                                     true)
                             schema.uniqueItems
               | Object o ->
+                  let patternProperties =
+                      Option.defaultValue OrderedMap.empty schema.patternProperties
+
+                  let matchedPatternProperties, nonMatchedPatternProperties =
+                      o
+                      |> OrderedMap.partition (fun prop _ ->
+                          OrderedMap.exists
+                              (fun pattern _ -> System.Text.RegularExpressions.Regex.IsMatch(prop, pattern))
+                              patternProperties)
+
                   Option.forall
                       (OrderedMap.forall (fun k subSchema ->
                           match OrderedMap.tryFind k o with
@@ -388,18 +398,29 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) =
                           |> Seq.filter (fun (prop, _) -> System.Text.RegularExpressions.Regex.IsMatch(prop, pattern))
                           |> Seq.forall (fun (_, v) -> aux false subSchema v)))
                       schema.patternProperties
-                  && if schema.additionalProperties = Some false then
-                         true //TODO
-                     // Checks for anything not in properties or patternProperties
-                     else
-                         true
-                  && if schema.unevaluatedProperties = Some false then
-                         true //TODO
-                     // Checks for anything not in properties or patternProperties,
-                     // but this time it's recursive and will need a restructure of the
-                     // function signature
-                     else
-                         true
+                  && Option.forall
+                      (fun subSchema ->
+                          let propertiesSet =
+                              match schema.properties with
+                              | Some properties -> properties |> OrderedMap.keys |> Set.ofSeq
+                              | None -> Set.empty
+
+                          let unmatchedKeys =
+                              Set.difference
+                                  (nonMatchedPatternProperties |> OrderedMap.keys |> Set.ofSeq)
+                                  propertiesSet
+
+                          unmatchedKeys
+                          |> Set.forall (fun prop ->
+                              aux false $"{schemaPath}/additionalProperties" $"{jsonPath}/{prop}" subSchema o.[prop]))
+                      schema.additionalProperties
+                  // && if schema.unevaluatedProperties = Some false then
+                  //        true //TODO
+                  //    // Checks for anything not in properties or patternProperties,
+                  //    // but this time it's recursive and will need a restructure of the
+                  //    // function signature
+                  //    else
+                  //        true
                   && Option.forall (List.forall o.ContainsKey) schema.required
                   && Option.forall
                       (fun subSchema -> OrderedMap.forall (fun k _ -> aux false subSchema (String k)) o)
