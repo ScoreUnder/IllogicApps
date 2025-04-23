@@ -467,7 +467,6 @@ let private countDistinct (cmpf: 'a -> 'a -> int) (seq: 'a seq) =
 type 't JsonSchemaSingleResult =
     | Ok of 't
     | Error of string
-    | NotImplemented of string
     | Warning of string
 
 module JsonSchemaSingleResult =
@@ -475,7 +474,6 @@ module JsonSchemaSingleResult =
         function
         | Ok x -> Ok(f x)
         | Error e -> Error e
-        | NotImplemented e -> NotImplemented e
         | Warning w -> Warning w
 
 type JsonSchemaResultMessage =
@@ -503,13 +501,6 @@ module JsonSchemaResult =
                   result = Error v }
                 :: result.messages
               isMatch = false }
-        | NotImplemented v ->
-            { messages =
-                { schemaPath = schemaPath
-                  jsonPath = jsonPath
-                  result = NotImplemented v }
-                :: result.messages
-              isMatch = result.isMatch }
         | Warning v ->
             { messages =
                 { schemaPath = schemaPath
@@ -526,7 +517,6 @@ module JsonSchemaResult =
         |> List.map (fun m ->
             match m.result with
             | Ok _ -> ""
-            | NotImplemented v -> $"Not implemented: {m.schemaPath} {m.jsonPath} {v}"
             | Warning v -> $"Warning: {m.schemaPath} {m.jsonPath} {v}"
             | Error v -> $"Error: {m.schemaPath} {m.jsonPath} {v}")
         |> String.concat "\n"
