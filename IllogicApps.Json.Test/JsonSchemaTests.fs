@@ -38,7 +38,7 @@ let ``simple enum schema matching test cases`` =
 let ``Test matching jsons against simple enum schema`` json =
     let (Lazy schema) = parsedSimpleEnumSchema
 
-    test <@ validateJsonSchema schema json @>
+    test <@ validateJsonSchema schema json = { messages = []; isMatch = true } @>
 
 let ``simple enum schema non-matching test cases`` =
     [ Null; Integer 3; String "kirby is a pink guy" ] |> List.map TestCaseData
@@ -47,7 +47,14 @@ let ``simple enum schema non-matching test cases`` =
 let ``Test non-matching jsons against simple enum schema`` json =
     let (Lazy schema) = parsedSimpleEnumSchema
 
-    test <@ not (validateJsonSchema schema json) @>
+    let expectedResult =
+        { messages =
+            [ { schemaPath = "/enum"
+                jsonPath = ""
+                result = Error "Enum value not correct" } ]
+          isMatch = false }
+
+    test <@ validateJsonSchema schema json = expectedResult @>
 
 let typeCheckedObjectAndArraySchema =
     """
@@ -83,26 +90,105 @@ let ``type-checked object and array schema matching test cases`` =
 let ``Test matching jsons against type-checked object and array schema`` json =
     let (Lazy schema) = parsedTypeCheckedObjectAndArraySchema
 
-    test <@ validateJsonSchema schema json @>
+    test <@ validateJsonSchema schema json = { messages = []; isMatch = true } @>
 
 let ``type-checked object and array schema non-matching test cases`` =
-    [ createObject [ "type", String "array"; "value", createObject [ "1", Integer 2; "", Null ] ]
-      createObject [ "type", String "object"; "value", createArray [ Float 3.5; String "foo" ] ]
-      createObject [ "type", String "array"; "value", Boolean true ]
-      createObject [ "type", String "object"; "value", Boolean true ]
-      Null
-      Boolean false
-      Integer 1
-      createObject [ "type", String "array" ]
-      createObject [ "value", createArray [ Float 3.5; String "foo" ] ]
-      createObject [ "type", String "cat"; "value", createArray [ String "meow" ] ] ]
+    [ createObject [ "type", String "array"; "value", createObject [ "1", Integer 2; "", Null ] ],
+      [ { schemaPath = "/oneOf"
+          jsonPath = ""
+          result = Error "No match" }
+        { schemaPath = "/oneOf[1]/properties/type/const"
+          jsonPath = "/type"
+          result = Error "Const value not correct" }
+        { schemaPath = "/oneOf[0]/properties/value/type"
+          jsonPath = "/value"
+          result = Error "Type mismatch: expected [Array]" } ]
+      createObject [ "type", String "object"; "value", createArray [ Float 3.5; String "foo" ] ],
+      [ { schemaPath = "/oneOf"
+          jsonPath = ""
+          result = Error "No match" }
+        { schemaPath = "/oneOf[1]/properties/value/type"
+          jsonPath = "/value"
+          result = Error "Type mismatch: expected [Object]" }
+        { schemaPath = "/oneOf[0]/properties/type/const"
+          jsonPath = "/type"
+          result = Error "Const value not correct" } ]
+      createObject [ "type", String "array"; "value", Boolean true ],
+      [ { schemaPath = "/oneOf"
+          jsonPath = ""
+          result = Error "No match" }
+        { schemaPath = "/oneOf[1]/properties/type/const"
+          jsonPath = "/type"
+          result = Error "Const value not correct" }
+        { schemaPath = "/oneOf[1]/properties/value/type"
+          jsonPath = "/value"
+          result = Error "Type mismatch: expected [Object]" }
+        { schemaPath = "/oneOf[0]/properties/value/type"
+          jsonPath = "/value"
+          result = Error "Type mismatch: expected [Array]" } ]
+      createObject [ "type", String "object"; "value", Boolean true ],
+      [ { schemaPath = "/oneOf"
+          jsonPath = ""
+          result = Error "No match" }
+        { schemaPath = "/oneOf[1]/properties/value/type"
+          jsonPath = "/value"
+          result = Error "Type mismatch: expected [Object]" }
+        { schemaPath = "/oneOf[0]/properties/type/const"
+          jsonPath = "/type"
+          result = Error "Const value not correct" }
+        { schemaPath = "/oneOf[0]/properties/value/type"
+          jsonPath = "/value"
+          result = Error "Type mismatch: expected [Array]" } ]
+      Null,
+      [ { schemaPath = "/oneOf"
+          jsonPath = ""
+          result = Error "More than one match" }
+        { schemaPath = "/type"
+          jsonPath = ""
+          result = Error "Type mismatch: expected [Object]" } ]
+      Boolean false,
+      [ { schemaPath = "/oneOf"
+          jsonPath = ""
+          result = Error "More than one match" }
+        { schemaPath = "/type"
+          jsonPath = ""
+          result = Error "Type mismatch: expected [Object]" } ]
+      Integer 1,
+      [ { schemaPath = "/oneOf"
+          jsonPath = ""
+          result = Error "More than one match" }
+        { schemaPath = "/type"
+          jsonPath = ""
+          result = Error "Type mismatch: expected [Object]" } ]
+      createObject [ "type", String "array" ],
+      [ { schemaPath = "/required"
+          jsonPath = ""
+          result = Error "Object is missing required properties" } ]
+      createObject [ "value", createArray [ Float 3.5; String "foo" ] ],
+      [ { schemaPath = "/required"
+          jsonPath = ""
+          result = Error "Object is missing required properties" } ]
+      createObject [ "type", String "cat"; "value", createArray [ String "meow" ] ],
+      [ { schemaPath = "/oneOf"
+          jsonPath = ""
+          result = Error "No match" }
+        { schemaPath = "/oneOf[1]/properties/type/const"
+          jsonPath = "/type"
+          result = Error "Const value not correct" }
+        { schemaPath = "/oneOf[1]/properties/value/type"
+          jsonPath = "/value"
+          result = Error "Type mismatch: expected [Object]" }
+        { schemaPath = "/oneOf[0]/properties/type/const"
+          jsonPath = "/type"
+          result = Error "Const value not correct" } ] ]
     |> List.map TestCaseData
 
 [<TestCaseSource(nameof ``type-checked object and array schema non-matching test cases``)>]
-let ``Test non-matching jsons against type-checked object and array schema`` json =
+let ``Test non-matching jsons against type-checked object and array schema`` json errors =
     let (Lazy schema) = parsedTypeCheckedObjectAndArraySchema
 
-    test <@ not (validateJsonSchema schema json) @>
+    let vr = validateJsonSchema schema json
+    test <@ vr = { messages = errors; isMatch = false } @>
 
 let notJapaneseSchema =
     """
@@ -123,7 +209,7 @@ let parsedNotJapaneseSchema =
 let ``Test non-Japanese strings against not-Japanese schema`` json =
     let (Lazy schema) = parsedNotJapaneseSchema
 
-    test <@ validateJsonSchema schema (String json) @>
+    test <@ validateJsonSchema schema (String json) = { messages = []; isMatch = true } @>
 
 [<TestCase("chotto matte")>]
 [<TestCase("shunkashuutou")>]
@@ -132,7 +218,14 @@ let ``Test non-Japanese strings against not-Japanese schema`` json =
 let ``Test Japanese strings against not-Japanese schema`` json =
     let (Lazy schema) = parsedNotJapaneseSchema
 
-    test <@ not (validateJsonSchema schema (String json)) @>
+    let expectedResult =
+        { messages =
+            [ { schemaPath = "/not"
+                jsonPath = ""
+                result = Error "should not have validated, but did" } ]
+          isMatch = false }
+
+    test <@ validateJsonSchema schema (String json) = expectedResult @>
 
 let ``one good turn deserves another schema`` =
     """
@@ -165,7 +258,7 @@ let ``one good turn deserves another schema matching test cases`` =
 let ``Test matching jsons against one good turn deserves another schema`` json =
     let (Lazy schema) = ``parsed one good turn deserves another schema``
 
-    test <@ validateJsonSchema schema json @>
+    test <@ validateJsonSchema schema json = { messages = []; isMatch = true } @>
 
 let ``one good turn deserves another schema non-matching test cases`` =
     [ createObject [ "one good turn", Null ]
@@ -179,7 +272,14 @@ let ``one good turn deserves another schema non-matching test cases`` =
 let ``Test non-matching jsons against one good turn deserves another schema`` json =
     let (Lazy schema) = ``parsed one good turn deserves another schema``
 
-    test <@ not (validateJsonSchema schema json) @>
+    let expectedResult =
+        { messages =
+            [ { schemaPath = "/dependentRequired/one good turn"
+                jsonPath = "/another good turn"
+                result = Error "Object is missing required properties" } ]
+          isMatch = false }
+
+    test <@ validateJsonSchema schema json = expectedResult @>
 
 let ``array with prefix items schema`` =
     """
@@ -206,19 +306,32 @@ let ``array with prefix items schema matching test cases`` =
 let ``Test matching jsons against array with prefix items schema`` json =
     let (Lazy schema) = ``parsed array with prefix items schema``
 
-    test <@ validateJsonSchema schema json @>
+    test <@ validateJsonSchema schema json = { messages = []; isMatch = true } @>
 
 let ``array with prefix items schema non-matching test cases`` =
-    [ createArray [ String "hello"; Integer 1; Boolean true ]
-      createArray [ String ""; Integer 0; Null; Boolean false; Integer 3 ]
-      createArray [ String "hello"; Boolean true; Null; Boolean false ] ]
+    [ createArray [ String "hello"; Integer 1; Boolean true ],
+      { schemaPath = "/minItems"
+        jsonPath = ""
+        result = Error "Array is too short" }
+      createArray [ String ""; Integer 0; Null; Boolean false; Integer 3 ],
+      { schemaPath = "/items/type"
+        jsonPath = "[4]"
+        result = Error "Type mismatch: expected [Boolean; Null]" }
+      createArray [ String "hello"; Boolean true; Null; Boolean false ],
+      { schemaPath = "/prefixItems[1]/type"
+        jsonPath = "[1]"
+        result = Error "Type mismatch: expected [Integer]" } ]
     |> List.map TestCaseData
 
 [<TestCaseSource(nameof ``array with prefix items schema non-matching test cases``)>]
-let ``Test non-matching jsons against array with prefix items schema`` json =
+let ``Test non-matching jsons against array with prefix items schema`` json error =
     let (Lazy schema) = ``parsed array with prefix items schema``
 
-    test <@ not (validateJsonSchema schema json) @>
+    let expectedResult =
+        { messages = [ error ]
+          isMatch = false }
+
+    test <@ validateJsonSchema schema json = expectedResult @>
 
 
 let ``refs test schema`` =
@@ -258,17 +371,34 @@ let ``refs test schema matching test cases`` =
 let ``Test matching jsons against refs test schema`` json =
     let (Lazy schema) = ``parsed refs test schema``
 
-    test <@ validateJsonSchema schema json @>
+    let expectedResult = { messages = []; isMatch = true }
+    test <@ validateJsonSchema schema json = expectedResult @>
 
 let ``refs test schema non-matching test cases`` =
-    [ createObject [ "fail", Boolean true; "recursive", emptyObject; "foo", emptyArray ]
-      createObject [ "foo", createArray [ emptyArray; createArray [ emptyObject ]; emptyArray ] ]
-      createObject [ "recursive", createObject [ "recursive", createObject [ "fail", Boolean true ] ] ]
-      String "string" ]
+    [ createObject [ "fail", Boolean true; "recursive", emptyObject; "foo", emptyArray ],
+      { schemaPath = "/$defs/fail/const"
+        jsonPath = "/fail"
+        result = Error "Const value not correct" }
+      createObject [ "foo", createArray [ emptyArray; createArray [ emptyObject ]; emptyArray ] ],
+      { schemaPath = "/$defs/foo/type"
+        jsonPath = "/foo[1][0]"
+        result = Error "Type mismatch: expected [Array]" }
+      createObject [ "recursive", createObject [ "recursive", createObject [ "fail", Boolean true ] ] ],
+      { schemaPath = "/$defs/fail/const"
+        jsonPath = "/recursive/recursive/fail"
+        result = Error "Const value not correct" }
+      String "string",
+      { schemaPath = "/type"
+        jsonPath = ""
+        result = Error "Type mismatch: expected [Object]" } ]
     |> List.map TestCaseData
 
 [<TestCaseSource(nameof ``refs test schema non-matching test cases``)>]
-let ``Test non-matching jsons against refs test schema`` json =
+let ``Test non-matching jsons against refs test schema`` json error =
     let (Lazy schema) = ``parsed refs test schema``
 
-    test <@ not (validateJsonSchema schema json) @>
+    let expectedResult =
+        { messages = [ error ]
+          isMatch = false }
+
+    test <@ validateJsonSchema schema json = expectedResult @>

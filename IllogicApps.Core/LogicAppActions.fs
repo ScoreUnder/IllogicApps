@@ -10,7 +10,6 @@ open CompletedStepTypes
 open ExternalServiceTypes
 open IllogicApps.Core.HttpModel.HttpParsing
 open IllogicApps.Core.HttpModel.HttpWriting
-open IllogicApps.Core.Support
 open IllogicApps.Json
 
 // Triggers
@@ -498,9 +497,17 @@ type ParseJson(json) =
         let validationResult = SchemaValidator.validateJsonSchema parsedSchema result
 
         { ActionResult.Default with
-            status = if validationResult then Succeeded else Failed
+            status = if validationResult.isMatch then Succeeded else Failed
             inputs = Some(Conversions.createObject [ "content", evaluatedContent; "schema", evaluatedSchema ])
             outputs = Some(Conversions.createObject [ "body", result ])
+            error =
+                if validationResult.isMatch then
+                    None
+                else
+                    Some
+                        { code = ActionFailed
+                          message =
+                            $"JSON validation failed: {SchemaValidator.JsonSchemaResult.formatMessages validationResult.messages}" }
             code = Some OK }
 
 type Query(json) =
