@@ -110,7 +110,7 @@ type JsonSchemaExec =
     | MaxContains of int
     | MinItems of int
     | MaxItems of int
-    | UniqueItems of bool
+    | UniqueItems
 
     // Object schemas
     | Properties of OrderedMap<string, JsonSubSchema>
@@ -335,7 +335,11 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
                     execFirst, ($"{schemaPath}/{k}", exec) :: execMid, execLast, refs, state
                 | "uniqueItems" ->
                     let value = v |> ensureBoolean
-                    execFirst, ($"{schemaPath}/{k}", UniqueItems value) :: execMid, execLast, refs, state
+
+                    if value then
+                        execFirst, ($"{schemaPath}/{k}", UniqueItems) :: execMid, execLast, refs, state
+                    else
+                        acc
                 | "required" ->
                     let requiredProperties = v |> ensureArray |> Seq.map ensureString |> List.ofSeq
                     execFirst, ($"{schemaPath}/{k}", Required requiredProperties) :: execMid, execLast, refs, state
@@ -833,9 +837,9 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
             match json with
             | Array a -> validateSimple2 (fun () -> a.Length <= maxItems) "Array is too long" |> addOne
             | _ -> acc
-        | UniqueItems uniqueItems ->
+        | UniqueItems ->
             match json with
-            | Array a when uniqueItems ->
+            | Array a ->
                 validateSimple2 (fun () -> countDistinct compareJsons a = a.Length) "Array contains duplicate items"
                 |> addOne
             | _ -> acc
