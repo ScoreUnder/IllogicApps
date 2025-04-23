@@ -1,5 +1,7 @@
 module IllogicApps.Json.SchemaValidator
 
+open System.Collections.Generic
+
 type StringComparison = System.StringComparison
 type SortedSet<'T> = System.Collections.Generic.SortedSet<'T>
 type IComparer<'T> = System.Collections.Generic.IComparer<'T>
@@ -147,6 +149,72 @@ type private SubSchemaParseState =
       thenBlock: JsonSubSchema option
       elseBlock: JsonSubSchema option }
 
+[<RequireQualifiedAccess>]
+type private SubSchemaKeyType =
+    | EarlySubSchema
+    | MidSubSchema
+    | LateSubSchema
+    | EarlyMultiSubSchema
+    | PropertySchema
+    | IntNumeric
+    | FloatNumeric
+    | Type
+    | PrefixItems
+    | If
+    | Then
+    | Else
+    | Enum
+    | Const
+    | Pattern
+    | UniqueItems
+    | Required
+    | DependentRequired
+    | Ref
+    | Unknown
+
+let private subSchemaKeyMap =
+    Dictionary<string, SubSchemaKeyType>(
+        [| "type", SubSchemaKeyType.Type
+           "not", SubSchemaKeyType.EarlySubSchema
+           "propertyNames", SubSchemaKeyType.EarlySubSchema
+           "unevaluatedItems", SubSchemaKeyType.LateSubSchema
+           "unevaluatedProperties", SubSchemaKeyType.LateSubSchema
+           "items", SubSchemaKeyType.MidSubSchema
+           "contains", SubSchemaKeyType.MidSubSchema
+           "additionalProperties", SubSchemaKeyType.MidSubSchema
+           "anyOf", SubSchemaKeyType.EarlyMultiSubSchema
+           "allOf", SubSchemaKeyType.EarlyMultiSubSchema
+           "oneOf", SubSchemaKeyType.EarlyMultiSubSchema
+           "prefixItems", SubSchemaKeyType.PrefixItems
+           "if", SubSchemaKeyType.If
+           "then", SubSchemaKeyType.Then
+           "else", SubSchemaKeyType.Else
+           "properties", SubSchemaKeyType.PropertySchema
+           "patternProperties", SubSchemaKeyType.PropertySchema
+           "dependentSchemas", SubSchemaKeyType.PropertySchema
+           "enum", SubSchemaKeyType.Enum
+           "const", SubSchemaKeyType.Const
+           "minLength", SubSchemaKeyType.IntNumeric
+           "maxLength", SubSchemaKeyType.IntNumeric
+           "minContains", SubSchemaKeyType.IntNumeric
+           "maxContains", SubSchemaKeyType.IntNumeric
+           "minItems", SubSchemaKeyType.IntNumeric
+           "maxItems", SubSchemaKeyType.IntNumeric
+           "minProperties", SubSchemaKeyType.IntNumeric
+           "maxProperties", SubSchemaKeyType.IntNumeric
+           "pattern", SubSchemaKeyType.Pattern
+           "multipleOf", SubSchemaKeyType.FloatNumeric
+           "minimum", SubSchemaKeyType.FloatNumeric
+           "exclusiveMinimum", SubSchemaKeyType.FloatNumeric
+           "maximum", SubSchemaKeyType.FloatNumeric
+           "exclusiveMaximum", SubSchemaKeyType.FloatNumeric
+           "uniqueItems", SubSchemaKeyType.UniqueItems
+           "required", SubSchemaKeyType.Required
+           "dependentRequired", SubSchemaKeyType.DependentRequired
+           "$ref", SubSchemaKeyType.Ref |]
+        |> Seq.map KeyValuePair<string, SubSchemaKeyType>
+    )
+
 /// <summary>Parse a <see cref="JsonSubSchema"/> from raw JSON.</summary>
 /// <returns>the parsed sub-schema and a set of all referenced sub-schemas</returns>
 let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * string Set =
@@ -155,7 +223,7 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
     | Boolean false -> falseJsonSubSchema schemaPath, Set.empty
     | Object o ->
         o
-        |> OrderedMap.fold
+        |> OrderedMap.unorderedFold
             (fun
                 ((execFirst: JsonSubSchema,
                   execMid: JsonSubSchema,
@@ -164,12 +232,11 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
                   state: SubSchemaParseState) as acc)
                 k
                 v ->
-                match k with
-                | "type" ->
+                match subSchemaKeyMap.GetValueOrDefault(k, SubSchemaKeyType.Unknown) with
+                | SubSchemaKeyType.Type ->
                     let types = v |> mapArrayOrSingle (ensureString >> schemaTypeOfString)
                     ($"{schemaPath}/{k}", TypeTest types) :: execFirst, execMid, execLast, refs, state
-                | "not"
-                | "propertyNames" ->
+                | SubSchemaKeyType.EarlySubSchema ->
                     let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}" v
 
                     let exec =
@@ -179,8 +246,7 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
                         | _ -> failwith "Internal error: missing case"
 
                     ($"{schemaPath}/{k}", exec) :: execFirst, execMid, execLast, Set.union refs2 refs, state
-                | "unevaluatedItems"
-                | "unevaluatedProperties" ->
+                | SubSchemaKeyType.LateSubSchema ->
                     let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}" v
 
                     let exec =
@@ -190,9 +256,7 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
                         | _ -> failwith "Internal error: missing case"
 
                     execFirst, execMid, ($"{schemaPath}/{k}", exec) :: execLast, Set.union refs2 refs, state
-                | "items"
-                | "contains"
-                | "additionalProperties" ->
+                | SubSchemaKeyType.MidSubSchema ->
                     let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}" v
 
                     let exec =
@@ -203,9 +267,7 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
                         | _ -> failwith "Internal error: missing case"
 
                     execFirst, ($"{schemaPath}/{k}", exec) :: execMid, execLast, Set.union refs2 refs, state
-                | "anyOf"
-                | "allOf"
-                | "oneOf" ->
+                | SubSchemaKeyType.EarlyMultiSubSchema ->
                     let _, subSchemas, refs2 =
                         v
                         |> ensureArray
@@ -223,7 +285,7 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
                         | _ -> failwith "Internal error: missing case"
 
                     ($"{schemaPath}/{k}", exec) :: execFirst, execMid, execLast, Set.union refs2 refs, state
-                | "prefixItems" ->
+                | SubSchemaKeyType.PrefixItems ->
                     // Differs slightly from the above case in that we can have a single
                     // schema instead of an array, in which case it is applied to all
                     // items in the array.
@@ -244,11 +306,11 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
 
                         let execFirst = ($"{schemaPath}/{k}", PrefixItemsAll subSchema) :: execFirst
                         execFirst, execMid, execLast, Set.union refs2 refs, state
-                | "if" ->
+                | SubSchemaKeyType.If ->
                     let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}" v
                     let state = { state with ifCond = Some subSchema }
                     execFirst, execMid, execLast, Set.union refs2 refs, state
-                | "then" ->
+                | SubSchemaKeyType.Then ->
                     let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}" v
 
                     let state =
@@ -256,7 +318,7 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
                             thenBlock = Some subSchema }
 
                     execFirst, execMid, execLast, Set.union refs2 refs, state
-                | "else" ->
+                | SubSchemaKeyType.Else ->
                     let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}" v
 
                     let state =
@@ -264,13 +326,11 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
                             elseBlock = Some subSchema }
 
                     execFirst, execMid, execLast, Set.union refs2 refs, state
-                | "properties"
-                | "patternProperties"
-                | "dependentSchemas" ->
+                | SubSchemaKeyType.PropertySchema ->
                     let subSchemaMap, refs2 =
                         v
                         |> ensureObject
-                        |> OrderedMap.fold
+                        |> OrderedMap.unorderedFold
                             (fun (builder: OrderedMap.Builder<string, JsonSubSchema>, refs) prop sub ->
                                 let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}/{prop}" sub
                                 builder.Add(prop, subSchema), Set.union refs2 refs)
@@ -286,18 +346,11 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
                         | _ -> failwith "Internal error: missing case"
 
                     ($"{schemaPath}/{k}", exec) :: execFirst, execMid, execLast, Set.union refs2 refs, state
-                | "enum" ->
+                | SubSchemaKeyType.Enum ->
                     let enumValues = v |> ensureArray |> List.ofSeq
                     ($"{schemaPath}/{k}", Enum enumValues) :: execFirst, execMid, execLast, refs, state
-                | "const" -> ($"{schemaPath}/{k}", Const v) :: execFirst, execMid, execLast, refs, state
-                | "minLength"
-                | "maxLength"
-                | "minContains"
-                | "maxContains"
-                | "minItems"
-                | "maxItems"
-                | "minProperties"
-                | "maxProperties" ->
+                | SubSchemaKeyType.Const -> ($"{schemaPath}/{k}", Const v) :: execFirst, execMid, execLast, refs, state
+                | SubSchemaKeyType.IntNumeric ->
                     let value = v |> ensureInteger |> int
 
                     let exec =
@@ -313,14 +366,10 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
                         | _ -> failwith "Internal error: missing case"
 
                     ($"{schemaPath}/{k}", exec) :: execFirst, execMid, execLast, refs, state
-                | "pattern" ->
+                | SubSchemaKeyType.Pattern ->
                     let value = v |> ensureString
                     execFirst, ($"{schemaPath}/{k}", Pattern value) :: execMid, execLast, refs, state
-                | "multipleOf"
-                | "minimum"
-                | "exclusiveMinimum"
-                | "maximum"
-                | "exclusiveMaximum" ->
+                | SubSchemaKeyType.FloatNumeric ->
                     let value = v |> numberAsDecimal
 
                     let exec =
@@ -333,17 +382,17 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
                         | _ -> failwith "Internal error: missing case"
 
                     execFirst, ($"{schemaPath}/{k}", exec) :: execMid, execLast, refs, state
-                | "uniqueItems" ->
+                | SubSchemaKeyType.UniqueItems ->
                     let value = v |> ensureBoolean
 
                     if value then
                         execFirst, ($"{schemaPath}/{k}", UniqueItems) :: execMid, execLast, refs, state
                     else
                         acc
-                | "required" ->
+                | SubSchemaKeyType.Required ->
                     let requiredProperties = v |> ensureArray |> Seq.map ensureString |> List.ofSeq
                     execFirst, ($"{schemaPath}/{k}", Required requiredProperties) :: execMid, execLast, refs, state
-                | "dependentRequired" ->
+                | SubSchemaKeyType.DependentRequired ->
                     let dependentRequired =
                         v
                         |> ensureObject
@@ -351,10 +400,10 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
 
                     let execMid = ($"{schemaPath}/{k}", DependentRequired dependentRequired) :: execMid
                     execFirst, execMid, execLast, refs, state
-                | "$ref" ->
+                | SubSchemaKeyType.Ref ->
                     let ref = v |> ensureString
                     ($"{schemaPath}/{k}", Ref ref) :: execFirst, execMid, execLast, Set.add ref refs, state
-                | _ ->
+                | SubSchemaKeyType.Unknown ->
                     // Unknown key
                     // ...warning or something?
                     acc)

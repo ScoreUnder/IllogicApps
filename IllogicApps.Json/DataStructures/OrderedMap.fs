@@ -229,6 +229,25 @@ module OrderedMap =
     let fold (f: 'State -> 'K -> 'V -> 'State) (state: 'State) (m: OrderedMap<'K, 'V>) : 'State =
         Seq.fold (fun acc (KeyValue(k, v)) -> f acc k v) state m
 
+    let unorderedEnumerator (m: OrderedMap<'K, 'V>) = m.BackingMap.GetEnumerator()
+
+    let inline unorderedFold
+        ([<InlineIfLambda>] f: 'State -> 'K -> 'V -> 'State)
+        (state: 'State)
+        (m: OrderedMap<'K, 'V>)
+        : 'State =
+        let rec loop acc (iter: ImmutableDictionary<'K, 'V>.Enumerator) =
+            let mutable iter = iter
+
+            if iter.MoveNext() then
+                let kvp = iter.Current
+                let acc = f acc kvp.Key kvp.Value
+                loop acc iter
+            else
+                acc
+
+        loop state (unorderedEnumerator m)
+
     let foldBack (f: 'K -> 'V -> 'State -> 'State) (m: OrderedMap<'K, 'V>) (state: 'State) : 'State =
         Seq.foldBack (fun (KeyValue(k, v)) -> f k v) m state
 
