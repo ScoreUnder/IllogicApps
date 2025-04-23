@@ -473,7 +473,7 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
                         acc
                         (JsonSchemaResultData.createFailedFromSingle schemaPath jsonPath (Error "No match"))
                 | h :: t ->
-                    let result = aux isInsideRef $"{schemaPath}[{ind}]" jsonPath h json
+                    let result = aux isInsideRef $"{schemaPath}/{ind}" jsonPath h json
 
                     if result.result.isMatch then
                         result
@@ -497,7 +497,7 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
                     | _ ->
                         (JsonSchemaResultData.createFailedFromSingle schemaPath jsonPath (Error "More than one match"))
                 | h :: t ->
-                    let result = aux isInsideRef $"{schemaPath}[{ind}]" jsonPath h json
+                    let result = aux isInsideRef $"{schemaPath}/{ind}" jsonPath h json
 
                     if result.result.isMatch then
                         validateOneOf' fails (result :: okays) (ind + 1) t json
@@ -535,7 +535,7 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
             |> JsonSchemaResultData.mergeMany (
                 schema.allOf
                 |> Option.defaultValue []
-                |> List.mapi (fun i subSchema -> aux isInsideRef $"{schemaPath}/allOf[{i}]" jsonPath subSchema json)
+                |> List.mapi (fun i subSchema -> aux isInsideRef $"{schemaPath}/allOf/{i}" jsonPath subSchema json)
             )
             |> JsonSchemaResultData.merge (validateAnyOf $"{schemaPath}/anyOf" jsonPath schema.anyOf json)
             |> JsonSchemaResultData.merge (validateOneOf $"{schemaPath}/oneOf" jsonPath schema.oneOf json)
@@ -634,7 +634,7 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
                 |> Option.map (fun subSchemas ->
                     Seq.mapi2
                         (fun i schema json ->
-                            { (aux false $"{schemaPath}/prefixItems[{i}]" $"{jsonPath}[{i}]" schema json) with
+                            { (aux false $"{schemaPath}/prefixItems/{i}" $"{jsonPath}/{i}" schema json) with
                                 matchedItemsDeep = Set.singleton i })
                         subSchemas
                         a
@@ -646,7 +646,7 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
                     a
                     |> Seq.skip numPrefixItems
                     |> Seq.mapi (fun i json ->
-                        { (aux false $"{schemaPath}/items" $"{jsonPath}[{i + numPrefixItems}]" subSchema json) with
+                        { (aux false $"{schemaPath}/items" $"{jsonPath}/{i + numPrefixItems}" subSchema json) with
                             matchedItemsDeep = Set.singleton i })
                     |> Seq.fold JsonSchemaResultData.merge JsonSchemaResultData.empty)
             )
@@ -656,7 +656,7 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
                     let containsCount, containsResult =
                         a
                         |> Seq.mapi (fun i json ->
-                            { (aux false $"{schemaPath}/contains" $"{jsonPath}[{i}]" subSchema json) with
+                            { (aux false $"{schemaPath}/contains" $"{jsonPath}/{i}" subSchema json) with
                                 matchedItemsDeep = Set.singleton i })
                         |> Seq.fold
                             (fun (cnt, acc) result ->
@@ -697,7 +697,7 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
                              if Set.contains i result.matchedItemsDeep then
                                  JsonSchemaResultData.empty
                              else
-                                 { (aux false $"{schemaPath}/unevaluatedItems" $"{jsonPath}[{i}]" subSchema json) with
+                                 { (aux false $"{schemaPath}/unevaluatedItems" $"{jsonPath}/{i}" subSchema json) with
                                      matchedItemsDeep = Set.empty })
                          |> Seq.fold JsonSchemaResultData.merge JsonSchemaResultData.empty))
                     result)
