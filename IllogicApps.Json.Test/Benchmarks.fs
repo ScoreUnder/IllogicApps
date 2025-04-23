@@ -4,6 +4,7 @@ open System.Text.Json
 open System.Text.Json.Nodes
 open BenchmarkDotNet.Attributes
 open IllogicApps.Json
+open IllogicApps.Json.Conversions
 
 type Dummy() =
     inherit obj()
@@ -94,13 +95,155 @@ type SerialiserBenchmark() =
     let alreadyParsedSystemTextDocument = JsonDocument.Parse(bigJson.Value)
 
     [<Benchmark(Baseline = true)>]
-    member _.SerialiseBigJson() = alreadyParsed |> Conversions.stringOfJson
+    member _.SerialiseBigJson() =
+        alreadyParsed |> Conversions.stringOfJson
 
     [<Benchmark>]
-    member _.PrettySerialiseBigJson() = alreadyParsed |> Conversions.prettyStringOfJson
+    member _.PrettySerialiseBigJson() =
+        alreadyParsed |> Conversions.prettyStringOfJson
 
     [<Benchmark>]
     member _.SystemTextJsonNode() = alreadyParsedSystemTextNode.ToString()
 
     [<Benchmark>]
-    member _.SystemTextJsonDocument() = alreadyParsedSystemTextDocument.RootElement.ToString()
+    member _.SystemTextJsonDocument() =
+        alreadyParsedSystemTextDocument.RootElement.ToString()
+
+type SchemaValidatorBenchmark() =
+    let typeCheckedObjectAndArraySchema =
+        """
+        {
+            "type": "object",
+            "required": ["type", "value"],
+            "oneOf": [
+                {
+                    "properties": {
+                        "type": { "const": "array" },
+                        "value": { "type": "array" }
+                    }
+                },
+                {
+                    "properties": {
+                        "type": { "const": "object" },
+                        "value": { "type": "object" }
+                    }
+                }
+            ]
+        }
+        """
+
+    let parsedTypeCheckedObjectAndArraySchema =
+        SchemaValidator.jsonSchemaOfJson (Parser.parse typeCheckedObjectAndArraySchema)
+
+    let testDataGood =
+        createObject [ "type", String "object"; "value", createObject [ "1", Integer 2; "", Null ] ]
+
+    let testDataBad =
+        createObject [ "type", String "object"; "value", createArray [ Float 3.5; String "foo" ] ]
+
+    let ``refs test schema`` =
+        """
+        {
+            "type": "object",
+            "properties": {
+                "fail": { "$ref": "#/$defs/fail" },
+                "recursive": { "$ref": "#" },
+                "foo": { "$ref": "#/$defs/foo" }
+            },
+            "$defs": {
+                "fail": {
+                    "const": false
+                },
+                "foo": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/foo"
+                    }
+                }
+            }
+        }
+        """
+
+    let ``parsed refs test schema`` =
+        SchemaValidator.jsonSchemaOfJson (Parser.parse ``refs test schema``)
+
+    let testDataGoodWithRefs =
+        createObject [ "foo", createArray [ emptyArray; createArray [ emptyArray ]; emptyArray ] ]
+
+    let testDataBadWithRefs =
+        createObject [ "foo", createArray [ emptyArray; createArray [ emptyObject ]; emptyArray ] ]
+
+    [<Benchmark(Baseline = true)>]
+    member _.ValidateGood() =
+        SchemaValidator.validateJsonSchema parsedTypeCheckedObjectAndArraySchema testDataGood
+
+    [<Benchmark>]
+    member _.ValidateBad() =
+        SchemaValidator.validateJsonSchema parsedTypeCheckedObjectAndArraySchema testDataBad
+
+    [<Benchmark>]
+    member _.ValidateGoodWithRefs() =
+        SchemaValidator.validateJsonSchema ``parsed refs test schema`` testDataGoodWithRefs
+
+    [<Benchmark>]
+    member _.ValidateBadWithRefs() =
+        SchemaValidator.validateJsonSchema ``parsed refs test schema`` testDataBadWithRefs
+
+type SchemaParserBenchmark() =
+    let typeCheckedObjectAndArraySchema =
+        """
+        {
+            "type": "object",
+            "required": ["type", "value"],
+            "oneOf": [
+                {
+                    "properties": {
+                        "type": { "const": "array" },
+                        "value": { "type": "array" }
+                    }
+                },
+                {
+                    "properties": {
+                        "type": { "const": "object" },
+                        "value": { "type": "object" }
+                    }
+                }
+            ]
+        }
+        """
+
+    let halfParsedTypeCheckedObjectAndArraySchema =
+        Parser.parse typeCheckedObjectAndArraySchema
+
+    let ``refs test schema`` =
+        """
+        {
+            "type": "object",
+            "properties": {
+                "fail": { "$ref": "#/$defs/fail" },
+                "recursive": { "$ref": "#" },
+                "foo": { "$ref": "#/$defs/foo" }
+            },
+            "$defs": {
+                "fail": {
+                    "const": false
+                },
+                "foo": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/foo"
+                    }
+                }
+            }
+        }
+        """
+
+    let ``half-parsed refs test schema`` = Parser.parse ``refs test schema``
+
+    [<Benchmark(Baseline = true)>]
+    member _.ParseSchema() =
+        SchemaValidator.jsonSchemaOfJson halfParsedTypeCheckedObjectAndArraySchema
+
+    [<Benchmark>]
+    member _.ParseSchemaWithRefs() =
+        SchemaValidator.jsonSchemaOfJson ``half-parsed refs test schema``
