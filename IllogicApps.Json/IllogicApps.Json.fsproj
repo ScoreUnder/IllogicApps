@@ -6,8 +6,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="MutableOrderedMap.fs"/>
-        <Compile Include="OrderedMap.fs"/>
+        <Compile Include="DataStructures\MutableOrderedMap.fs"/>
+        <Compile Include="DataStructures\OrderedMap.fs"/>
         <Compile Include="SerialisationHelper.fs"/>
         <Compile Include="CoreTypes.fs"/>
         <Compile Include="Conversions.fs"/>
