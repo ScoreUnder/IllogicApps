@@ -68,201 +68,372 @@ let rec compareJsons (a: JsonTree) (b: JsonTree) : int =
 
 let jsonsEqual (a: JsonTree) (b: JsonTree) = compareJsons a b = 0
 
-type JsonSchema =
-    { type_: SchemaType list option
+type JsonSchemaExec =
+    // Subschema combinators
+    | Not of JsonSubSchema
+    | AllOf of JsonSubSchema list
+    | AnyOf of JsonSubSchema list
+    | OneOf of JsonSubSchema list
+    | IfThenElse of JsonSubSchema * JsonSubSchema * JsonSubSchema
 
-      // Subschema combinators
-      not: JsonSchema option
-      allOf: JsonSchema list option
-      anyOf: JsonSchema list option
-      oneOf: JsonSchema list option
-      ``if``: JsonSchema option
-      ``then``: JsonSchema option
-      ``else``: JsonSchema option
+    // Generic schemas
+    | Invalid
+    | TypeTest of SchemaType list
+    | Enum of JsonTree list
+    | Const of JsonTree
 
-      // Generic schemas
-      enum: JsonTree list option
-      ``const``: JsonTree option
+    // Embedded data schemas
+    // TODO! https://json-schema.org/understanding-json-schema/reference/non_json_data
+    // | ContentMediaType of string
+    // | ContentEncoding of string
+    // | ContentSchema of JsonSchema
 
-      // Embedded data schemas
-      // TODO! https://json-schema.org/understanding-json-schema/reference/non_json_data
-      // contentMediaType: string option
-      // contentEncoding: string option
-      // contentSchema: JsonSchema option
+    // String schemas
+    | MinLength of int
+    | MaxLength of int
+    | Pattern of string
 
-      // String schemas
-      minLength: int option
-      maxLength: int option
-      pattern: string option
+    // Number schemas
+    | MultipleOf of decimal
+    | Minimum of decimal
+    | ExclusiveMinimum of decimal
+    | Maximum of decimal
+    | ExclusiveMaximum of decimal
 
-      // Number schemas
-      multipleOf: decimal option
-      minimum: decimal option
-      exclusiveMinimum: decimal option
-      maximum: decimal option
-      exclusiveMaximum: decimal option
+    // Array schemas
+    | Items of JsonSubSchema
+    | PrefixItems of JsonSubSchema list
+    | PrefixItemsAll of JsonSubSchema
+    | UnevaluatedItems of JsonSubSchema
+    | Contains of JsonSubSchema
+    | MinContains of int
+    | MaxContains of int
+    | MinItems of int
+    | MaxItems of int
+    | UniqueItems of bool
 
-      // Array schemas
-      items: JsonSchema option
-      prefixItems: JsonSchema list option
-      unevaluatedItems: JsonSchema option
-      contains: JsonSchema option
-      minContains: int option
-      maxContains: int option
-      minItems: int option
-      maxItems: int option
-      uniqueItems: bool option
+    // Object schemas
+    | Properties of OrderedMap<string, JsonSubSchema>
+    | PatternProperties of OrderedMap<string, JsonSubSchema>
+    | AdditionalProperties of JsonSubSchema
+    | UnevaluatedProperties of JsonSubSchema
+    | Required of string list
+    | PropertyNames of JsonSubSchema
+    | MinProperties of int
+    | MaxProperties of int
+    | DependentRequired of OrderedMap<string, string list>
+    | DependentSchemas of OrderedMap<string, JsonSubSchema>
 
-      // Object schemas
-      properties: OrderedMap<string, JsonSchema> option
-      patternProperties: OrderedMap<string, JsonSchema> option
-      additionalProperties: JsonSchema option
-      unevaluatedProperties: JsonSchema option
-      required: string list option
-      propertyNames: JsonSchema option
-      minProperties: int option
-      maxProperties: int option
-      dependentRequired: OrderedMap<string, string list> option
-      dependentSchemas: OrderedMap<string, JsonSchema> option
+    // Defs and refs
+    | Ref of string
 
-      // Defs and refs
-      ``$defs``: OrderedMap<string, JsonSchema> option
-      ``$ref``: string option }
+and JsonSubSchema = (string * JsonSchemaExec) list
 
-let emptyJsonSchema =
-    { type_ = None
+and JsonSchema =
+    { schema: JsonSubSchema
+      subSchemas: Map<string, JsonSubSchema> }
 
-      // Subschema combinators
-      not = None
-      allOf = None
-      anyOf = None
-      oneOf = None
-      ``if`` = None
-      ``then`` = None
-      ``else`` = None
-
-      // Generic schemas
-      enum = None
-      ``const`` = None
-
-      // String schemas
-      minLength = None
-      maxLength = None
-      pattern = None
-
-      // Number schemas
-      multipleOf = None
-      minimum = None
-      exclusiveMinimum = None
-      maximum = None
-      exclusiveMaximum = None
-
-      // Array schemas
-      items = None
-      prefixItems = None
-      unevaluatedItems = None
-      contains = None
-      minContains = None
-      maxContains = None
-      minItems = None
-      maxItems = None
-      uniqueItems = None
-
-      // Object schemas
-      properties = None
-      patternProperties = None
-      additionalProperties = None
-      unevaluatedProperties = None
-      required = None
-      propertyNames = None
-      minProperties = None
-      maxProperties = None
-      dependentRequired = None
-      dependentSchemas = None
-
-      // Defs and refs
-      ``$defs`` = None
-      ``$ref`` = None }
+let trueJsonSubSchema: JsonSubSchema = []
+let falseJsonSubSchema schemaPath : JsonSubSchema = [ schemaPath, Invalid ]
+let emptyJsonSchema: JsonSchema = { schema = []; subSchemas = Map.empty }
 
 let private mapArrayOrSingle f =
     function
     | Array a -> a |> Seq.map f |> List.ofSeq
     | v -> [ f v ]
 
-let rec jsonSchemaOfJson json =
-    let readOptionalSubSchemas key json =
-        JsonTree.tryGetKey key json
-        |> Option.map (ensureArray >> Seq.map jsonSchemaOfJson >> List.ofSeq)
+type private SubSchemaParseState =
+    { ifCond: JsonSubSchema option
+      thenBlock: JsonSubSchema option
+      elseBlock: JsonSubSchema option }
 
-    let readOptionalSubSchema key json =
-        JsonTree.tryGetKey key json |> Option.map jsonSchemaOfJson
-
-    let readOptionalSubSchemaMap key json =
-        JsonTree.tryGetKey key json
-        |> Option.map (ensureObject >> OrderedMap.mapValuesOnly jsonSchemaOfJson)
-
-    let readOptionalStringList key json =
-        JsonTree.tryGetKey key json
-        |> Option.map (ensureArray >> Seq.map ensureString >> List.ofSeq)
-
-    let readOptionalInt key json =
-        JsonTree.tryGetKey key json |> Option.map (fun i -> ensureInteger i |> int)
-
+/// <summary>Parse a <see cref="JsonSubSchema"/> from raw JSON.</summary>
+/// <returns>the parsed sub-schema and a set of all referenced sub-schemas</returns>
+let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * string Set =
     match json with
-    | Boolean true -> emptyJsonSchema
-    | Boolean false ->
-        { emptyJsonSchema with
-            not = Some emptyJsonSchema }
-    | Object _ ->
-        { type_ =
-            JsonTree.tryGetKey "type" json
-            |> Option.map (mapArrayOrSingle (ensureString >> schemaTypeOfString))
-          not = readOptionalSubSchema "not" json
-          allOf = readOptionalSubSchemas "allOf" json
-          anyOf = readOptionalSubSchemas "anyOf" json
-          oneOf = readOptionalSubSchemas "oneOf" json
-          ``if`` = readOptionalSubSchema "if" json
-          ``then`` = readOptionalSubSchema "then" json
-          ``else`` = readOptionalSubSchema "else" json
-          enum = JsonTree.tryGetKey "enum" json |> Option.map (ensureArray >> List.ofSeq)
-          ``const`` = JsonTree.tryGetKey "const" json
-          minLength = readOptionalInt "minLength" json
-          maxLength = readOptionalInt "maxLength" json
-          pattern = JsonTree.tryGetKey "pattern" json |> Option.map ensureString
-          multipleOf = JsonTree.tryGetKey "multipleOf" json |> Option.map numberAsDecimal
-          minimum = JsonTree.tryGetKey "minimum" json |> Option.map numberAsDecimal
-          exclusiveMinimum = JsonTree.tryGetKey "exclusiveMinimum" json |> Option.map numberAsDecimal
-          maximum = JsonTree.tryGetKey "maximum" json |> Option.map numberAsDecimal
-          exclusiveMaximum = JsonTree.tryGetKey "exclusiveMaximum" json |> Option.map numberAsDecimal
-          items = readOptionalSubSchema "items" json
-          prefixItems = readOptionalSubSchemas "prefixItems" json
-          unevaluatedItems = readOptionalSubSchema "unevaluatedItems" json
-          contains = readOptionalSubSchema "contains" json
-          minContains = readOptionalInt "minContains" json
-          maxContains = readOptionalInt "maxContains" json
-          minItems = readOptionalInt "minItems" json
-          maxItems = readOptionalInt "maxItems" json
-          uniqueItems = JsonTree.tryGetKey "uniqueItems" json |> Option.map ensureBoolean
-          properties = readOptionalSubSchemaMap "properties" json
-          patternProperties = readOptionalSubSchemaMap "patternProperties" json
-          additionalProperties = readOptionalSubSchema "additionalProperties" json
-          unevaluatedProperties = readOptionalSubSchema "unevaluatedProperties" json
-          required = readOptionalStringList "required" json
-          propertyNames = readOptionalSubSchema "propertyNames" json
-          minProperties = readOptionalInt "minProperties" json
-          maxProperties = readOptionalInt "maxProperties" json
-          dependentRequired =
-            JsonTree.tryGetKey "dependentRequired" json
-            |> Option.map (
-                ensureObject
-                >> OrderedMap.mapValuesOnly (ensureArray >> Seq.map ensureString >> List.ofSeq)
-            )
-          dependentSchemas = readOptionalSubSchemaMap "dependentSchemas" json
-          ``$defs`` =
-            JsonTree.tryGetKey "$defs" json
-            |> Option.map (ensureObject >> OrderedMap.mapValuesOnly jsonSchemaOfJson)
-          ``$ref`` = JsonTree.tryGetKey "$ref" json |> Option.map ensureString }
-    | _ -> failwith "Invalid JSON schema"
+    | Boolean true -> trueJsonSubSchema, Set.empty
+    | Boolean false -> falseJsonSubSchema schemaPath, Set.empty
+    | Object o ->
+        o
+        |> OrderedMap.fold
+            (fun
+                ((execFirst: JsonSubSchema,
+                  execMid: JsonSubSchema,
+                  execLast: JsonSubSchema,
+                  refs: string Set,
+                  state: SubSchemaParseState) as acc)
+                k
+                v ->
+                match k with
+                | "type" ->
+                    let types = v |> mapArrayOrSingle (ensureString >> schemaTypeOfString)
+                    ($"{schemaPath}/{k}", TypeTest types) :: execFirst, execMid, execLast, refs, state
+                | "not"
+                | "propertyNames" ->
+                    let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}" v
+
+                    let exec =
+                        match k with
+                        | "not" -> Not subSchema
+                        | "propertyNames" -> PropertyNames subSchema
+                        | _ -> failwith "Internal error: missing case"
+
+                    ($"{schemaPath}/{k}", exec) :: execFirst, execMid, execLast, Set.union refs2 refs, state
+                | "unevaluatedItems"
+                | "unevaluatedProperties" ->
+                    let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}" v
+
+                    let exec =
+                        match k with
+                        | "unevaluatedItems" -> UnevaluatedItems subSchema
+                        | "unevaluatedProperties" -> UnevaluatedProperties subSchema
+                        | _ -> failwith "Internal error: missing case"
+
+                    execFirst, execMid, ($"{schemaPath}/{k}", exec) :: execLast, Set.union refs2 refs, state
+                | "items"
+                | "contains"
+                | "additionalProperties" ->
+                    let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}" v
+
+                    let exec =
+                        match k with
+                        | "items" -> Items subSchema
+                        | "contains" -> Contains subSchema
+                        | "additionalProperties" -> AdditionalProperties subSchema
+                        | _ -> failwith "Internal error: missing case"
+
+                    execFirst, ($"{schemaPath}/{k}", exec) :: execMid, execLast, Set.union refs2 refs, state
+                | "anyOf"
+                | "allOf"
+                | "oneOf" ->
+                    let _, subSchemas, refs2 =
+                        v
+                        |> ensureArray
+                        |> Seq.fold
+                            (fun (i, subSchemas, refs) x ->
+                                let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}/{i}" x
+                                i + 1, subSchema :: subSchemas, Set.union refs2 refs)
+                            (0, [], Set.empty)
+
+                    let exec =
+                        match k with
+                        | "anyOf" -> AnyOf subSchemas
+                        | "allOf" -> AllOf subSchemas
+                        | "oneOf" -> OneOf subSchemas
+                        | _ -> failwith "Internal error: missing case"
+
+                    ($"{schemaPath}/{k}", exec) :: execFirst, execMid, execLast, Set.union refs2 refs, state
+                | "prefixItems" ->
+                    // Differs slightly from the above case in that we can have a single
+                    // schema instead of an array, in which case it is applied to all
+                    // items in the array.
+                    match v with
+                    | Array a ->
+                        let _, subSchemas, refs2 =
+                            a
+                            |> Seq.fold
+                                (fun (i, subSchemas, refs) x ->
+                                    let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}/{i}" x
+                                    i + 1, subSchema :: subSchemas, Set.union refs2 refs)
+                                (0, [], Set.empty)
+
+                        let execFirst = ($"{schemaPath}/{k}", PrefixItems(List.rev subSchemas)) :: execFirst
+                        execFirst, execMid, execLast, Set.union refs2 refs, state
+                    | _ ->
+                        let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}" v
+
+                        let execFirst = ($"{schemaPath}/{k}", PrefixItemsAll subSchema) :: execFirst
+                        execFirst, execMid, execLast, Set.union refs2 refs, state
+                | "if" ->
+                    let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}" v
+                    let state = { state with ifCond = Some subSchema }
+                    execFirst, execMid, execLast, Set.union refs2 refs, state
+                | "then" ->
+                    let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}" v
+
+                    let state =
+                        { state with
+                            thenBlock = Some subSchema }
+
+                    execFirst, execMid, execLast, Set.union refs2 refs, state
+                | "else" ->
+                    let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}" v
+
+                    let state =
+                        { state with
+                            elseBlock = Some subSchema }
+
+                    execFirst, execMid, execLast, Set.union refs2 refs, state
+                | "properties"
+                | "patternProperties"
+                | "dependentSchemas" ->
+                    let subSchemaMap, refs2 =
+                        v
+                        |> ensureObject
+                        |> OrderedMap.fold
+                            (fun (builder: OrderedMap.Builder<string, JsonSubSchema>, refs) prop sub ->
+                                let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}/{prop}" sub
+                                builder.Add(prop, subSchema), Set.union refs2 refs)
+                            (OrderedMap.Builder(), Set.empty)
+
+                    let subSchemaMap = subSchemaMap.Build()
+
+                    let exec =
+                        match k with
+                        | "properties" -> Properties subSchemaMap
+                        | "patternProperties" -> PatternProperties subSchemaMap
+                        | "dependentSchemas" -> DependentSchemas subSchemaMap
+                        | _ -> failwith "Internal error: missing case"
+
+                    ($"{schemaPath}/{k}", exec) :: execFirst, execMid, execLast, Set.union refs2 refs, state
+                | "enum" ->
+                    let enumValues = v |> ensureArray |> List.ofSeq
+                    ($"{schemaPath}/{k}", Enum enumValues) :: execFirst, execMid, execLast, refs, state
+                | "const" -> ($"{schemaPath}/{k}", Const v) :: execFirst, execMid, execLast, refs, state
+                | "minLength"
+                | "maxLength"
+                | "minContains"
+                | "maxContains"
+                | "minItems"
+                | "maxItems"
+                | "minProperties"
+                | "maxProperties" ->
+                    let value = v |> ensureInteger |> int
+
+                    let exec =
+                        match k with
+                        | "minLength" -> MinLength value
+                        | "maxLength" -> MaxLength value
+                        | "minContains" -> MinContains value
+                        | "maxContains" -> MaxContains value
+                        | "minItems" -> MinItems value
+                        | "maxItems" -> MaxItems value
+                        | "minProperties" -> MinProperties value
+                        | "maxProperties" -> MaxProperties value
+                        | _ -> failwith "Internal error: missing case"
+
+                    ($"{schemaPath}/{k}", exec) :: execFirst, execMid, execLast, refs, state
+                | "pattern" ->
+                    let value = v |> ensureString
+                    execFirst, ($"{schemaPath}/{k}", Pattern value) :: execMid, execLast, refs, state
+                | "multipleOf"
+                | "minimum"
+                | "exclusiveMinimum"
+                | "maximum"
+                | "exclusiveMaximum" ->
+                    let value = v |> numberAsDecimal
+
+                    let exec =
+                        match k with
+                        | "multipleOf" -> MultipleOf value
+                        | "minimum" -> Minimum value
+                        | "exclusiveMinimum" -> ExclusiveMinimum value
+                        | "maximum" -> Maximum value
+                        | "exclusiveMaximum" -> ExclusiveMaximum value
+                        | _ -> failwith "Internal error: missing case"
+
+                    execFirst, ($"{schemaPath}/{k}", exec) :: execMid, execLast, refs, state
+                | "uniqueItems" ->
+                    let value = v |> ensureBoolean
+                    execFirst, ($"{schemaPath}/{k}", UniqueItems value) :: execMid, execLast, refs, state
+                | "required" ->
+                    let requiredProperties = v |> ensureArray |> Seq.map ensureString |> List.ofSeq
+                    execFirst, ($"{schemaPath}/{k}", Required requiredProperties) :: execMid, execLast, refs, state
+                | "dependentRequired" ->
+                    let dependentRequired =
+                        v
+                        |> ensureObject
+                        |> OrderedMap.mapValuesOnly (fun v -> v |> ensureArray |> Seq.map ensureString |> List.ofSeq)
+
+                    let execMid = ($"{schemaPath}/{k}", DependentRequired dependentRequired) :: execMid
+                    execFirst, execMid, execLast, refs, state
+                | "$ref" ->
+                    let ref = v |> ensureString
+                    ($"{schemaPath}/{k}", Ref ref) :: execFirst, execMid, execLast, Set.add ref refs, state
+                | _ ->
+                    // Unknown key
+                    // ...warning or something?
+                    acc)
+            ([],
+             [],
+             [],
+             Set.empty,
+             { ifCond = None
+               thenBlock = None
+               elseBlock = None })
+        |> fun (execFirst, execMid, execLast, refs, state) ->
+            let ifBlock =
+                match state.ifCond with
+                | None -> []
+                | Some cond ->
+                    [ schemaPath,
+                      IfThenElse(
+                          cond,
+                          state.thenBlock |> Option.defaultValue trueJsonSubSchema,
+                          state.elseBlock |> Option.defaultValue trueJsonSubSchema
+                      ) ]
+
+            ifBlock @ List.rev execFirst @ List.rev execMid @ List.rev execLast, refs
+
+    | _ ->
+        failwith
+            $"Invalid JSON schema: Expected an object or boolean at '{schemaPath}', but got {JsonTree.getType json} instead."
+
+/// <summary>Parse a <see cref="JsonSchema"/> from raw JSON.</summary>
+let jsonSchemaOfJson json =
+    let parseFromRef (ref: string) : JsonSubSchema * string Set =
+        if ref = "#" then
+            failwith "Internal error: Should have removed #-ref"
+        else if ref = "" then
+            failwithf "$ref cannot be empty"
+        else
+            let ref = ref.[1..]
+            let refPath = ref.Split('/')
+
+            if refPath.[0] <> "" then
+                failwith $"Invalid $ref: #{ref}"
+
+            refPath
+            |> Seq.skip 1
+            |> Seq.fold
+                (fun acc elem ->
+                    match acc with
+                    | Array a ->
+                        let ind = int elem in
+
+                        if ind < 0 || ind >= a.Length then
+                            failwith $"Nonexistent $ref (index {ind} out of bounds): #{ref}"
+                        else
+                            a.[ind]
+                    | Object o ->
+                        match OrderedMap.tryFind elem o with
+                        | None -> failwith $"Nonexistent $ref (key '{elem}' not found in object): #{ref}"
+                        | Some json -> json
+                    | _ -> failwith $"Nonexistent $ref (lookup on non-container type): #{ref}")
+                json
+            |> subSchemaOfJson ref
+
+    let rec resolveRefs (refs: string Set) (known: Map<string, JsonSubSchema>) =
+        let allRefs = Set.difference refs (known.Keys |> Set.ofSeq) |> Set.remove "#"
+
+        if Set.isEmpty allRefs then
+            known
+        else
+            let nextSchemas =
+                allRefs |> Seq.map (fun name -> name, parseFromRef name) |> Seq.toArray
+
+            let nextRefs = nextSchemas |> Seq.map (fun (_, (_, refs)) -> refs) |> Set.unionMany
+
+            let nextKnown =
+                nextSchemas
+                |> Seq.fold (fun acc (name, (schema, _)) -> Map.add name schema acc) known
+
+            resolveRefs nextRefs nextKnown
+
+    let initialSubSchema, initialRefs = subSchemaOfJson "" json
+
+    { schema = initialSubSchema
+      subSchemas = resolveRefs initialRefs Map.empty }
 
 let typesMatch (schemaType: SchemaType) (json: JsonTree) =
     match schemaType, json with
@@ -279,18 +450,15 @@ let typesMatch (schemaType: SchemaType) (json: JsonTree) =
     | SchemaType.String, String _ -> true
     | _ -> false
 
-let inline private seqCount ([<InlineIfLambda>] f) seq =
-    Seq.sumBy (fun x -> if f x then 1 else 0) seq
-
-let private listOfDistinct (cmpf: 'a -> 'a -> int) (seq: 'a seq) =
+let private countDistinct (cmpf: 'a -> 'a -> int) (seq: 'a seq) =
     let comparer =
         { new IComparer<'a> with
             member this.Compare(x, y) = cmpf x y }
 
     let seenSet = SortedSet<'a>(comparer)
 
-    Seq.fold (fun acc x -> if seenSet.Add x then x :: acc else acc) [] seq
-    |> List.rev
+    Seq.iter (fun x -> seenSet.Add x |> ignore) seq
+    seenSet.Count
 
 type 't JsonSchemaSingleResult =
     | Ok of 't
@@ -305,34 +473,6 @@ module JsonSchemaSingleResult =
         | Error e -> Error e
         | NotImplemented e -> NotImplemented e
         | Warning w -> Warning w
-
-    let bind f =
-        function
-        | Ok x -> f x
-        | Error e -> Error e
-        | NotImplemented e -> NotImplemented e
-        | Warning w -> Warning w
-
-    let mapError f =
-        function
-        | Ok x -> Ok x
-        | Error e -> Error(f e)
-        | NotImplemented e -> NotImplemented e
-        | Warning w -> Warning w
-
-    let bindError f =
-        function
-        | Ok x -> Ok x
-        | Error e -> f e
-        | NotImplemented e -> NotImplemented e
-        | Warning w -> Warning w
-
-    let exists f =
-        function
-        | Ok x -> f x
-        | Error _ -> false
-        | NotImplemented _ -> false
-        | Warning _ -> false
 
 type JsonSchemaResultMessage =
     { schemaPath: string
@@ -375,11 +515,6 @@ module JsonSchemaResult =
               isMatch = result.isMatch }
         | Ok _ -> result
 
-    let addOpt schemaPath jsonPath single result =
-        match single with
-        | Some v -> add schemaPath jsonPath v result
-        | None -> result
-
     let mergeMany results result = List.fold merge result results
 
     let formatMessages messages =
@@ -395,37 +530,38 @@ module JsonSchemaResult =
 type JsonSchemaResultData =
     { result: JsonSchemaResult
       matchedItemsDeep: int Set
-      matchedPropertiesDeep: string Set }
+      prefixLength: int
+      minContains: int
+      maxContains: int option
+      matchedPropertiesDeep: string Set
+      matchedProperties: string Set }
 
 module JsonSchemaResultData =
     let empty =
         { result = JsonSchemaResult.empty
           matchedItemsDeep = Set.empty
-          matchedPropertiesDeep = Set.empty }
+          prefixLength = 0
+          minContains = 1
+          maxContains = None
+          matchedPropertiesDeep = Set.empty
+          matchedProperties = Set.empty }
 
-    let merge a b =
-        if a.result.isMatch then
-            { result = JsonSchemaResult.merge a.result b.result
-              matchedItemsDeep = max a.matchedItemsDeep b.matchedItemsDeep
-              matchedPropertiesDeep = Set.union a.matchedPropertiesDeep b.matchedPropertiesDeep }
+    let merge newResult origResult =
+        if newResult.result.isMatch then
+            { origResult with
+                result = JsonSchemaResult.merge newResult.result origResult.result
+                matchedItemsDeep = max newResult.matchedItemsDeep origResult.matchedItemsDeep
+                matchedPropertiesDeep = Set.union newResult.matchedPropertiesDeep origResult.matchedPropertiesDeep }
         else
-            { b with
-                result = JsonSchemaResult.merge a.result b.result }
+            { origResult with
+                result = JsonSchemaResult.merge newResult.result origResult.result }
 
     let add schemaPath jsonPath single result =
         { result with
             JsonSchemaResultData.result = JsonSchemaResult.add schemaPath jsonPath single result.result }
 
-    let addOpt schemaPath jsonPath single result =
-        { result with
-            JsonSchemaResultData.result = JsonSchemaResult.addOpt schemaPath jsonPath single result.result }
-
-    let mergeOpt maybeResult result =
-        match maybeResult with
-        | Some result2 -> merge result2 result
-        | None -> result
-
-    let mergeMany results result = Seq.fold merge result results
+    let mergeMany results origResult =
+        Seq.fold (fun acc el -> merge el acc) origResult results
 
     let createFailedFromSingle schemaPath jsonPath value =
         { empty with
@@ -443,29 +579,41 @@ module JsonSchemaResultData =
 
 let resolveRef (schema: JsonSchema) (refName: string) =
     if refName = "#" then
-        Ok schema
-    else if not (refName.StartsWith("#/")) then
-        Warning $"Invalid $ref: {refName}"
-    else if not (refName.StartsWith("#/$defs/")) then
-        NotImplemented $"Unsupported $ref: {refName}"
+        Ok schema.schema
     else
-        match schema.``$defs`` with
-        | Some defs ->
-            let refName = refName.[8..] in
+        match Map.tryFind refName schema.subSchemas with
+        | Some subSchema -> Ok subSchema
+        | None -> Warning $"Reference {refName} not found in schema"
 
-            defs
-            |> OrderedMap.findMapOrElse refName Ok (fun () -> Warning $"$ref {refName} not found")
-        | None -> Warning "Reference used, but no $defs block found"
+let inline private validateSimple2 ([<InlineIfLambda>] f: Unit -> bool) message = if f () then Ok() else Error message
 
-let private validateType schemaTypes json =
-    if List.exists (fun schemaType -> typesMatch schemaType json) schemaTypes then
-        Ok()
-    else
-        Error $"Type mismatch: expected {schemaTypes}"
+let private validateSimple f message =
+    function
+    | None -> Ok()
+    | Some v when f v -> Ok()
+    | _ -> Error message
 
 let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchemaResult =
-    let rec aux isInsideRef schemaPath jsonPath (schema: JsonSchema) (json: JsonTree) : JsonSchemaResultData =
-        let validateAnyOf schemaPath jsonPath schemas json =
+    let rec processSingle isInsideRef jsonPath json acc (schemaPath, schemaExec) =
+        let addOne result =
+            JsonSchemaResultData.add schemaPath jsonPath result acc
+
+        let addFull result = JsonSchemaResultData.merge result acc
+
+        let addMany results =
+            JsonSchemaResultData.mergeMany results acc
+
+        match schemaExec with
+        | Not subSchema ->
+            validateSimple2
+                (fun () -> not (validateSubSchema isInsideRef jsonPath subSchema json).result.isMatch)
+                "should not have validated, but did"
+            |> addOne
+        | AllOf subSchemas ->
+            subSchemas
+            |> List.map (fun subSchema -> validateSubSchema isInsideRef jsonPath subSchema json)
+            |> addMany
+        | AnyOf subSchemas ->
             let rec validateAnyOf' acc ind schemas json =
                 match schemas with
                 | [] ->
@@ -473,339 +621,317 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
                         acc
                         (JsonSchemaResultData.createFailedFromSingle schemaPath jsonPath (Error "No match"))
                 | h :: t ->
-                    let result = aux isInsideRef $"{schemaPath}/{ind}" jsonPath h json
+                    let result = validateSubSchema isInsideRef jsonPath h json
 
                     if result.result.isMatch then
                         result
                     else
                         validateAnyOf' (result :: acc) (ind + 1) t json
 
-            match schemas with
-            | Some schemas -> validateAnyOf' [] 0 schemas json
-            | None -> JsonSchemaResultData.empty
-
-        let validateOneOf schemaPath jsonPath schemas json =
-            let rec validateOneOf' fails okays ind schemas json =
-                match schemas with
-                | [] ->
-                    match okays with
-                    | [] ->
-                        JsonSchemaResultData.mergeMany
-                            fails
-                            (JsonSchemaResultData.createFailedFromSingle schemaPath jsonPath (Error "No match"))
-                    | [ single ] -> single
-                    | _ ->
-                        (JsonSchemaResultData.createFailedFromSingle schemaPath jsonPath (Error "More than one match"))
-                | h :: t ->
-                    let result = aux isInsideRef $"{schemaPath}/{ind}" jsonPath h json
-
-                    if result.result.isMatch then
-                        validateOneOf' fails (result :: okays) (ind + 1) t json
-                    else
-                        validateOneOf' (result :: fails) okays (ind + 1) t json
-
-            match schemas with
-            | Some schemas -> validateOneOf' [] [] 0 schemas json
-            | None -> JsonSchemaResultData.empty
-
-        let validateSimple f message =
-            function
-            | None -> Ok()
-            | Some v when f v -> Ok()
-            | _ -> Error message
-
-        let result =
-            JsonSchemaResultData.empty
-            |> JsonSchemaResultData.addOpt
-                $"{schemaPath}/type"
-                jsonPath
-                (schema.type_ |> Option.map (fun t -> validateType t json))
-            |> JsonSchemaResultData.addOpt
-                $"{schemaPath}/not"
-                jsonPath
-                (schema.not
-                 |> Option.map (fun subSchema ->
-                     let notResult = aux isInsideRef $"{schemaPath}/not" jsonPath subSchema json
-                     System.Console.WriteLine(notResult)
-
-                     if aux isInsideRef $"{schemaPath}/not" jsonPath subSchema json |> _.result.isMatch then
-                         Error "should not have validated, but did"
-                     else
-                         Ok()))
-            |> JsonSchemaResultData.mergeMany (
-                schema.allOf
-                |> Option.defaultValue []
-                |> List.mapi (fun i subSchema -> aux isInsideRef $"{schemaPath}/allOf/{i}" jsonPath subSchema json)
-            )
-            |> JsonSchemaResultData.merge (validateAnyOf $"{schemaPath}/anyOf" jsonPath schema.anyOf json)
-            |> JsonSchemaResultData.merge (validateOneOf $"{schemaPath}/oneOf" jsonPath schema.oneOf json)
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/enum"
-                jsonPath
-                (validateSimple (List.exists (jsonsEqual json)) "Enum value not correct" schema.enum)
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/const"
-                jsonPath
-                (validateSimple (jsonsEqual json) "Const value not correct" schema.``const``)
-            |> JsonSchemaResultData.mergeOpt (
-                schema.``if``
-                |> Option.bind (fun ifSchema ->
-                    if aux isInsideRef $"{schemaPath}/if" jsonPath ifSchema json |> _.result.isMatch then
-                        schema.``then``
-                        |> Option.map (fun subSchema -> aux isInsideRef $"{schemaPath}/then" jsonPath subSchema json)
-                    else
-                        schema.``else``
-                        |> Option.map (fun subSchema -> aux isInsideRef $"{schemaPath}/else" jsonPath subSchema json))
-            )
-            |> JsonSchemaResultData.mergeOpt (
-                schema.``$ref``
-                |> Option.map (fun refName ->
-                    if isInsideRef then
-                        Warning "Not allowed to nest refs (infinite recursion possible)"
-                    else
-                        resolveRef rootSchema refName
-                        |> JsonSchemaSingleResult.map (fun schema ->
-                            aux true (refName.TrimStart('#')) jsonPath schema json)
-                    |> JsonSchemaResultData.extractFromSingle $"{schemaPath}/$ref" jsonPath)
-            )
-
-        match json with
-        | String s ->
-            result
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/minLength"
-                jsonPath
-                (validateSimple (fun minLength -> s.Length >= minLength) "String is too short" schema.minLength)
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/maxLength"
-                jsonPath
-                (validateSimple (fun maxLength -> s.Length <= maxLength) "String is too long" schema.maxLength)
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/pattern"
-                jsonPath
-                (validateSimple
-                    (fun pattern -> System.Text.RegularExpressions.Regex.IsMatch(s, pattern))
+            validateAnyOf' [] 0 subSchemas json |> addFull
+        | OneOf subSchemas ->
+            subSchemas
+            |> List.map (fun subSchema -> validateSubSchema isInsideRef jsonPath subSchema json)
+            |> List.partition (_.result.isMatch)
+            |> function
+                | [], fails ->
+                    JsonSchemaResultData.mergeMany
+                        fails
+                        (JsonSchemaResultData.createFailedFromSingle schemaPath jsonPath (Error "No match"))
+                | [ single ], _ -> single
+                | _, _ -> JsonSchemaResultData.createFailedFromSingle schemaPath jsonPath (Error "More than one match")
+            |> addFull
+        | Enum values ->
+            validateSimple2 (fun () -> List.exists (jsonsEqual json) values) "Enum value not correct"
+            |> addOne
+        | Const value ->
+            validateSimple2 (fun () -> jsonsEqual json value) "Const value not correct"
+            |> addOne
+        | TypeTest types ->
+            validateSimple2
+                (fun () -> List.exists (fun t -> typesMatch t json) types)
+                $"Type mismatch: expected {types}"
+            |> addOne
+        | IfThenElse(cond, thenBlock, elseBlock) ->
+            if (validateSubSchema isInsideRef jsonPath cond json).result.isMatch then
+                validateSubSchema isInsideRef jsonPath thenBlock json
+            else
+                validateSubSchema isInsideRef jsonPath elseBlock json
+            |> addFull
+        | Ref refName ->
+            if isInsideRef then
+                Warning "Not allowed to nest refs (infinite recursion possible)"
+            else
+                resolveRef rootSchema refName
+                |> JsonSchemaSingleResult.map (fun schema -> validateSubSchema true jsonPath schema json)
+            |> JsonSchemaResultData.extractFromSingle schemaPath jsonPath
+            |> addFull
+        | MinLength minLength ->
+            match json with
+            | String s ->
+                validateSimple2 (fun () -> s.Length >= minLength) "String is too short"
+                |> addOne
+            | _ -> acc
+        | MaxLength maxLength ->
+            match json with
+            | String s -> validateSimple2 (fun () -> s.Length <= maxLength) "String is too long" |> addOne
+            | _ -> acc
+        | Pattern pattern ->
+            match json with
+            | String s ->
+                validateSimple2
+                    (fun () -> System.Text.RegularExpressions.Regex.IsMatch(s, pattern))
                     "String pattern does not match"
-                    schema.pattern)
-        | Integer _
-        | Float _
-        | Decimal _ ->
-            let number = numberAsDecimal json in
+                |> addOne
+            | _ -> acc
+        | MultipleOf multipleOf ->
+            match json with
+            | Integer _
+            | Float _
+            | Decimal _ ->
+                let number = numberAsDecimal json in
 
-            result
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/multipleOf"
-                jsonPath
-                (validateSimple
-                    (fun multipleOf -> number % multipleOf = 0m)
-                    "Number is not a multiple of multipleOf"
-                    schema.multipleOf)
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/minimum"
-                jsonPath
-                (validateSimple (fun minimum -> number >= minimum) "Number is less than minimum" schema.minimum)
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/exclusiveMinimum"
-                jsonPath
-                (validateSimple
-                    (fun exclusiveMinimum -> number > exclusiveMinimum)
-                    "Number is not greater than exclusiveMinimum"
-                    schema.exclusiveMinimum)
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/maximum"
-                jsonPath
-                (validateSimple (fun maximum -> number <= maximum) "Number is greater than maximum" schema.maximum)
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/exclusiveMaximum"
-                jsonPath
-                (validateSimple
-                    (fun exclusiveMaximum -> number < exclusiveMaximum)
-                    "Number is not less than exclusiveMaximum"
-                    schema.exclusiveMaximum)
-        | Array a ->
-            let numPrefixItems =
-                match schema.prefixItems with
-                | None -> 0
-                | Some prefixItems -> min (List.length prefixItems) a.Length in
+                validateSimple2 (fun () -> number % multipleOf = 0m) "Number is not a multiple of multipleOf"
+                |> addOne
+            | _ -> acc
+        | Minimum minimum ->
+            match json with
+            | Integer _
+            | Float _
+            | Decimal _ ->
+                let number = numberAsDecimal json in
 
-            result
-            |> JsonSchemaResultData.mergeOpt (
-                schema.prefixItems
-                |> Option.map (fun subSchemas ->
-                    Seq.mapi2
-                        (fun i schema json ->
-                            { (aux false $"{schemaPath}/prefixItems/{i}" $"{jsonPath}/{i}" schema json) with
-                                matchedItemsDeep = Set.singleton i })
-                        subSchemas
-                        a
-                    |> Seq.fold JsonSchemaResultData.merge JsonSchemaResultData.empty)
-            )
-            |> JsonSchemaResultData.mergeOpt (
-                schema.items
-                |> Option.map (fun subSchema ->
-                    a
-                    |> Seq.skip numPrefixItems
-                    |> Seq.mapi (fun i json ->
-                        { (aux false $"{schemaPath}/items" $"{jsonPath}/{i + numPrefixItems}" subSchema json) with
+                validateSimple2 (fun () -> number >= minimum) "Number is less than minimum"
+                |> addOne
+            | _ -> acc
+        | ExclusiveMinimum exclusiveMinimum ->
+            match json with
+            | Integer _
+            | Float _
+            | Decimal _ ->
+                let number = numberAsDecimal json in
+
+                validateSimple2 (fun () -> number > exclusiveMinimum) "Number is not greater than exclusiveMinimum"
+                |> addOne
+            | _ -> acc
+        | Maximum maximum ->
+            match json with
+            | Integer _
+            | Float _
+            | Decimal _ ->
+                let number = numberAsDecimal json in
+
+                validateSimple2 (fun () -> number <= maximum) "Number is greater than maximum"
+                |> addOne
+            | _ -> acc
+        | ExclusiveMaximum exclusiveMaximum ->
+            match json with
+            | Integer _
+            | Float _
+            | Decimal _ ->
+                let number = numberAsDecimal json in
+
+                validateSimple2 (fun () -> number < exclusiveMaximum) "Number is not less than exclusiveMaximum"
+                |> addOne
+            | _ -> acc
+        | PrefixItems subSchemas ->
+            match json with
+            | Array a ->
+                Seq.mapi2
+                    (fun i schema json ->
+                        { (validateSubSchema false $"{jsonPath}/{i}" schema json) with
                             matchedItemsDeep = Set.singleton i })
-                    |> Seq.fold JsonSchemaResultData.merge JsonSchemaResultData.empty)
-            )
-            |> JsonSchemaResultData.mergeOpt (
-                schema.contains
-                |> Option.map (fun subSchema ->
-                    let containsCount, containsResult =
-                        a
-                        |> Seq.mapi (fun i json ->
-                            { (aux false $"{schemaPath}/contains" $"{jsonPath}/{i}" subSchema json) with
-                                matchedItemsDeep = Set.singleton i })
-                        |> Seq.fold
-                            (fun (cnt, acc) result ->
-                                cnt + (if result.result.isMatch then 1 else 0), JsonSchemaResultData.merge acc result)
-                            (0, JsonSchemaResultData.empty)
+                    subSchemas
+                    a
+                |> addMany
+                |> fun result ->
+                    { result with
+                        prefixLength = List.length subSchemas }
+            | _ -> acc
+        | PrefixItemsAll subSchema ->
+            match json with
+            | Array a ->
+                Seq.mapi
+                    (fun i json ->
+                        { (validateSubSchema false $"{jsonPath}/{i}" subSchema json) with
+                            matchedItemsDeep = Set.singleton i })
+                    a
+                |> addMany
+            | _ -> acc
+        | Items subSchema ->
+            let numPrefixItems = acc.prefixLength
 
-                    let containsResult =
-                        match schema.minContains with
-                        | None when containsCount = 0 ->
-                            JsonSchemaResultData.add
-                                $"{schemaPath}/contains"
-                                jsonPath
-                                (Error "Array does not contain any items that match the schema")
-                                containsResult
-                        | Some minContains when containsCount < minContains ->
-                            JsonSchemaResultData.add
-                                $"{schemaPath}/minContains"
-                                jsonPath
-                                (Error "Array does not contain enough items that match the schema")
-                                containsResult
-                        | _ -> JsonSchemaResultData.empty // Clear any error messages; we've satisfied enough
+            match json with
+            | Array a when a.Length > numPrefixItems ->
+                a
+                |> Seq.skip acc.prefixLength
+                |> Seq.mapi (fun i json ->
+                    { (validateSubSchema false $"{jsonPath}/{i + numPrefixItems}" subSchema json) with
+                        matchedItemsDeep = Set.singleton (i + numPrefixItems) })
+                |> addMany
+            | _ -> acc
+        | Contains subSchema ->
+            match json with
+            | Array a ->
+                let containsCount, containsResult =
+                    a
+                    |> Seq.mapi (fun i json ->
+                        { (validateSubSchema false $"{jsonPath}/{i}" subSchema json) with
+                            matchedItemsDeep = Set.singleton i })
+                    |> Seq.fold
+                        (fun (cnt, acc) result ->
+                            cnt + (if result.result.isMatch then 1 else 0), JsonSchemaResultData.merge acc result)
+                        (0, JsonSchemaResultData.empty)
 
-                    containsResult
-                    |> JsonSchemaResultData.add
-                        $"{schemaPath}/maxContains"
-                        jsonPath
-                        (validateSimple
-                            (fun maxContains -> containsCount <= maxContains)
-                            "Array contains too many items that match the schema"
-                            schema.maxContains))
-            )
-            |> (fun result ->
-                JsonSchemaResultData.mergeOpt
-                    (schema.unevaluatedItems
-                     |> Option.map (fun subSchema ->
-                         a
-                         |> Seq.mapi (fun i json ->
-                             if Set.contains i result.matchedItemsDeep then
-                                 JsonSchemaResultData.empty
-                             else
-                                 { (aux false $"{schemaPath}/unevaluatedItems" $"{jsonPath}/{i}" subSchema json) with
-                                     matchedItemsDeep = Set.empty })
-                         |> Seq.fold JsonSchemaResultData.merge JsonSchemaResultData.empty))
-                    result)
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/minItems"
-                jsonPath
-                (validateSimple (fun minItems -> a.Length >= minItems) "Array is too short" schema.minItems)
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/maxItems"
-                jsonPath
-                (validateSimple (fun maxItems -> a.Length <= maxItems) "Array is too long" schema.maxItems)
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/uniqueItems"
-                jsonPath
-                (validateSimple
-                    (fun uniqueItems ->
-                        if uniqueItems then
-                            a |> listOfDistinct compareJsons |> List.length = a.Length
-                        else
-                            true)
-                    "Array contains duplicate items"
-                    schema.uniqueItems)
-        | Object o ->
-            result
-            |> JsonSchemaResultData.mergeOpt (
-                schema.properties
-                |> Option.map (fun properties ->
-                    properties
-                    |> Seq.map (fun (KeyValue(prop, subSchema)) ->
-                        match OrderedMap.tryFind prop o with
-                        | Some v ->
-                            { (aux false $"{schemaPath}/properties/{prop}" $"{jsonPath}/{prop}" subSchema v) with
-                                matchedPropertiesDeep = Set.singleton prop }
-                        | None -> JsonSchemaResultData.empty)
-                    |> Seq.fold JsonSchemaResultData.merge JsonSchemaResultData.empty)
-            )
-            |> JsonSchemaResultData.mergeOpt (
-                schema.patternProperties
-                |> Option.map (fun patternProperties ->
-                    patternProperties
-                    |> Seq.collect (fun (KeyValue(pattern, subSchema)) ->
-                        o
-                        |> Seq.filter (fun (KeyValue(prop, _)) ->
-                            System.Text.RegularExpressions.Regex.IsMatch(prop, pattern))
-                        |> Seq.map (fun (KeyValue(prop, v)) ->
-                            { (aux false $"{schemaPath}/patternProperties/{pattern}" $"{jsonPath}/{prop}" subSchema v) with
-                                matchedPropertiesDeep = Set.singleton prop }))
-                    |> Seq.fold JsonSchemaResultData.merge JsonSchemaResultData.empty)
-            )
-            |> JsonSchemaResultData.mergeOpt (
-                let propertiesSet =
-                    match schema.properties with
-                    | Some properties -> properties |> OrderedMap.keys |> Set.ofSeq
-                    | None -> Set.empty
+                let containsResult =
+                    if containsCount < acc.minContains then
+                        JsonSchemaResultData.add
+                            schemaPath
+                            jsonPath
+                            (Error(
+                                if containsCount = 0 then
+                                    "Array does not contain any items that match the schema"
+                                else
+                                    "Array does not contain enough items that match the schema"
+                            ))
+                            containsResult
+                    else
+                        // Clear any error messages; we've satisfied enough
+                        JsonSchemaResultData.empty
 
-                schema.additionalProperties
-                |> Option.map (fun subSchema ->
+                containsResult
+                |> JsonSchemaResultData.add
+                    schemaPath
+                    jsonPath
+                    (validateSimple
+                        (fun maxContains -> containsCount <= maxContains)
+                        "Array contains too many items that match the schema"
+                        acc.maxContains)
+                |> addFull
+            | _ -> acc
+        | MinContains minContains -> { acc with minContains = minContains }
+        | MaxContains maxContains ->
+            { acc with
+                maxContains = Some maxContains }
+        | UnevaluatedItems subSchema ->
+            match json with
+            | Array a ->
+                a
+                |> Seq.mapi (fun i json ->
+                    if Set.contains i acc.matchedItemsDeep then
+                        JsonSchemaResultData.empty
+                    else
+                        { (validateSubSchema false $"{jsonPath}/{i}" subSchema json) with
+                            matchedItemsDeep = Set.empty })
+                |> addMany
+            | _ -> acc
+        | MinItems minItems ->
+            match json with
+            | Array a -> validateSimple2 (fun () -> a.Length >= minItems) "Array is too short" |> addOne
+            | _ -> acc
+        | MaxItems maxItems ->
+            match json with
+            | Array a -> validateSimple2 (fun () -> a.Length <= maxItems) "Array is too long" |> addOne
+            | _ -> acc
+        | UniqueItems uniqueItems ->
+            match json with
+            | Array a when uniqueItems ->
+                validateSimple2 (fun () -> countDistinct compareJsons a = a.Length) "Array contains duplicate items"
+                |> addOne
+            | _ -> acc
+        | Properties properties ->
+            match json with
+            | Object o ->
+                properties
+                |> Seq.map (fun (KeyValue(prop, subSchema)) ->
+                    match OrderedMap.tryFind prop o with
+                    | Some v ->
+                        { (validateSubSchema false $"{jsonPath}/{prop}" subSchema v) with
+                            matchedPropertiesDeep = Set.singleton prop }
+                    | None -> JsonSchemaResultData.empty)
+                |> addMany
+                |> fun result ->
+                    { result with
+                        matchedProperties = Set.ofSeq properties.Keys }
+            | _ -> acc
+        | PatternProperties patternProperties ->
+            match json with
+            | Object o ->
+                patternProperties
+                |> Seq.collect (fun (KeyValue(pattern, subSchema)) ->
                     o
-                    |> Seq.filter (fun (KeyValue(prop, _)) -> not (Set.contains prop propertiesSet))
+                    |> Seq.filter (fun (KeyValue(prop, _)) ->
+                        System.Text.RegularExpressions.Regex.IsMatch(prop, pattern))
                     |> Seq.map (fun (KeyValue(prop, v)) ->
-                        { (aux false $"{schemaPath}/additionalProperties" $"{jsonPath}/{prop}" subSchema v) with
-                            matchedPropertiesDeep = Set.singleton prop })
-                    |> Seq.fold JsonSchemaResultData.merge JsonSchemaResultData.empty)
-            )
-            |> JsonSchemaResultData.mergeMany (
-                schema.dependentSchemas
-                |> Option.defaultValue OrderedMap.empty
+                        { (validateSubSchema false $"{jsonPath}/{prop}" subSchema v) with
+                            matchedPropertiesDeep = Set.singleton prop }))
+                |> addMany
+            | _ -> acc
+        | AdditionalProperties subSchema ->
+            match json with
+            | Object o ->
+                let propertiesSet = acc.matchedProperties
+
+                o
+                |> Seq.filter (fun (KeyValue(prop, _)) -> not (Set.contains prop propertiesSet))
+                |> Seq.map (fun (KeyValue(prop, v)) ->
+                    { (validateSubSchema false $"{jsonPath}/{prop}" subSchema v) with
+                        matchedPropertiesDeep = Set.singleton prop })
+                |> addMany
+            | _ -> acc
+        | DependentSchemas dependentSchemas ->
+            match json with
+            | Object o ->
+                dependentSchemas
                 |> Seq.map (fun (KeyValue(k, subSchema)) ->
                     match OrderedMap.tryFind k o with
                     | Some v ->
                         // Note: `k` itself doesn't seem to count as an 'evaluated' property..?
-                        aux isInsideRef $"{schemaPath}/dependentSchemas/{k}" jsonPath subSchema v
+                        validateSubSchema isInsideRef jsonPath subSchema v
                     | None -> JsonSchemaResultData.empty)
-            )
-            |> JsonSchemaResultData.mergeOpt (
-                schema.unevaluatedProperties
-                |> Option.map (fun subSchema ->
-                    o
-                    |> Seq.filter (fun (KeyValue(prop, _)) -> not (Set.contains prop result.matchedPropertiesDeep))
-                    |> Seq.map (fun (KeyValue(prop, v)) ->
-                        { (aux false $"{schemaPath}/unevaluatedProperties" $"{jsonPath}/{prop}" subSchema v) with
-                            matchedPropertiesDeep = Set.empty })
-                    |> Seq.fold JsonSchemaResultData.merge JsonSchemaResultData.empty)
-            )
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/required"
-                jsonPath
-                (validateSimple (List.forall o.ContainsKey) "Object is missing required properties" schema.required)
-            |> JsonSchemaResultData.mergeOpt (
-                schema.propertyNames
-                |> Option.map (fun subSchema ->
-                    o
-                    |> Seq.map (fun (KeyValue(prop, _)) ->
-                        { (aux false $"{schemaPath}/propertyNames" $"{jsonPath}/{prop}" subSchema (String prop)) with
-                            matchedPropertiesDeep = Set.empty })
-                    |> Seq.fold JsonSchemaResultData.merge JsonSchemaResultData.empty)
-            )
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/minProperties"
-                jsonPath
-                (validateSimple (fun min -> o.Count >= min) "Object is too small" schema.minProperties)
-            |> JsonSchemaResultData.add
-                $"{schemaPath}/maxProperties"
-                jsonPath
-                (validateSimple (fun max -> o.Count <= max) "Object is too large" schema.maxProperties)
-            |> JsonSchemaResultData.mergeMany (
-                schema.dependentRequired
-                |> Option.defaultValue OrderedMap.empty
+                |> addMany
+            | _ -> acc
+        | UnevaluatedProperties subSchema ->
+            match json with
+            | Object o ->
+                o
+                |> Seq.filter (fun (KeyValue(prop, _)) -> not (Set.contains prop acc.matchedPropertiesDeep))
+                |> Seq.map (fun (KeyValue(prop, v)) ->
+                    { (validateSubSchema false $"{jsonPath}/{prop}" subSchema v) with
+                        matchedPropertiesDeep = Set.empty })
+                |> addMany
+            | _ -> acc
+        | Required required ->
+            match json with
+            | Object o ->
+                validateSimple2 (fun () -> List.forall o.ContainsKey required) "Object is missing required properties"
+                |> addOne
+            | _ -> acc
+        | PropertyNames subSchema ->
+            match json with
+            | Object o ->
+                o
+                |> Seq.map (fun (KeyValue(prop, _)) ->
+                    { (validateSubSchema false $"{jsonPath}/{prop}" subSchema (String prop)) with
+                        matchedPropertiesDeep = Set.empty })
+                |> addMany
+            | _ -> acc
+        | MinProperties minProperties ->
+            match json with
+            | Object o ->
+                validateSimple2 (fun () -> o.Count >= minProperties) "Object is too small"
+                |> addOne
+            | _ -> acc
+        | MaxProperties maxProperties ->
+            match json with
+            | Object o ->
+                validateSimple2 (fun () -> o.Count <= maxProperties) "Object is too large"
+                |> addOne
+            | _ -> acc
+        | DependentRequired dependentRequired ->
+            match json with
+            | Object o ->
+                dependentRequired
                 |> Seq.collect (fun (KeyValue(k, required)) ->
                     match OrderedMap.tryFind k o with
                     | Some _ ->
@@ -813,11 +939,16 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
                         |> Seq.filter (fun prop -> not (o.ContainsKey prop))
                         |> Seq.map (fun prop ->
                             JsonSchemaResultData.createFailedFromSingle
-                                $"{schemaPath}/dependentRequired/{k}"
+                                $"{schemaPath}/{k}"
                                 $"{jsonPath}/{prop}"
                                 (Error "Object is missing required properties"))
                     | None -> Seq.empty)
-            )
-        | _ -> result
+                |> addMany
+            | _ -> acc
+        | Invalid -> addOne (Error "This schema is always false")
 
-    aux false "" "" rootSchema rootJson |> _.result
+    and validateSubSchema isInsideRef jsonPath (schema: JsonSubSchema) (json: JsonTree) : JsonSchemaResultData =
+        schema
+        |> List.fold (processSingle isInsideRef jsonPath json) JsonSchemaResultData.empty
+
+    validateSubSchema false "" rootSchema.schema rootJson |> _.result
