@@ -1,6 +1,8 @@
 module IllogicApps.Json.SchemaValidator
 
 type StringComparison = System.StringComparison
+type SortedSet<'T> = System.Collections.Generic.SortedSet<'T>
+type IComparer<'T> = System.Collections.Generic.IComparer<'T>
 
 open IllogicApps.Json.Conversions
 
@@ -29,23 +31,42 @@ let schemaTypeOfString =
     | v -> failwithf "Unknown schema type: %s" v
 
 // 4.2.2 Instance Equality
-let rec jsonsEqual (a: JsonTree) (b: JsonTree) =
+let rec compareJsons (a: JsonTree) (b: JsonTree) : int =
     match a, b with
-    | JsonTree.Null, JsonTree.Null -> true
-    | JsonTree.Boolean a, JsonTree.Boolean b -> a = b
-    | JsonTree.String a, JsonTree.String b -> a.Equals(b, StringComparison.Ordinal)
-    | NumbersAsInteger(a, b) -> a = b
-    | NumbersAsFloat(a, b) -> a = b
-    | NumbersAsDecimal(a, b) -> a = b
-    | JsonTree.Array a, JsonTree.Array b -> a.Length = b.Length && Seq.forall2 jsonsEqual a b
+    | JsonTree.Null, JsonTree.Null -> 0
+    | JsonTree.Boolean a, JsonTree.Boolean b -> compare a b
+    | JsonTree.String a, JsonTree.String b -> compare a b
+    | NumbersAsInteger(a, b) -> compare a b
+    | NumbersAsFloat(a, b) -> compare a b
+    | NumbersAsDecimal(a, b) -> compare a b
+    | JsonTree.Array a, JsonTree.Array b ->
+        let lengthCompare = compare a.Length b.Length
+
+        if lengthCompare <> 0 then
+            lengthCompare
+        else
+            Seq.map2 compareJsons a b
+            |> Seq.tryFind (fun x -> x <> 0)
+            |> Option.defaultValue 0
     | JsonTree.Object a, JsonTree.Object b ->
-        a.Count = b.Count
-        && Seq.forall2
-            (fun (k1: string) k2 -> k1.Equals(k2, StringComparison.Ordinal))
-            (Seq.sort a.Keys)
-            (Seq.sort b.Keys)
-        && Seq.forall (fun k1 -> jsonsEqual a.[k1] b.[k1]) a.Keys
-    | _ -> false
+        let countCompare = compare a.Count b.Count
+
+        if countCompare <> 0 then
+            countCompare
+        else
+            let keysCompare =
+                Seq.map2 compare (Seq.sort a.Keys) (Seq.sort b.Keys)
+                |> Seq.tryFind (fun x -> x <> 0)
+                |> Option.defaultValue 0
+
+            if keysCompare <> 0 then
+                keysCompare
+            else
+                Seq.tryPick (fun k1 -> let c = compareJsons a.[k1] b.[k1] in if c <> 0 then Some c else None) a.Keys
+                |> Option.defaultValue 0
+    | _ -> compare (JsonTree.getType a) (JsonTree.getType b)
+
+let jsonsEqual (a: JsonTree) (b: JsonTree) = compareJsons a b = 0
 
 type JsonSchema =
     { type_: SchemaType list option
@@ -261,9 +282,14 @@ let typesMatch (schemaType: SchemaType) (json: JsonTree) =
 let inline private seqCount ([<InlineIfLambda>] f) seq =
     Seq.sumBy (fun x -> if f x then 1 else 0) seq
 
-let private listOfDistinct eqf seq =
-    // This is a naive/slow implementation, but probably not a problem for now
-    Seq.fold (fun acc x -> if List.exists (eqf x) acc then acc else x :: acc) [] seq
+let private listOfDistinct (cmpf: 'a -> 'a -> int) (seq: 'a seq) =
+    let comparer =
+        { new IComparer<'a> with
+            member this.Compare(x, y) = cmpf x y }
+
+    let seenSet = SortedSet<'a>(comparer)
+
+    Seq.fold (fun acc x -> if seenSet.Add x then x :: acc else acc) [] seq
     |> List.rev
 
 type 't JsonSchemaSingleResult =
@@ -689,7 +715,7 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
                 (validateSimple
                     (fun uniqueItems ->
                         if uniqueItems then
-                            a |> listOfDistinct jsonsEqual |> List.length = a.Length
+                            a |> listOfDistinct compareJsons |> List.length = a.Length
                         else
                             true)
                     "Array contains duplicate items"
