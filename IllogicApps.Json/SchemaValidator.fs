@@ -47,12 +47,6 @@ let rec jsonsEqual (a: JsonTree) (b: JsonTree) =
         && Seq.forall (fun k1 -> jsonsEqual a.[k1] b.[k1]) a.Keys
     | _ -> false
 
-// 4.3.2 Boolean JSON Schemas
-// We can abbreviate schema objects as booleans:
-// true -> {}
-// false -> {"not": {}}
-
-// OK this is long i'm going to implement something minimal and then come back to this
 type JsonSchema =
     { type_: SchemaType list option
 
@@ -199,7 +193,6 @@ let rec jsonSchemaOfJson json =
         { emptyJsonSchema with
             not = Some emptyJsonSchema }
     | Object _ ->
-        // TODO: $ref support
         { type_ =
             JsonTree.tryGetKey "type" json
             |> Option.map (mapArrayOrSingle (ensureString >> schemaTypeOfString))
