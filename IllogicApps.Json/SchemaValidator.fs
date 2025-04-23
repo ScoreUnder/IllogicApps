@@ -528,7 +528,7 @@ module JsonSchemaSingleResult =
 type JsonSchemaResultMessage =
     { schemaPath: string
       jsonPath: string
-      result: Unit JsonSchemaSingleResult }
+      result: unit JsonSchemaSingleResult }
 
 type JsonSchemaResult =
     { messages: JsonSchemaResultMessage list
@@ -628,7 +628,8 @@ let resolveRef (schema: JsonSchema) (refName: string) =
         | Some subSchema -> Ok subSchema
         | None -> Warning $"Reference {refName} not found in schema"
 
-let inline private validateSimple2 ([<InlineIfLambda>] f: Unit -> bool) message = if f () then Ok() else Error message
+let inline private validateSimple2 ([<InlineIfLambda>] f: unit -> bool) ([<InlineIfLambda>] message: unit -> string) =
+    if f () then Ok() else Error(message ())
 
 let private validateSimple f message =
     function
@@ -650,7 +651,7 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
         | Not subSchema ->
             validateSimple2
                 (fun () -> not (validateSubSchema isInsideRef jsonPath subSchema json).result.isMatch)
-                "should not have validated, but did"
+                (fun () -> "should not have validated, but did")
             |> addOne
         | AllOf subSchemas ->
             subSchemas
@@ -685,15 +686,14 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
                 | _, _ -> JsonSchemaResultData.createFailedFromSingle schemaPath jsonPath (Error "More than one match")
             |> addFull
         | Enum values ->
-            validateSimple2 (fun () -> List.exists (jsonsEqual json) values) "Enum value not correct"
+            validateSimple2 (fun () -> List.exists (jsonsEqual json) values) (fun () -> "Enum value not correct")
             |> addOne
         | Const value ->
-            validateSimple2 (fun () -> jsonsEqual json value) "Const value not correct"
+            validateSimple2 (fun () -> jsonsEqual json value) (fun () -> "Const value not correct")
             |> addOne
         | TypeTest types ->
-            validateSimple2
-                (fun () -> List.exists (fun t -> typesMatch t json) types)
-                $"Type mismatch: expected {types}"
+            validateSimple2 (fun () -> List.exists (fun t -> typesMatch t json) types) (fun () ->
+                $"Type mismatch: expected {types}")
             |> addOne
         | IfThenElse(cond, thenBlock, elseBlock) ->
             if (validateSubSchema isInsideRef jsonPath cond json).result.isMatch then
@@ -712,19 +712,20 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
         | MinLength minLength ->
             match json with
             | String s ->
-                validateSimple2 (fun () -> s.Length >= minLength) "String is too short"
+                validateSimple2 (fun () -> s.Length >= minLength) (fun () -> "String is too short")
                 |> addOne
             | _ -> acc
         | MaxLength maxLength ->
             match json with
-            | String s -> validateSimple2 (fun () -> s.Length <= maxLength) "String is too long" |> addOne
+            | String s ->
+                validateSimple2 (fun () -> s.Length <= maxLength) (fun () -> "String is too long")
+                |> addOne
             | _ -> acc
         | Pattern pattern ->
             match json with
             | String s ->
-                validateSimple2
-                    (fun () -> System.Text.RegularExpressions.Regex.IsMatch(s, pattern))
-                    "String pattern does not match"
+                validateSimple2 (fun () -> System.Text.RegularExpressions.Regex.IsMatch(s, pattern)) (fun () ->
+                    "String pattern does not match")
                 |> addOne
             | _ -> acc
         | MultipleOf multipleOf ->
@@ -734,7 +735,8 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
             | Decimal _ ->
                 let number = numberAsDecimal json in
 
-                validateSimple2 (fun () -> number % multipleOf = 0m) "Number is not a multiple of multipleOf"
+                validateSimple2 (fun () -> number % multipleOf = 0m) (fun () ->
+                    "Number is not a multiple of multipleOf")
                 |> addOne
             | _ -> acc
         | Minimum minimum ->
@@ -744,7 +746,7 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
             | Decimal _ ->
                 let number = numberAsDecimal json in
 
-                validateSimple2 (fun () -> number >= minimum) "Number is less than minimum"
+                validateSimple2 (fun () -> number >= minimum) (fun () -> "Number is less than minimum")
                 |> addOne
             | _ -> acc
         | ExclusiveMinimum exclusiveMinimum ->
@@ -754,7 +756,8 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
             | Decimal _ ->
                 let number = numberAsDecimal json in
 
-                validateSimple2 (fun () -> number > exclusiveMinimum) "Number is not greater than exclusiveMinimum"
+                validateSimple2 (fun () -> number > exclusiveMinimum) (fun () ->
+                    "Number is not greater than exclusiveMinimum")
                 |> addOne
             | _ -> acc
         | Maximum maximum ->
@@ -764,7 +767,7 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
             | Decimal _ ->
                 let number = numberAsDecimal json in
 
-                validateSimple2 (fun () -> number <= maximum) "Number is greater than maximum"
+                validateSimple2 (fun () -> number <= maximum) (fun () -> "Number is greater than maximum")
                 |> addOne
             | _ -> acc
         | ExclusiveMaximum exclusiveMaximum ->
@@ -774,7 +777,8 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
             | Decimal _ ->
                 let number = numberAsDecimal json in
 
-                validateSimple2 (fun () -> number < exclusiveMaximum) "Number is not less than exclusiveMaximum"
+                validateSimple2 (fun () -> number < exclusiveMaximum) (fun () ->
+                    "Number is not less than exclusiveMaximum")
                 |> addOne
             | _ -> acc
         | PrefixItems subSchemas ->
@@ -870,16 +874,21 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
             | _ -> acc
         | MinItems minItems ->
             match json with
-            | Array a -> validateSimple2 (fun () -> a.Length >= minItems) "Array is too short" |> addOne
+            | Array a ->
+                validateSimple2 (fun () -> a.Length >= minItems) (fun () -> "Array is too short")
+                |> addOne
             | _ -> acc
         | MaxItems maxItems ->
             match json with
-            | Array a -> validateSimple2 (fun () -> a.Length <= maxItems) "Array is too long" |> addOne
+            | Array a ->
+                validateSimple2 (fun () -> a.Length <= maxItems) (fun () -> "Array is too long")
+                |> addOne
             | _ -> acc
         | UniqueItems ->
             match json with
             | Array a ->
-                validateSimple2 (fun () -> countDistinct compareJsons a = a.Length) "Array contains duplicate items"
+                validateSimple2 (fun () -> countDistinct compareJsons a = a.Length) (fun () ->
+                    "Array contains duplicate items")
                 |> addOne
             | _ -> acc
         | Properties properties ->
@@ -947,7 +956,8 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
         | Required required ->
             match json with
             | Object o ->
-                validateSimple2 (fun () -> List.forall o.ContainsKey required) "Object is missing required properties"
+                validateSimple2 (fun () -> List.forall o.ContainsKey required) (fun () ->
+                    "Object is missing required properties")
                 |> addOne
             | _ -> acc
         | PropertyNames subSchema ->
@@ -962,13 +972,13 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
         | MinProperties minProperties ->
             match json with
             | Object o ->
-                validateSimple2 (fun () -> o.Count >= minProperties) "Object is too small"
+                validateSimple2 (fun () -> o.Count >= minProperties) (fun () -> "Object is too small")
                 |> addOne
             | _ -> acc
         | MaxProperties maxProperties ->
             match json with
             | Object o ->
-                validateSimple2 (fun () -> o.Count <= maxProperties) "Object is too large"
+                validateSimple2 (fun () -> o.Count <= maxProperties) (fun () -> "Object is too large")
                 |> addOne
             | _ -> acc
         | DependentRequired dependentRequired ->
