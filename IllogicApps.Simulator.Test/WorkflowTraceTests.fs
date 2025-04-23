@@ -11,7 +11,6 @@ open DEdge.Diffract
 open IllogicApps.Core.ExternalServiceTypes
 open IllogicApps.Core.HttpModel.HttpParsing
 open IllogicApps.Core.HttpModel.HttpWriting
-open IllogicApps.Core.Support
 open NUnit.Framework
 open Swensen.Unquote
 

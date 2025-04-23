@@ -1,7 +1,6 @@
 module IllogicApps.Expression.Execution.BuiltinFunctions
 
 open System
-open System.Collections.Immutable
 open System.Globalization
 open System.Net
 open System.Text
