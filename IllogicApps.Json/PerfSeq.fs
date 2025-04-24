@@ -60,19 +60,3 @@ let inline exists ([<InlineIfLambda>] f: 'a -> bool) (seq: 'a seq) : bool =
             false
 
     existsLoop ()
-
-let join (start: string) (sep: string) (finish: string) (subject: 'a seq) : string =
-    let builder = StringBuilder(64)
-
-    builder.Append(start) |> ignore
-    let iter = subject.GetEnumerator()
-
-    if iter.MoveNext() then
-        builder.Append(iter.Current) |> ignore
-
-        while iter.MoveNext() do
-            builder.Append(sep) |> ignore
-            builder.Append(iter.Current) |> ignore
-
-    builder.Append(finish) |> ignore
-    builder.ToString()

@@ -100,7 +100,7 @@ let ``type-checked object and array schema non-matching test cases`` =
     [ createObject [ "type", String "array"; "value", createObject [ "1", Integer 2; "", Null ] ],
       [ { schemaPath = "/oneOf/0/properties/value/type"
           jsonPath = "/value"
-          result = Error "Type mismatch: expected [Array]" }
+          result = Error "Type not correct" }
         { schemaPath = "/oneOf/1/properties/type/const"
           jsonPath = "/type"
           result = Error "Const value not correct" }
@@ -113,17 +113,17 @@ let ``type-checked object and array schema non-matching test cases`` =
           result = Error "Const value not correct" }
         { schemaPath = "/oneOf/1/properties/value/type"
           jsonPath = "/value"
-          result = Error "Type mismatch: expected [Object]" }
+          result = Error "Type not correct" }
         { schemaPath = "/oneOf"
           jsonPath = ""
           result = Error "No match" } ]
       createObject [ "type", String "array"; "value", Boolean true ],
       [ { schemaPath = "/oneOf/0/properties/value/type"
           jsonPath = "/value"
-          result = Error "Type mismatch: expected [Array]" }
+          result = Error "Type not correct" }
         { schemaPath = "/oneOf/1/properties/value/type"
           jsonPath = "/value"
-          result = Error "Type mismatch: expected [Object]" }
+          result = Error "Type not correct" }
         { schemaPath = "/oneOf/1/properties/type/const"
           jsonPath = "/type"
           result = Error "Const value not correct" }
@@ -133,13 +133,13 @@ let ``type-checked object and array schema non-matching test cases`` =
       createObject [ "type", String "object"; "value", Boolean true ],
       [ { schemaPath = "/oneOf/0/properties/value/type"
           jsonPath = "/value"
-          result = Error "Type mismatch: expected [Array]" }
+          result = Error "Type not correct" }
         { schemaPath = "/oneOf/0/properties/type/const"
           jsonPath = "/type"
           result = Error "Const value not correct" }
         { schemaPath = "/oneOf/1/properties/value/type"
           jsonPath = "/value"
-          result = Error "Type mismatch: expected [Object]" }
+          result = Error "Type not correct" }
         { schemaPath = "/oneOf"
           jsonPath = ""
           result = Error "No match" } ]
@@ -149,21 +149,21 @@ let ``type-checked object and array schema non-matching test cases`` =
           result = Error "More than one match" }
         { schemaPath = "/type"
           jsonPath = ""
-          result = Error "Type mismatch: expected [Object]" } ]
+          result = Error "Type not correct" } ]
       Boolean false,
       [ { schemaPath = "/oneOf"
           jsonPath = ""
           result = Error "More than one match" }
         { schemaPath = "/type"
           jsonPath = ""
-          result = Error "Type mismatch: expected [Object]" } ]
+          result = Error "Type not correct" } ]
       Integer 1,
       [ { schemaPath = "/oneOf"
           jsonPath = ""
           result = Error "More than one match" }
         { schemaPath = "/type"
           jsonPath = ""
-          result = Error "Type mismatch: expected [Object]" } ]
+          result = Error "Type not correct" } ]
       createObject [ "type", String "array" ],
       [ { schemaPath = "/required"
           jsonPath = ""
@@ -178,7 +178,7 @@ let ``type-checked object and array schema non-matching test cases`` =
           result = Error "Const value not correct" }
         { schemaPath = "/oneOf/1/properties/value/type"
           jsonPath = "/value"
-          result = Error "Type mismatch: expected [Object]" }
+          result = Error "Type not correct" }
         { schemaPath = "/oneOf/1/properties/type/const"
           jsonPath = "/type"
           result = Error "Const value not correct" }
@@ -332,11 +332,11 @@ let ``array with prefix items schema non-matching test cases`` =
       createArray [ String ""; Integer 0; Null; Boolean false; Integer 3 ],
       { schemaPath = "/items/type"
         jsonPath = "/4"
-        result = Error "Type mismatch: expected [Boolean; Null]" }
+        result = Error "Type not correct" }
       createArray [ String "hello"; Boolean true; Null; Boolean false ],
       { schemaPath = "/prefixItems/1/type"
         jsonPath = "/1"
-        result = Error "Type mismatch: expected [Integer]" } ]
+        result = Error "Type not correct" } ]
     |> List.map TestCaseData
 
 [<TestCaseSource(nameof ``array with prefix items schema non-matching test cases``)>]
@@ -398,7 +398,7 @@ let ``refs test schema non-matching test cases`` =
       createObject [ "foo", createArray [ emptyArray; createArray [ emptyObject ]; emptyArray ] ],
       { schemaPath = "/$defs/foo/type"
         jsonPath = "/foo/1/0"
-        result = Error "Type mismatch: expected [Array]" }
+        result = Error "Type not correct" }
       createObject [ "recursive", createObject [ "recursive", createObject [ "fail", Boolean true ] ] ],
       { schemaPath = "/$defs/fail/const"
         jsonPath = "/recursive/recursive/fail"
@@ -406,7 +406,7 @@ let ``refs test schema non-matching test cases`` =
       String "string",
       { schemaPath = "/type"
         jsonPath = ""
-        result = Error "Type mismatch: expected [Object]" } ]
+        result = Error "Type not correct" } ]
     |> List.map TestCaseData
 
 [<TestCaseSource(nameof ``refs test schema non-matching test cases``)>]
