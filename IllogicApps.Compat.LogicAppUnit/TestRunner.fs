@@ -159,6 +159,8 @@ type TestRunner
 
     member _.Simulators = simulators
 
+    member val EvaluateExpression = SimulatorCreationOptions.dummy.evaluate with get, set
+
     member this.TriggerWorkflow
         (
             queryParams: Dictionary<string, string>,
@@ -219,6 +221,7 @@ type TestRunner
             |> WorkflowFamily.buildWorkflowFamily
                 (fun options handler ->
                     { options with
+                        evaluate = this.EvaluateExpression
                         parameters = parameters
                         appConfig = appSettings
                         isBugForBugAccurate = true

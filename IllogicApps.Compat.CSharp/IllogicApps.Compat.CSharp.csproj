@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="FSharp.Core" Version="8.0.403"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\IllogicApps.Compat.LogicAppUnit\IllogicApps.Compat.LogicAppUnit.fsproj" />
+    </ItemGroup>
+</Project>

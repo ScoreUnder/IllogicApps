@@ -206,7 +206,8 @@ type SimulatorCreationOptions =
       isStateless: bool
       isNondeterministic: bool
       appConfig: OrderedMap<string, string>
-      parameters: OrderedMap<string, Parameter> }
+      parameters: OrderedMap<string, Parameter>
+      evaluate: SimulatorContext -> ExpressionParser.Ast -> JsonTree }
 
     [<CompiledName("Dummy")>]
     static member dummy =
@@ -221,7 +222,8 @@ type SimulatorCreationOptions =
           isStateless = false
           isNondeterministic = false
           appConfig = OrderedMap.empty
-          parameters = OrderedMap.empty }
+          parameters = OrderedMap.empty
+          evaluate = Evaluator.evaluate }
 
     [<CompiledName("CreateSimple")>]
     static member createSimple (logicApp: LogicAppSpec.Root) httpRequest =
@@ -620,7 +622,8 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
         |> Conversions.ensureBoolean
 
     member this.EvaluateLanguage expr =
-        expr |> jsonMapStrs (Evaluator.evaluateIfNecessary this)
+        expr
+        |> jsonMapStrs (Evaluator.altEvaluateIfNecessary creationOptions.evaluate this)
 
     member this.Terminate status error =
         this.TerminationStatus <- Error(status, error)

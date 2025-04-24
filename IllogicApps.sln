@@ -28,6 +28,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.Expression.Exec
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "IllogicApps.Extra.ExpressionInfixer", "IllogicApps.Extra.ExpressionInfixer\IllogicApps.Extra.ExpressionInfixer.fsproj", "{436436E7-AE9D-4C5F-B3FF-1A68E67BBFC0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IllogicApps.Compat.CSharp", "IllogicApps.Compat.CSharp\IllogicApps.Compat.CSharp.csproj", "{D1925EA4-E891-4908-8A61-91FFC868A9AF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -119,5 +121,11 @@ Global
 		{436436E7-AE9D-4C5F-B3FF-1A68E67BBFC0}.Release|Any CPU.Build.0 = Release|Any CPU
 		{436436E7-AE9D-4C5F-B3FF-1A68E67BBFC0}.Debug except JSON|Any CPU.ActiveCfg = Debug|Any CPU
 		{436436E7-AE9D-4C5F-B3FF-1A68E67BBFC0}.Debug except JSON|Any CPU.Build.0 = Debug|Any CPU
+		{D1925EA4-E891-4908-8A61-91FFC868A9AF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1925EA4-E891-4908-8A61-91FFC868A9AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1925EA4-E891-4908-8A61-91FFC868A9AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1925EA4-E891-4908-8A61-91FFC868A9AF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1925EA4-E891-4908-8A61-91FFC868A9AF}.Debug except JSON|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1925EA4-E891-4908-8A61-91FFC868A9AF}.Debug except JSON|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 EndGlobal
