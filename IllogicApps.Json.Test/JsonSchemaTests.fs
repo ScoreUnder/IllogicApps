@@ -191,8 +191,7 @@ let ``type-checked object and array schema non-matching test cases`` =
 let ``Test non-matching jsons against type-checked object and array schema`` json errors =
     let (Lazy schema) = parsedTypeCheckedObjectAndArraySchema
 
-    let vr = validateJsonSchema schema json
-    test <@ vr = { messages = errors; isMatch = false } @>
+    test <@ validateJsonSchema schema json = { messages = errors; isMatch = false } @>
 
 let notJapaneseSchema =
     """
