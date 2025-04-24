@@ -729,8 +729,7 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
             |> addOne
         | TypeTest types ->
             validateSimple2 (fun () -> PerfSeq.exists (fun t -> typesMatch t json) types) (fun () ->
-                let typeStr = types |> Seq.map _.ToString() |> String.concat "; "
-                $"Type mismatch: expected [{typeStr}]")
+                PerfSeq.join "Type mismatch: expected [" "; " "]" types)
             |> addOne
         | IfThenElse(cond, thenBlock, elseBlock) ->
             if (validateSubSchema isInsideRef jsonPath cond json).result.isMatch then
