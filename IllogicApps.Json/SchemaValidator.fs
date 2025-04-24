@@ -538,8 +538,11 @@ module JsonSchemaResult =
     let empty = { messages = []; isMatch = true }
 
     let merge a b =
-        { messages = a.messages @ b.messages
-          isMatch = a.isMatch && b.isMatch }
+        if LanguagePrimitives.PhysicalEquality a empty then
+            b
+        else
+            { messages = a.messages @ b.messages
+              isMatch = a.isMatch && b.isMatch }
 
     let add schemaPath jsonPath single result =
         match single with
@@ -590,7 +593,9 @@ module JsonSchemaResultData =
           matchedProperties = Set.empty }
 
     let merge newResult origResult =
-        if newResult.result.isMatch then
+        if LanguagePrimitives.PhysicalEquality newResult empty then
+            origResult
+        else if newResult.result.isMatch then
             { origResult with
                 result = JsonSchemaResult.merge newResult.result origResult.result
                 matchedItemsDeep = max newResult.matchedItemsDeep origResult.matchedItemsDeep
@@ -599,9 +604,12 @@ module JsonSchemaResultData =
             { origResult with
                 result = JsonSchemaResult.merge newResult.result origResult.result }
 
-    let add schemaPath jsonPath single result =
-        { result with
-            JsonSchemaResultData.result = JsonSchemaResult.add schemaPath jsonPath single result.result }
+    let add schemaPath jsonPath (single: 'a JsonSchemaSingleResult) result =
+        match single with
+        | Ok _ -> result
+        | _ ->
+            { result with
+                JsonSchemaResultData.result = JsonSchemaResult.add schemaPath jsonPath single result.result }
 
     let mergeMany results origResult =
         Seq.fold (fun acc el -> merge el acc) origResult results
