@@ -587,24 +587,16 @@ module JsonSchemaResult =
             | Error v -> $"Error: {m.schemaPath} {m.jsonPath} {v}")
         |> String.concat "\n"
 
-type JsonSchemaResultData =
+type private JsonSchemaResultData =
     { result: JsonSchemaResult
       matchedItemsDeep: int Set
-      prefixLength: int
-      minContains: int
-      maxContains: int option
-      matchedPropertiesDeep: string Set
-      matchedProperties: string Set }
+      matchedPropertiesDeep: string Set }
 
-module JsonSchemaResultData =
+module private JsonSchemaResultData =
     let empty =
         { result = JsonSchemaResult.empty
           matchedItemsDeep = Set.empty
-          prefixLength = 0
-          minContains = 1
-          maxContains = None
-          matchedPropertiesDeep = Set.empty
-          matchedProperties = Set.empty }
+          matchedPropertiesDeep = Set.empty }
 
     let merge newResult origResult =
         if LanguagePrimitives.PhysicalEquality newResult empty then
@@ -644,6 +636,57 @@ module JsonSchemaResultData =
                         result = value } ]
                   isMatch = false } }
 
+type private JsonSchemaResultState =
+    { current: JsonSchemaResultData
+      prefixLength: int
+      minContains: int
+      maxContains: int option
+      matchedProperties: string Set }
+
+module private JsonSchemaResultState =
+    let empty =
+        { current = JsonSchemaResultData.empty
+          prefixLength = 0
+          minContains = 1
+          maxContains = None
+          matchedProperties = Set.empty }
+
+    let add schemaPath jsonPath result state =
+        let added = JsonSchemaResultData.add schemaPath jsonPath result state.current
+
+        if LanguagePrimitives.PhysicalEquality state.current added then
+            state
+        else
+            { state with current = added }
+
+    let merge result state =
+        let merged = JsonSchemaResultData.merge result state.current
+
+        if LanguagePrimitives.PhysicalEquality state.current merged then
+            state
+        else
+            { state with current = merged }
+
+    let mergeMany results state =
+        let merged = JsonSchemaResultData.mergeMany results state.current
+
+        if LanguagePrimitives.PhysicalEquality state.current merged then
+            state
+        else
+            { state with current = merged }
+
+    let inline mergeManyMapi
+        ([<InlineIfLambda>] f: int -> 'a -> JsonSchemaResultData)
+        (results: 'a seq)
+        (state: JsonSchemaResultState)
+        =
+        let merged = JsonSchemaResultData.mergeManyMapi f results state.current
+
+        if LanguagePrimitives.PhysicalEquality state.current merged then
+            state
+        else
+            { state with current = merged }
+
 let resolveRef (schema: JsonSchema) (refName: string) =
     if refName = "#" then
         Result.Ok schema.schema
@@ -662,17 +705,23 @@ let private validateSimple f message =
     | _ -> Error message
 
 let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchemaResult =
-    let rec processSingle isInsideRef jsonPath json acc (schemaPath, schemaExec) =
+    let rec processSingle
+        isInsideRef
+        jsonPath
+        json
+        (acc: JsonSchemaResultState)
+        (schemaPath, schemaExec)
+        : JsonSchemaResultState =
         let addOne result =
-            JsonSchemaResultData.add schemaPath jsonPath result acc
+            JsonSchemaResultState.add schemaPath jsonPath result acc
 
-        let addFull result = JsonSchemaResultData.merge result acc
+        let addFull result = JsonSchemaResultState.merge result acc
 
         let addMany results =
-            JsonSchemaResultData.mergeMany results acc
+            JsonSchemaResultState.mergeMany results acc
 
         let inline addManyMapi f results =
-            JsonSchemaResultData.mergeManyMapi f results acc
+            JsonSchemaResultState.mergeManyMapi f results acc
 
         match schemaExec with
         | Not subSchema ->
@@ -715,7 +764,8 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
 
                     match acc with
                     | Result.Error _ when isMatch -> validateOneOf' (Result.Ok result) (ind + 1)
-                    | Result.Error fails -> validateOneOf' (Result.Error(JsonSchemaResultData.merge result fails)) (ind + 1)
+                    | Result.Error fails ->
+                        validateOneOf' (Result.Error(JsonSchemaResultData.merge result fails)) (ind + 1)
                     | Result.Ok _ when isMatch ->
                         JsonSchemaResultData.createFailedFromSingle schemaPath jsonPath (Error "More than one match")
                     | Result.Ok _ -> validateOneOf' acc (ind + 1)
@@ -895,9 +945,11 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
         | UnevaluatedItems subSchema ->
             match json with
             | Array a ->
+                let matchedItemsDeep = acc.current.matchedItemsDeep
+
                 a
                 |> addManyMapi (fun i json ->
-                    if Set.contains i acc.matchedItemsDeep then
+                    if Set.contains i matchedItemsDeep then
                         JsonSchemaResultData.empty
                     else
                         { (validateSubSchema false $"{jsonPath}/{i}" subSchema json) with
@@ -974,8 +1026,10 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
         | UnevaluatedProperties subSchema ->
             match json with
             | Object o ->
+                let matchedPropertiesDeep = acc.current.matchedPropertiesDeep
+
                 o
-                |> Seq.filter (fun (KeyValue(prop, _)) -> not (Set.contains prop acc.matchedPropertiesDeep))
+                |> Seq.filter (fun (KeyValue(prop, _)) -> not (Set.contains prop matchedPropertiesDeep))
                 |> addManyMapi (fun _ (KeyValue(prop, v)) ->
                     { (validateSubSchema false $"{jsonPath}/{prop}" subSchema v) with
                         matchedPropertiesDeep = Set.empty })
@@ -1028,6 +1082,7 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
 
     and validateSubSchema isInsideRef jsonPath (schema: JsonSubSchema) (json: JsonTree) : JsonSchemaResultData =
         schema
-        |> PerfSeq.fold (processSingle isInsideRef jsonPath json) JsonSchemaResultData.empty
+        |> PerfSeq.fold (processSingle isInsideRef jsonPath json) JsonSchemaResultState.empty
+        |> _.current
 
     validateSubSchema false "" rootSchema.schema rootJson |> _.result
