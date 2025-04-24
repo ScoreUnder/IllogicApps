@@ -513,24 +513,15 @@ let private countDistinct (cmpf: 'a -> 'a -> int) (seq: 'a seq) =
     Seq.iter (fun x -> seenSet.Add x |> ignore) seq
     seenSet.Count
 
-type 't JsonSchemaSingleResult =
-    | Ok of 't
+type JsonSchemaSingleResult =
+    | Ok
     | Error of string
     | Warning of string
-
-module JsonSchemaSingleResult =
-    let map f =
-        function
-        | Ok x -> Ok(f x)
-        | Error e -> Error e
-        | Warning w -> Warning w
-
-    let okUnit = Ok()
 
 type JsonSchemaResultMessage =
     { schemaPath: string
       jsonPath: string
-      result: unit JsonSchemaSingleResult }
+      result: JsonSchemaSingleResult }
 
 type JsonSchemaResult =
     { messages: JsonSchemaResultMessage list
@@ -562,7 +553,7 @@ module JsonSchemaResult =
                   result = Warning v }
                 :: result.messages
               isMatch = result.isMatch }
-        | Ok _ -> result
+        | Ok -> result
 
     let mergeMany results result = List.fold merge result results
 
@@ -570,7 +561,7 @@ module JsonSchemaResult =
         messages
         |> List.map (fun m ->
             match m.result with
-            | Ok _ -> ""
+            | Ok -> ""
             | Warning v -> $"Warning: {m.schemaPath} {m.jsonPath} {v}"
             | Error v -> $"Error: {m.schemaPath} {m.jsonPath} {v}")
         |> String.concat "\n"
@@ -606,9 +597,9 @@ module JsonSchemaResultData =
             { origResult with
                 result = JsonSchemaResult.merge newResult.result origResult.result }
 
-    let add schemaPath jsonPath (single: 'a JsonSchemaSingleResult) result =
+    let add schemaPath jsonPath (single: JsonSchemaSingleResult) result =
         match single with
-        | Ok _ -> result
+        | Ok -> result
         | _ ->
             { result with
                 JsonSchemaResultData.result = JsonSchemaResult.add schemaPath jsonPath single result.result }
@@ -622,32 +613,24 @@ module JsonSchemaResultData =
                 { messages =
                     [ { schemaPath = schemaPath
                         jsonPath = jsonPath
-                        result = value |> JsonSchemaSingleResult.map (fun _ -> ()) } ]
+                        result = value } ]
                   isMatch = false } }
-
-    let extractFromSingle schemaPath jsonPath =
-        function
-        | Ok v -> v
-        | message -> createFailedFromSingle schemaPath jsonPath message
 
 let resolveRef (schema: JsonSchema) (refName: string) =
     if refName = "#" then
-        Ok schema.schema
+        Result.Ok schema.schema
     else
         match Map.tryFind refName schema.subSchemas with
-        | Some subSchema -> Ok subSchema
-        | None -> Warning $"Reference {refName} not found in schema"
+        | Some subSchema -> Result.Ok subSchema
+        | None -> Result.Error $"Reference {refName} not found in schema"
 
 let inline private validateSimple2 ([<InlineIfLambda>] f: unit -> bool) ([<InlineIfLambda>] message: unit -> string) =
-    if f () then
-        JsonSchemaSingleResult.okUnit
-    else
-        Error(message ())
+    if f () then Ok else Error(message ())
 
 let private validateSimple f message =
     function
-    | None -> JsonSchemaSingleResult.okUnit
-    | Some v when f v -> JsonSchemaSingleResult.okUnit
+    | None -> Ok
+    | Some v when f v -> Ok
     | _ -> Error message
 
 let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchemaResult =
@@ -716,11 +699,12 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
             |> addFull
         | Ref refName ->
             if isInsideRef then
-                Warning "Not allowed to nest refs (infinite recursion possible)"
+                Result.Error "Not allowed to nest refs (infinite recursion possible)"
             else
                 resolveRef rootSchema refName
-                |> JsonSchemaSingleResult.map (fun schema -> validateSubSchema true jsonPath schema json)
-            |> JsonSchemaResultData.extractFromSingle schemaPath jsonPath
+                |> Result.map (fun schema -> validateSubSchema true jsonPath schema json)
+            |> Result.defaultWith (fun err ->
+                JsonSchemaResultData.createFailedFromSingle schemaPath jsonPath (Warning err))
             |> addFull
         | MinLength minLength ->
             match json with
