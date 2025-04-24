@@ -1,5 +1,6 @@
 module IllogicApps.Json.Test.JsonSchemaTests
 
+open System.Collections.Immutable
 open NUnit.Framework
 open Swensen.Unquote
 
@@ -28,7 +29,10 @@ let ``Test simple enum schema is as expected after parsing`` () =
     test
         <@
             data = { emptyJsonSchema with
-                       schema = [ "/enum", Enum [ Integer 1; Integer 2; String "oatmeal" ] ] }
+                       schema =
+                           ImmutableArray.Create(
+                               ("/enum", Enum(ImmutableArray.CreateRange([ Integer 1; Integer 2; String "oatmeal" ])))
+                           ) }
         @>
 
 let ``simple enum schema matching test cases`` =

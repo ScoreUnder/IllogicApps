@@ -6,6 +6,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Include="PerfSeq.fs" />
         <Compile Include="DataStructures\MutableOrderedMap.fs"/>
         <Compile Include="DataStructures\OrderedMap.fs"/>
         <Compile Include="SerialisationHelper.fs"/>
