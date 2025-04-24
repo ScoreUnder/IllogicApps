@@ -445,9 +445,9 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
 
             let builder = ImmutableArray.CreateBuilder<string * JsonSchemaExec>()
             builder.AddRange ifBlock
-            builder.AddRange(List.rev execFirst)
-            builder.AddRange(List.rev execMid)
-            builder.AddRange(List.rev execLast)
+            builder.AddRange execFirst
+            builder.AddRange execMid
+            builder.AddRange execLast
             builder.DrainToImmutable(), refs
 
     | _ ->
