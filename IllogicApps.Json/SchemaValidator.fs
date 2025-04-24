@@ -1,6 +1,7 @@
 module IllogicApps.Json.SchemaValidator
 
 open System.Collections.Generic
+open System.Collections.Immutable
 
 type StringComparison = System.StringComparison
 type SortedSet<'T> = System.Collections.Generic.SortedSet<'T>
@@ -80,7 +81,7 @@ type JsonSchemaExec =
 
     // Generic schemas
     | Invalid
-    | TypeTest of SchemaType list
+    | TypeTest of SchemaType ImmutableArray
     | Enum of JsonTree list
     | Const of JsonTree
 
@@ -139,10 +140,10 @@ let trueJsonSubSchema: JsonSubSchema = []
 let falseJsonSubSchema schemaPath : JsonSubSchema = [ schemaPath, Invalid ]
 let emptyJsonSchema: JsonSchema = { schema = []; subSchemas = Map.empty }
 
-let private mapArrayOrSingle f =
+let private mapArrayOrSingle (f: JsonTree -> 'a) =
     function
-    | Array a -> a |> Seq.map f |> List.ofSeq
-    | v -> [ f v ]
+    | Array a -> a |> Seq.map f |> ImmutableArray.CreateRange
+    | v -> ImmutableArray.Create(f v)
 
 type private SubSchemaParseState =
     { ifCond: JsonSubSchema option
@@ -688,7 +689,7 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
             validateSimple2 (fun () -> jsonsEqual json value) (fun () -> "Const value not correct")
             |> addOne
         | TypeTest types ->
-            validateSimple2 (fun () -> List.exists (fun t -> typesMatch t json) types) (fun () ->
+            validateSimple2 (fun () -> Seq.exists (fun t -> typesMatch t json) types) (fun () ->
                 $"Type mismatch: expected {types}")
             |> addOne
         | IfThenElse(cond, thenBlock, elseBlock) ->
