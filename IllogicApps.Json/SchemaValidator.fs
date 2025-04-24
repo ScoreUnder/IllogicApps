@@ -700,13 +700,13 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
 
             validateAnyOf' [] 0 |> addFull
         | OneOf subSchemas ->
-            let rec validateOneOf' (acc: Result<JsonSchemaResultData, JsonSchemaResultData list>) ind =
+            let rec validateOneOf' (acc: Result<JsonSchemaResultData, JsonSchemaResultData>) ind =
                 if ind = subSchemas.Length then
                     match acc with
                     | Result.Ok result -> result
                     | Result.Error fails ->
-                        JsonSchemaResultData.mergeMany
-                            (List.rev fails)
+                        JsonSchemaResultData.merge
+                            fails
                             (JsonSchemaResultData.createFailedFromSingle schemaPath jsonPath (Error "No match"))
                 else
                     let subSchema = subSchemas.[ind]
@@ -715,12 +715,12 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
 
                     match acc with
                     | Result.Error _ when isMatch -> validateOneOf' (Result.Ok result) (ind + 1)
-                    | Result.Error fails -> validateOneOf' (Result.Error(result :: fails)) (ind + 1)
+                    | Result.Error fails -> validateOneOf' (Result.Error(JsonSchemaResultData.merge result fails)) (ind + 1)
                     | Result.Ok _ when isMatch ->
                         JsonSchemaResultData.createFailedFromSingle schemaPath jsonPath (Error "More than one match")
                     | Result.Ok _ -> validateOneOf' acc (ind + 1)
 
-            validateOneOf' (Result.Error []) 0 |> addFull
+            validateOneOf' (Result.Error JsonSchemaResultData.empty) 0 |> addFull
         | Enum values ->
             validateSimple2 (fun () -> PerfSeq.exists (jsonsEqual json) values) (fun () -> "Enum value not correct")
             |> addOne
