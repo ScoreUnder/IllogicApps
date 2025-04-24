@@ -712,12 +712,12 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
         (acc: JsonSchemaResultState)
         (schemaPath, schemaExec)
         : JsonSchemaResultState =
-        let addOne result =
+        let inline addOne result =
             JsonSchemaResultState.add schemaPath jsonPath result acc
 
-        let addFull result = JsonSchemaResultState.merge result acc
+        let inline addFull result = JsonSchemaResultState.merge result acc
 
-        let addMany results =
+        let inline addMany results =
             JsonSchemaResultState.mergeMany results acc
 
         let inline addManyMapi f results =
