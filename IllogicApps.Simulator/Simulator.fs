@@ -278,16 +278,21 @@ type private ScopeContextImpl
         let getNextActions name =
             Map.tryFind name dependencyGraph |> Option.defaultValue []
 
-        let maybeShuffle lst =
+        let pickRandom list =
+            let index = Random.Shared.Next(0, List.length list)
+            let head, item :: tail = List.splitAt index list
+            item :: head @ tail
+
+        let maybePickRandom lst =
             if simulator.IsNondeterministic then
                 match lst with
-                | _ :: _ :: _ -> List.randomShuffle lst
+                | _ :: _ :: _ -> pickRandom lst
                 | _ -> lst
             else
                 lst
 
         let rec executeNext actionQueue =
-            match actionQueue with
+            match maybePickRandom actionQueue with
             | [] -> ()
             | actionName :: rest ->
                 match remainingActions.TryGetValue actionName with
@@ -326,10 +331,9 @@ type private ScopeContextImpl
                         // This action's dependencies are not yet complete, try again once something else finishes
                         // (it's ok to not put it back in the queue, as it will be re-added when its next dependency is completed)
                         rest
-                    |> maybeShuffle
                     |> executeNext
 
-        executeNext (maybeShuffle (getNextActions ""))
+        executeNext (getNextActions "")
 
         if Result.isError simulator.TerminationStatus then
             Cancelled
