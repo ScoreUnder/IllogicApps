@@ -525,6 +525,8 @@ module JsonSchemaSingleResult =
         | Error e -> Error e
         | Warning w -> Warning w
 
+    let okUnit = Ok()
+
 type JsonSchemaResultMessage =
     { schemaPath: string
       jsonPath: string
@@ -637,12 +639,15 @@ let resolveRef (schema: JsonSchema) (refName: string) =
         | None -> Warning $"Reference {refName} not found in schema"
 
 let inline private validateSimple2 ([<InlineIfLambda>] f: unit -> bool) ([<InlineIfLambda>] message: unit -> string) =
-    if f () then Ok() else Error(message ())
+    if f () then
+        JsonSchemaSingleResult.okUnit
+    else
+        Error(message ())
 
 let private validateSimple f message =
     function
-    | None -> Ok()
-    | Some v when f v -> Ok()
+    | None -> JsonSchemaSingleResult.okUnit
+    | Some v when f v -> JsonSchemaSingleResult.okUnit
     | _ -> Error message
 
 let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchemaResult =
