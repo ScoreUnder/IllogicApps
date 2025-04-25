@@ -430,8 +430,8 @@ module JsonSchemaResult =
         |> List.map (fun m ->
             match m.result with
             | Ok -> ""
-            | Warning v -> $"Warning: {m.schemaPath} {m.jsonPath} {v}"
-            | Error v -> $"Error: {m.schemaPath} {m.jsonPath} {v}")
+            | Warning v -> $"Warning: At schema#{m.schemaPath}, json#{m.jsonPath}: {v}"
+            | Error v -> $"Error: At schema#{m.schemaPath} json#{m.jsonPath}: {v}")
         |> String.concat "\n"
 
 type private JsonSchemaResultData =
