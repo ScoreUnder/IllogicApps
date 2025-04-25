@@ -282,8 +282,10 @@ type private ScopeContextImpl
 
         let pickRandom list =
             let index = Random.Shared.Next(0, List.length list)
-            let head, item :: tail = List.splitAt index list
-            item :: head @ tail
+            // let head, item :: tail = List.splitAt index list
+            match List.splitAt index list with
+            | head, item :: tail -> item :: head @ tail
+            | _, [] -> failwith "pickRandom: exceeded list length"
 
         let maybePickRandom lst =
             if simulator.IsNondeterministic then
