@@ -5,7 +5,7 @@ open Swensen.Unquote
 
 open IllogicApps.Json
 open IllogicApps.Json.Conversions
-open IllogicApps.Json.Parser
+open IllogicApps.Json.JsonParser
 
 [<Test>]
 let ``Round-tripping a empty string`` () =

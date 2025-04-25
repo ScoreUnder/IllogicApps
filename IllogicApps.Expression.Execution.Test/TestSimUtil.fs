@@ -225,7 +225,7 @@ let stringTest expr expected =
     testOrTrace expr <@ String expected = testExpressionEvaluation expr @>
 
 let objTest expr expected =
-    testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
+    testOrTrace expr <@ JsonParser.parse expected = testExpressionEvaluation expr @>
 
 let jsonTest (expr: string) (expected: JsonTree) =
     testOrTrace expr <@ expected = testExpressionEvaluation expr @>
@@ -246,7 +246,7 @@ let boolOrFailTest (expr: string) (expected: Result<bool, string>) =
 
 let objOrFailTest (expr: string) (expected: Result<string, string>) =
     match expected with
-    | Ok expected -> testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
+    | Ok expected -> testOrTrace expr <@ JsonParser.parse expected = testExpressionEvaluation expr @>
     | Error expected ->
         raisesWithOrTrace<System.Exception> expr <@ testExpressionEvaluation expr @> (fun e ->
             let message = e.Message in <@ message.Contains(expected) @>)

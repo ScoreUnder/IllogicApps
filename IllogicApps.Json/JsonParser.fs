@@ -1,4 +1,4 @@
-module IllogicApps.Json.Parser
+module IllogicApps.Json.JsonParser
 
 open System
 open System.Collections.Immutable
@@ -151,6 +151,7 @@ let private getNumWhitespaces (str: char ReadOnlySpan) =
     |> Vector256.OnesComplement
     |> countMatches
 
+[<CompiledName("Parse")>]
 let parse (str: string) =
     let rec parse' (index: int) (state: ParserState) (stack: ConstructingState list) =
         if index = str.Length then

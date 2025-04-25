@@ -87,7 +87,7 @@ let resolveTrigger (json: JsonTree) =
     parseAction json
 
 let decodeLogicApp (json: string) =
-    Parser.parse json |> LogicAppSpec.rootOfJson resolveTrigger resolveAction
+    JsonParser.parse json |> LogicAppSpec.rootOfJson resolveTrigger resolveAction
 
 let readLogicApp path =
     System.IO.File.ReadAllText path |> decodeLogicApp

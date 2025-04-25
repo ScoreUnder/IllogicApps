@@ -30,7 +30,7 @@ let StringAtSignPassthroughTest (str: string) =
 [<TestCase("@true")>]
 [<TestCase("@false")>]
 let LiteralParsingTest (expr: string) =
-    test <@ Parser.parse expr.[1..] = testExpressionEvaluation expr @>
+    test <@ JsonParser.parse expr.[1..] = testExpressionEvaluation expr @>
 
 [<TestCase("@1", 1L)>]
 [<TestCase("@-51", -51L)>]

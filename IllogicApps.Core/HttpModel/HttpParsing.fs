@@ -159,7 +159,7 @@ and decodeBodyByContentType (contentType: string) (body: byte array) =
         plainDecodeByContentType contentType body
 
     if ContentType.isJson contentType then
-        Parser.parse (decodeBody ())
+        JsonParser.parse (decodeBody ())
     elif ContentType.isAnyText contentType then
         String(decodeBody ())
     elif ContentType.isMultipartFormData contentType then

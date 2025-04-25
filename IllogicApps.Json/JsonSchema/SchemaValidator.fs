@@ -9,144 +9,6 @@ type IComparer<'T> = System.Collections.Generic.IComparer<'T>
 
 open IllogicApps.Json.Conversions
 
-// https://json-schema.org/draft/2020-12/json-schema-core
-
-// 4.2.1 Instance Data Model
-[<RequireQualifiedAccess>]
-type SchemaType =
-    | Null
-    | Boolean
-    | Object
-    | Array
-    | Number
-    | Integer
-    | String
-
-let schemaTypeOfString =
-    function
-    | "null" -> SchemaType.Null
-    | "boolean" -> SchemaType.Boolean
-    | "object" -> SchemaType.Object
-    | "array" -> SchemaType.Array
-    | "number" -> SchemaType.Number
-    | "integer" -> SchemaType.Integer
-    | "string" -> SchemaType.String
-    | v -> failwithf "Unknown schema type: %s" v
-
-// 4.2.2 Instance Equality
-let rec compareJsons (a: JsonTree) (b: JsonTree) : int =
-    match a, b with
-    | JsonTree.Null, JsonTree.Null -> 0
-    | JsonTree.Boolean a, JsonTree.Boolean b -> compare a b
-    | JsonTree.String a, JsonTree.String b -> compare a b
-    | NumbersAsInteger(a, b) -> compare a b
-    | NumbersAsFloat(a, b) -> compare a b
-    | NumbersAsDecimal(a, b) -> compare a b
-    | JsonTree.Array a, JsonTree.Array b ->
-        let lengthCompare = compare a.Length b.Length
-
-        if lengthCompare <> 0 then
-            lengthCompare
-        else
-            Seq.map2 compareJsons a b
-            |> Seq.tryFind (fun x -> x <> 0)
-            |> Option.defaultValue 0
-    | JsonTree.Object a, JsonTree.Object b ->
-        let countCompare = compare a.Count b.Count
-
-        if countCompare <> 0 then
-            countCompare
-        else
-            let keysCompare =
-                Seq.map2 compare (Seq.sort a.Keys) (Seq.sort b.Keys)
-                |> Seq.tryFind (fun x -> x <> 0)
-                |> Option.defaultValue 0
-
-            if keysCompare <> 0 then
-                keysCompare
-            else
-                Seq.tryPick (fun k1 -> let c = compareJsons a.[k1] b.[k1] in if c <> 0 then Some c else None) a.Keys
-                |> Option.defaultValue 0
-    | _ -> compare (JsonTree.getType a) (JsonTree.getType b)
-
-let jsonsEqual (a: JsonTree) (b: JsonTree) = compareJsons a b = 0
-
-type JsonSchemaExec =
-    // Subschema combinators
-    | Not of JsonSubSchema
-    | AllOf of JsonSubSchema ImmutableArray
-    | AnyOf of JsonSubSchema ImmutableArray
-    | OneOf of JsonSubSchema ImmutableArray
-    | IfThenElse of JsonSubSchema * JsonSubSchema * JsonSubSchema
-
-    // Generic schemas
-    | Invalid
-    | TypeTest of SchemaType ImmutableArray
-    | Enum of JsonTree ImmutableArray
-    | Const of JsonTree
-
-    // Embedded data schemas
-    // TODO! https://json-schema.org/understanding-json-schema/reference/non_json_data
-    // | ContentMediaType of string
-    // | ContentEncoding of string
-    // | ContentSchema of JsonSchema
-
-    // String schemas
-    | MinLength of int
-    | MaxLength of int
-    | Pattern of string
-
-    // Number schemas
-    | MultipleOf of decimal
-    | Minimum of decimal
-    | ExclusiveMinimum of decimal
-    | Maximum of decimal
-    | ExclusiveMaximum of decimal
-
-    // Array schemas
-    | Items of JsonSubSchema
-    | PrefixItems of JsonSubSchema ImmutableArray
-    | PrefixItemsAll of JsonSubSchema
-    | UnevaluatedItems of JsonSubSchema
-    | Contains of JsonSubSchema
-    | MinContains of int
-    | MaxContains of int
-    | MinItems of int
-    | MaxItems of int
-    | UniqueItems
-
-    // Object schemas
-    | Properties of OrderedMap<string, JsonSubSchema>
-    | PatternProperties of OrderedMap<string, JsonSubSchema>
-    | AdditionalProperties of JsonSubSchema
-    | UnevaluatedProperties of JsonSubSchema
-    | Required of string ImmutableArray
-    | PropertyNames of JsonSubSchema
-    | MinProperties of int
-    | MaxProperties of int
-    | DependentRequired of OrderedMap<string, string ImmutableArray>
-    | DependentSchemas of OrderedMap<string, JsonSubSchema>
-
-    // Defs and refs
-    | Ref of string
-
-and JsonSubSchema = (string * JsonSchemaExec) ImmutableArray
-
-and JsonSchema =
-    { schema: JsonSubSchema
-      subSchemas: Map<string, JsonSubSchema> }
-
-type private BuildJsonSubSchema = (string * JsonSchemaExec) list
-
-let trueJsonSubSchema: JsonSubSchema = ImmutableArray.Empty
-
-let falseJsonSubSchema schemaPath : JsonSubSchema =
-    ImmutableArray.Create((schemaPath, Invalid))
-
-let emptyJsonSchema: JsonSchema =
-    { schema = ImmutableArray.Empty
-      subSchemas = Map.empty }
-
 let private mapArrayOrSingle (f: JsonTree -> 'a) =
     function
     | Array a -> a |> Seq.map f |> ImmutableArray.CreateRange
@@ -227,8 +89,8 @@ let private subSchemaKeyMap =
 /// <returns>the parsed sub-schema and a set of all referenced sub-schemas</returns>
 let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * string Set =
     match json with
-    | Boolean true -> trueJsonSubSchema, Set.empty
-    | Boolean false -> falseJsonSubSchema schemaPath, Set.empty
+    | Boolean true -> JsonSubSchema.alwaysTrue, Set.empty
+    | Boolean false -> JsonSubSchema.alwaysFalse schemaPath, Set.empty
     | Object o ->
         o
         |> OrderedMap.unorderedFold
@@ -242,7 +104,7 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
                 v ->
                 match subSchemaKeyMap.GetValueOrDefault(k, SubSchemaKeyType.Unknown) with
                 | SubSchemaKeyType.Type ->
-                    let types = v |> mapArrayOrSingle (ensureString >> schemaTypeOfString)
+                    let types = v |> mapArrayOrSingle (ensureString >> SchemaType.ofString)
                     ($"{schemaPath}/{k}", TypeTest types) :: execFirst, execMid, execLast, refs, state
                 | SubSchemaKeyType.EarlySubSchema ->
                     let subSchema, refs2 = subSchemaOfJson $"{schemaPath}/{k}" v
@@ -439,8 +301,8 @@ let rec subSchemaOfJson (schemaPath: string) (json: JsonTree) : JsonSubSchema * 
                     [ schemaPath,
                       IfThenElse(
                           cond,
-                          state.thenBlock |> Option.defaultValue trueJsonSubSchema,
-                          state.elseBlock |> Option.defaultValue trueJsonSubSchema
+                          state.thenBlock |> Option.defaultValue JsonSubSchema.alwaysTrue,
+                          state.elseBlock |> Option.defaultValue JsonSubSchema.alwaysTrue
                       ) ]
 
             let builder = ImmutableArray.CreateBuilder<string * JsonSchemaExec>()
@@ -509,21 +371,6 @@ let jsonSchemaOfJson json =
 
     { schema = initialSubSchema
       subSchemas = resolveRefs initialRefs Map.empty }
-
-let typesMatch (schemaType: SchemaType) (json: JsonTree) =
-    match schemaType, json with
-    | SchemaType.Null, Null -> true
-    | SchemaType.Boolean, Boolean _ -> true
-    | SchemaType.Object, Object _ -> true
-    | SchemaType.Array, Array _ -> true
-    | SchemaType.Number, Integer _ -> true
-    | SchemaType.Number, Float _ -> true
-    | SchemaType.Number, Decimal _ -> true
-    | SchemaType.Integer, Integer _ -> true
-    | SchemaType.Integer, Float f when System.Double.IsInteger(f) -> true
-    | SchemaType.Integer, Decimal d when System.Decimal.Truncate(d) = d -> true
-    | SchemaType.String, String _ -> true
-    | _ -> false
 
 let private countDistinct (cmpf: 'a -> 'a -> int) (seq: 'a seq) =
     let comparer =
@@ -772,13 +619,15 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
 
             validateOneOf' (Result.Error JsonSchemaResultData.empty) 0 |> addFull
         | Enum values ->
-            validateSimple2 (fun () -> PerfSeq.exists (jsonsEqual json) values) (fun () -> "Enum value not correct")
+            validateSimple2 (fun () -> PerfSeq.exists (JsonCompare.jsonsEqual json) values) (fun () ->
+                "Enum value not correct")
             |> addOne
         | Const value ->
-            validateSimple2 (fun () -> jsonsEqual json value) (fun () -> "Const value not correct")
+            validateSimple2 (fun () -> JsonCompare.jsonsEqual json value) (fun () -> "Const value not correct")
             |> addOne
         | TypeTest types ->
-            validateSimple2 (fun () -> PerfSeq.exists (fun t -> typesMatch t json) types) (fun () -> "Type not correct")
+            validateSimple2 (fun () -> PerfSeq.exists (fun t -> JsonCompare.typesMatch t json) types) (fun () ->
+                "Type not correct")
             |> addOne
         | IfThenElse(cond, thenBlock, elseBlock) ->
             if (validateSubSchema isInsideRef jsonPath cond json).result.isMatch then
@@ -970,7 +819,7 @@ let validateJsonSchema (rootSchema: JsonSchema) (rootJson: JsonTree) : JsonSchem
         | UniqueItems ->
             match json with
             | Array a ->
-                validateSimple2 (fun () -> countDistinct compareJsons a = a.Length) (fun () ->
+                validateSimple2 (fun () -> countDistinct JsonCompare.compareJsons a = a.Length) (fun () ->
                     "Array contains duplicate items")
                 |> addOne
             | _ -> acc

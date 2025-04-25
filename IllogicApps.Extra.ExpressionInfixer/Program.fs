@@ -14,7 +14,7 @@ let main args =
     // Attempt to parse input as a JSON string first, because that's easier to copy-paste
     let input =
         try
-            Parser.parse input |> Conversions.ensureString
+            JsonParser.parse input |> Conversions.ensureString
         with _ ->
             input
 

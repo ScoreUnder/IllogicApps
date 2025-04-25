@@ -104,5 +104,5 @@ let testConfigurationOfJson json =
 let readTestConfiguration filename =
     filename
     |> System.IO.File.ReadAllText
-    |> Parser.parse
+    |> JsonParser.parse
     |> testConfigurationOfJson

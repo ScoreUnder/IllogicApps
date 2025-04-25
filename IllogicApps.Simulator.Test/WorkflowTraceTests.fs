@@ -227,7 +227,7 @@ let ``Test IllogicApps output matches logic app trace for workflows that respond
         readTestCase (workflowName, traceName)
 
     let expectedResponseStr = Encoding.UTF8.GetString(expectedResponse.body)
-    let parsedExpectedResponse = Parser.parse expectedResponseStr
+    let parsedExpectedResponse = JsonParser.parse expectedResponseStr
 
     let relativePathPart, parsedQuery = parsePathAndQuery request
 

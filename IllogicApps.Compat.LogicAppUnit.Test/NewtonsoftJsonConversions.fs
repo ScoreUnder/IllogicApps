@@ -13,10 +13,10 @@ let ``JSON round-trip test cases`` =
 
 [<TestCaseSource(nameof ``JSON round-trip test cases``)>]
 let ``Test Illogic-to-Newtonsoft conversion`` expr =
-    let illogic = Parser.parse expr
+    let illogic = JsonParser.parse expr
     let newtonsoft = newtonsoftJsonOfIllogicJson illogic
     let newtonsoftString = newtonsoft.ToString()
-    let illogicOfString = Parser.parse newtonsoftString
+    let illogicOfString = JsonParser.parse newtonsoftString
     test <@ illogicOfString = illogic @>
 
 [<TestCaseSource(nameof ``JSON round-trip test cases``)>]

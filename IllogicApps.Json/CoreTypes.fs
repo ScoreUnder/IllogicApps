@@ -1,5 +1,4 @@
-﻿[<AutoOpen>]
-module IllogicApps.Json.CoreTypes
+﻿namespace IllogicApps.Json
 
 open System.Collections.Immutable
 open System.Text

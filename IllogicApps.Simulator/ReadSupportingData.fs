@@ -10,7 +10,7 @@ let appSettingsOfJson json =
     |> OrderedMap.map (fun k v -> k.Replace("__", ":"), Conversions.ensureString v)
 
 let readAppSettings path =
-    path |> System.IO.File.ReadAllText |> Parser.parse |> appSettingsOfJson
+    path |> System.IO.File.ReadAllText |> JsonParser.parse |> appSettingsOfJson
 
 let parametersOfJson json =
     json
@@ -18,4 +18,4 @@ let parametersOfJson json =
     |> OrderedMap.mapValuesOnly (fun v -> assertParameterType (parameterOfJson v))
 
 let readParameters path =
-    path |> System.IO.File.ReadAllText |> Parser.parse |> parametersOfJson
+    path |> System.IO.File.ReadAllText |> JsonParser.parse |> parametersOfJson

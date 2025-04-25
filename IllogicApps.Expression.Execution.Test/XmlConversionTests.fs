@@ -293,7 +293,7 @@ let InvalidXmlEncodingTest expr =
 
 [<TestCase("@xml(binary('<'))", """{"$content-type":"application/xml;charset=utf-8","$content":"PA=="}""")>]
 let AllowInvalidXmlOfBinaryTest expr (expected: string) =
-    testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
+    testOrTrace expr <@ JsonParser.parse expected = testExpressionEvaluation expr @>
 
 [<TestCase("@json(xml(binary('<')))")>]
 let InvalidXmlOfBinaryToJsonTest expr =
@@ -303,9 +303,9 @@ let InvalidXmlOfBinaryToJsonTest expr =
 
 [<TestCase("@binary(xml('<root/>'))", """{"$content-type":"application/octet-stream","$content":"PHJvb3QgLz4="}""")>]
 let BinaryOfXmlTest expr (expected: string) =
-    testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
+    testOrTrace expr <@ JsonParser.parse expected = testExpressionEvaluation expr @>
 
 [<TestCase("@xml(json('{\"$content\":\"dGVzdA==\",\"$content-type\":\"text/plain;charset=ascii\"}'))",
            """{"$content-type":"application/xml;charset=utf-8","$content":"dGVzdA=="}""")>]
 let XmlOfBinaryIgnoresContentTypeTest expr (expected: string) =
-    testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
+    testOrTrace expr <@ JsonParser.parse expected = testExpressionEvaluation expr @>

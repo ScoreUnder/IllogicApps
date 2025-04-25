@@ -4,7 +4,7 @@ open NUnit.Framework
 open Swensen.Unquote
 open IllogicApps.Json
 open IllogicApps.Json.Conversions
-open IllogicApps.Json.Parser
+open IllogicApps.Json.JsonParser
 
 [<Test>]
 let ``Parse empty string`` () = test <@ parse "\"\"" = String "" @>

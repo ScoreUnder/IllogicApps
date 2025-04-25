@@ -29,7 +29,7 @@ let testAppSettings =
     """
 
 let parsedAppSettings =
-    lazy trap <@ appSettingsOfJson <| Parser.parse testAppSettings @>
+    lazy trap <@ appSettingsOfJson <| JsonParser.parse testAppSettings @>
 
 [<Test>]
 let ``Test got expected local settings`` () =
@@ -57,7 +57,7 @@ let ``Test cannot parse nested app configs`` () =
     }
     """
 
-    let parsed = trap <@ Parser.parse testBrokenAppSettings @>
+    let parsed = trap <@ JsonParser.parse testBrokenAppSettings @>
     raises <@ appSettingsOfJson parsed @>
 
 let testParameters =
@@ -81,7 +81,7 @@ let testParameters =
     }"""
 
 let parsedTestParameters =
-    lazy trap <@ parametersOfJson <| Parser.parse testParameters @>
+    lazy trap <@ parametersOfJson <| JsonParser.parse testParameters @>
 
 let valTesting =
     { type_ = VariableType.Object
@@ -118,7 +118,7 @@ let ``Test that integer type is called int`` () =
         }
         """
 
-    let data = trap <@ parametersOfJson <| Parser.parse data @>
+    let data = trap <@ parametersOfJson <| JsonParser.parse data @>
 
     let valIntsAreCalledIntTest =
         { type_ = VariableType.Integer
@@ -138,7 +138,7 @@ let ``Test that integer type is not called integer`` () =
         }
         """
 
-    let data = trap <@ Parser.parse data @>
+    let data = trap <@ JsonParser.parse data @>
     raises <@ parametersOfJson data @>
 
 [<Test>]
@@ -163,7 +163,7 @@ let ``Test that parameters is almost completely case insensitive`` () =
           }
         }"""
 
-    let parsed = trap <@ parametersOfJson <| Parser.parse messyTestParameters @>
+    let parsed = trap <@ parametersOfJson <| JsonParser.parse messyTestParameters @>
 
     test
         <@
@@ -184,7 +184,7 @@ let ``Test that parameters does not accept null even as object`` () =
         }
         """
 
-    let data = trap <@ Parser.parse data @>
+    let data = trap <@ JsonParser.parse data @>
     raises <@ parametersOfJson data @>
 
 [<Test>]
@@ -198,7 +198,7 @@ let ``Test that parameters does not accept missing values`` () =
         }
         """
 
-    let data = trap <@ Parser.parse data @>
+    let data = trap <@ JsonParser.parse data @>
     raises <@ parametersOfJson data @>
 
 [<Test>]
@@ -213,7 +213,7 @@ let ``Test that parameters does not upcast int to float`` () =
         }
         """
 
-    let data = trap <@ Parser.parse data @>
+    let data = trap <@ JsonParser.parse data @>
     raises <@ parametersOfJson data @>
 
 [<Test>]
@@ -246,7 +246,7 @@ let ``Test that parameters cannot use any function other than appsetting`` () =
         }
         """
 
-    let data = trap <@ parametersOfJson <| Parser.parse data @>
+    let data = trap <@ parametersOfJson <| JsonParser.parse data @>
 
     let sim =
         Simulator.CreateUntriggered

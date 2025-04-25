@@ -24,7 +24,7 @@ let ``Test variable names are case-insensitive`` () =
 [<Test>]
 let ``Test conditions cannot have their function names interpolated`` () =
     let condition =
-        Parser.parse
+        JsonParser.parse
             """
     {"and": [
         {"equals": [1, 1]},
@@ -39,7 +39,7 @@ let ``Test conditions cannot have their function names interpolated`` () =
 [<Test>]
 let ``Test conditions cannot test arrays`` () =
     let condition =
-        Parser.parse
+        JsonParser.parse
             """
     {"equals": [[], []]}
     """

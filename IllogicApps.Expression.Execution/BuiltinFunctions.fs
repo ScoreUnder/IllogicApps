@@ -722,10 +722,10 @@ let f_json (sim: SimulatorContext) (args: Args) : JsonTree =
             writer.Close()
             writer.Result
         else if ContentType.isBinary contentType then
-            content |> ContentType.Charset.decodeBytes contentType |> Parser.parse
+            content |> ContentType.Charset.decodeBytes contentType |> JsonParser.parse
         else
             failwithf "Unknown content type %s" contentType
-    | arg -> Conversions.ensureString arg |> Parser.parse
+    | arg -> Conversions.ensureString arg |> JsonParser.parse
 
 let f_string _ (args: Args) : JsonTree =
     expectArgs 1 args

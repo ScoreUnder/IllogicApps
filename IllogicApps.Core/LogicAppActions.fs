@@ -488,7 +488,7 @@ type ParseJson(json) =
 
         let result =
             match evaluatedContent with
-            | String input -> input |> Parser.parse
+            | String input -> input |> JsonParser.parse
             | json -> json
 
         printfn "ParseJson Result: %s" (Conversions.prettyStringOfJson result)

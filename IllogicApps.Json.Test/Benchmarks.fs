@@ -20,7 +20,7 @@ let bigJson =
         stream.ReadToEnd()
 
 type GetterBenchmarks() =
-    let alreadyParsed = Parser.parse bigJson.Value
+    let alreadyParsed = JsonParser.parse bigJson.Value
 
     let alreadyParsedSystemTextNode = JsonNode.Parse(bigJson.Value)
 
@@ -81,14 +81,14 @@ type GetterBenchmarks() =
 
 type ParserBenchmark() =
     [<Benchmark(Baseline = true)>]
-    member _.ParseBigJson() = Parser.parse bigJson.Value
+    member _.ParseBigJson() = JsonParser.parse bigJson.Value
 
     [<Benchmark>]
     member _.SystemTextJson() =
         System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.Nodes.JsonNode>(bigJson.Value)
 
 type SerialiserBenchmark() =
-    let alreadyParsed = Parser.parse bigJson.Value
+    let alreadyParsed = JsonParser.parse bigJson.Value
 
     let alreadyParsedSystemTextNode = JsonNode.Parse(bigJson.Value)
 
@@ -133,7 +133,7 @@ type SchemaValidatorBenchmark() =
         """
 
     let parsedTypeCheckedObjectAndArraySchema =
-        SchemaValidator.jsonSchemaOfJson (Parser.parse typeCheckedObjectAndArraySchema)
+        SchemaValidator.jsonSchemaOfJson (JsonParser.parse typeCheckedObjectAndArraySchema)
 
     let testDataGood =
         createObject [ "type", String "object"; "value", createObject [ "1", Integer 2; "", Null ] ]
@@ -165,7 +165,7 @@ type SchemaValidatorBenchmark() =
         """
 
     let ``parsed refs test schema`` =
-        SchemaValidator.jsonSchemaOfJson (Parser.parse ``refs test schema``)
+        SchemaValidator.jsonSchemaOfJson (JsonParser.parse ``refs test schema``)
 
     let testDataGoodWithRefs =
         createObject [ "foo", createArray [ emptyArray; createArray [ emptyArray ]; emptyArray ] ]
@@ -213,7 +213,7 @@ type SchemaParserBenchmark() =
         """
 
     let halfParsedTypeCheckedObjectAndArraySchema =
-        Parser.parse typeCheckedObjectAndArraySchema
+        JsonParser.parse typeCheckedObjectAndArraySchema
 
     let ``refs test schema`` =
         """
@@ -238,7 +238,7 @@ type SchemaParserBenchmark() =
         }
         """
 
-    let ``half-parsed refs test schema`` = Parser.parse ``refs test schema``
+    let ``half-parsed refs test schema`` = JsonParser.parse ``refs test schema``
 
     [<Benchmark(Baseline = true)>]
     member _.ParseSchema() =

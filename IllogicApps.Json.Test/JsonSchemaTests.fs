@@ -20,20 +20,20 @@ let simpleEnumSchema =
     """
 
 let parsedSimpleEnumSchema =
-    lazy trap <@ jsonSchemaOfJson (Parser.parse simpleEnumSchema) @>
+    lazy trap <@ jsonSchemaOfJson (JsonParser.parse simpleEnumSchema) @>
 
 [<Test>]
 let ``Test simple enum schema is as expected after parsing`` () =
     let (Lazy data) = parsedSimpleEnumSchema
 
-    test
-        <@
-            data = { emptyJsonSchema with
-                       schema =
-                           ImmutableArray.Create(
-                               ("/enum", Enum(ImmutableArray.CreateRange([ Integer 1; Integer 2; String "oatmeal" ])))
-                           ) }
-        @>
+    let expected =
+        { JsonSchema.empty with
+            schema =
+                ImmutableArray.Create(
+                    ("/enum", Enum(ImmutableArray.CreateRange([ Integer 1; Integer 2; String "oatmeal" ])))
+                ) }
+
+    test <@ data = expected @>
 
 let ``simple enum schema matching test cases`` =
     [ Integer 1; Integer 2; String "oatmeal" ] |> List.map TestCaseData
@@ -83,7 +83,7 @@ let typeCheckedObjectAndArraySchema =
     """
 
 let parsedTypeCheckedObjectAndArraySchema =
-    lazy trap <@ jsonSchemaOfJson (Parser.parse typeCheckedObjectAndArraySchema) @>
+    lazy trap <@ jsonSchemaOfJson (JsonParser.parse typeCheckedObjectAndArraySchema) @>
 
 let ``type-checked object and array schema matching test cases`` =
     [ createObject [ "type", String "array"; "value", createArray [ Float 3.5; String "foo" ] ]
@@ -216,7 +216,7 @@ let notJapaneseSchema =
     """
 
 let parsedNotJapaneseSchema =
-    lazy trap <@ jsonSchemaOfJson (Parser.parse notJapaneseSchema) @>
+    lazy trap <@ jsonSchemaOfJson (JsonParser.parse notJapaneseSchema) @>
 
 [<TestCase("de donde eres")>]
 [<TestCase("radfahren")>]
@@ -253,7 +253,7 @@ let ``one good turn deserves another schema`` =
     """
 
 let ``parsed one good turn deserves another schema`` =
-    lazy trap <@ jsonSchemaOfJson (Parser.parse ``one good turn deserves another schema``) @>
+    lazy trap <@ jsonSchemaOfJson (JsonParser.parse ``one good turn deserves another schema``) @>
 
 let ``one good turn deserves another schema matching test cases`` =
     [ createObject [ "one good turn", Null; "another good turn", Integer 1 ]
@@ -310,7 +310,7 @@ let ``array with prefix items schema`` =
     """
 
 let ``parsed array with prefix items schema`` =
-    lazy trap <@ jsonSchemaOfJson (Parser.parse ``array with prefix items schema``) @>
+    lazy trap <@ jsonSchemaOfJson (JsonParser.parse ``array with prefix items schema``) @>
 
 let ``array with prefix items schema matching test cases`` =
     [ createArray [ String "hello"; Integer 1; Boolean true; Null ]
@@ -374,7 +374,7 @@ let ``refs test schema`` =
     """
 
 let ``parsed refs test schema`` =
-    lazy trap <@ jsonSchemaOfJson (Parser.parse ``refs test schema``) @>
+    lazy trap <@ jsonSchemaOfJson (JsonParser.parse ``refs test schema``) @>
 
 let ``refs test schema matching test cases`` =
     [ emptyObject

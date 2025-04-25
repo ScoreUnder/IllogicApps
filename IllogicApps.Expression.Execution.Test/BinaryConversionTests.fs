@@ -104,7 +104,7 @@ let InvalidBase64ToBinaryTest (expr: string) =
 [<TestCase("@dataUriToBinary('DATA:TEXT/PLAIN;COWS=MOO;CHARSET=UTF-8;CATS=CUTE;BASE64,dGVzdA==')",
            "{\"$content-type\":\"TEXT/PLAIN;COWS=MOO;CHARSET=UTF-8;CATS=CUTE\",\"$content\":\"dGVzdA==\"}")>]
 let DataUriToBinaryTest (expr: string) (expected: string) =
-    testOrTrace expr <@ Parser.parse expected = testExpressionEvaluation expr @>
+    testOrTrace expr <@ JsonParser.parse expected = testExpressionEvaluation expr @>
 
 [<TestCase("@dataUriToString('data:text/plain;charset=utf-8,%22hello,%20world%22')", "\"hello, world\"")>]
 [<TestCase("@dataUriToString('data:text/plain;charset=utf-8;base64,aGVsbG8 gd29ybGQ=')", "hello world")>]
