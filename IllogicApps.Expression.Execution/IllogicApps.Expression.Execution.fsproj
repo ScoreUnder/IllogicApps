@@ -5,7 +5,7 @@
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="JsonXmlWriter.fs"/>
-        <Compile Include="BuiltinCondition.fs"/>
+        <Compile Include="LogicAppsComparison.fs"/>
         <Compile Include="BuiltinFunctions.fs"/>
         <Compile Include="Evaluator.fs"/>
     </ItemGroup>

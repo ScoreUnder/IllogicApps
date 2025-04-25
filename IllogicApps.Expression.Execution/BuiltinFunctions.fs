@@ -9,6 +9,7 @@ open System.Xml.XPath
 
 open IllogicApps.Core
 open IllogicApps.Core.Support
+open IllogicApps.Expression.Execution.LogicAppsComparison
 open IllogicApps.Json
 
 type Args = JsonTree list
@@ -208,6 +209,11 @@ let parseDataUri (str: string) isForString =
 
     contentType, text
 
+let private twoArgBool (f: JsonTree -> JsonTree -> bool) (_: SimulatorContext) (args: JsonTree list) : JsonTree =
+    match args with
+    | [ a; b ] -> f a b |> Boolean
+    | _ -> failwithf "Expected 2 arguments, got %d" args.Length
+
 // String functions
 
 let f_chunk _ (args: Args) : JsonTree =
@@ -230,6 +236,12 @@ let f_concat _ (args: Args) : JsonTree =
     expectArgsAtLeast 1 args
 
     args |> List.map objectToString |> String.concat "" |> String
+
+let f_endsWith =
+    twoArgBool (fun a b ->
+        let a = Conversions.ensureString a
+        let b = Conversions.ensureString b
+        a.EndsWith(b))
 
 let f_formatNumber _ (args: Args) : JsonTree =
     let num, format, locale =
@@ -394,6 +406,12 @@ let f_split _ (args: Args) : JsonTree =
     | [ _; _ ] -> failwith "Both arguments must be of type string"
     | _ -> failwith "Expected two arguments"
 
+let f_startsWith =
+    twoArgBool (fun a b ->
+        let a = Conversions.ensureString a
+        let b = Conversions.ensureString b
+        a.StartsWith(b))
+
 let f_substring _ (args: Args) : JsonTree =
     match args with
     | String s :: Integer startIndex :: etc ->
@@ -437,6 +455,18 @@ let f_trim _ (args: Args) : JsonTree =
     |> String
 
 // Collection functions
+
+let f_contains =
+    twoArgBool (fun a b ->
+        match a, b with
+        | Array arr, _ -> arr.Contains(b)
+        | Object o, String k -> o.ContainsKey(k)
+        | String a, String b -> a.Contains(b)
+        | _ ->
+            failwithf
+                "Expected array (and element), object (and string key), or string (and substring), got %O and %O"
+                (JsonTree.getType a)
+                (JsonTree.getType b))
 
 let f_empty _ (args: Args) : JsonTree =
     match args with
@@ -503,11 +533,21 @@ let f_and _ (args: LazyArgs) : JsonTree =
         args
     |> Boolean
 
+let f_equals = twoArgBool (checkComparison false [ Equal; UnorderedEqual ])
+
+let f_greater = twoArgBool (checkComparison true [ Greater ])
+
+let f_greaterOrEquals = twoArgBool (checkComparison true [ Greater; Equal ])
+
 let f_if _ (args: LazyArgs) : JsonTree =
     match args with
     | [ Lazy(Boolean c); a; b ] -> if c then a.Value else b.Value
     | [ _; _; _ ] -> failwith "Expected boolean and two other arguments"
     | _ -> failwith "Expected three arguments"
+
+let f_less = twoArgBool (checkComparison true [ Less ])
+
+let f_lessOrEquals = twoArgBool (checkComparison true [ Less; Equal ])
 
 let f_not _ (args: Args) : JsonTree =
     expectArgs 1 args
@@ -1049,17 +1089,10 @@ let f_xpath _ (args: Args) : JsonTree =
 
 // End function definitions
 
-let private conditionToFunction (condition: BuiltinCondition.LanguageCondition) : LanguageFunction =
-    fun _ -> condition >> Boolean
-
 let functions: OrderedMap<string, LanguageFunction> =
-    let conditions =
-        BuiltinCondition.conditions
-        |> Map.toSeq
-        |> Seq.map (fun (k, v) -> k, conditionToFunction v)
-
     [ "chunk", f_chunk
       "concat", f_concat
+      "endsWith", f_endsWith
       "formatNumber", f_formatNumber
       "guid", f_guid
       "indexOf", f_indexOf
@@ -1071,10 +1104,12 @@ let functions: OrderedMap<string, LanguageFunction> =
       "replace", f_replace
       "slice", f_slice
       "split", f_split
+      "startsWith", f_startsWith
       "substring", f_substring
       "toLower", f_toLower
       "toUpper", f_toUpper
       "trim", f_trim
+      "contains", f_contains
       "empty", f_empty
       "first", f_first
       "intersection", f_intersection
@@ -1082,6 +1117,11 @@ let functions: OrderedMap<string, LanguageFunction> =
       "join", f_join
       "last", f_last
       "union", f_union
+      "equals", f_equals
+      "greater", f_greater
+      "greaterOrEquals", f_greaterOrEquals
+      "less", f_less
+      "lessOrEquals", f_lessOrEquals
       "not", f_not
       "array", f_array
       "base64", f_base64
@@ -1138,11 +1178,8 @@ let functions: OrderedMap<string, LanguageFunction> =
       "removeProperty", f_removeProperty
       "setProperty", f_setProperty
       "xpath", f_xpath ]
-    |> List.toSeq
-    |> Seq.append conditions
     |> OrderedMap.ofSeq
 
 let lazyFunctions: OrderedMap<string, LazyArgsLanguageFunction> =
     [ "and", f_and; "if", f_if; "or", f_or; "coalesce", f_coalesce ]
-    |> List.toSeq
     |> OrderedMap.ofSeq
