@@ -3,6 +3,8 @@
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <LangVersion>8</LangVersion>
+        <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
     </PropertyGroup>
 
     <ItemGroup>
@@ -12,6 +14,7 @@
 
     <ItemGroup>
         <PackageReference Include="Jint" Version="4.1.0"/>
+        <PackageReference Include="FSharp.Core" Version="8.0.403"/>
     </ItemGroup>
 
     <ItemGroup>

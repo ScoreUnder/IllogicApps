@@ -3,6 +3,8 @@
         <TargetFramework>net8.0</TargetFramework>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <TailCalls>true</TailCalls>
+        <LangVersion>8</LangVersion>
+        <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="ExternalServices.fs"/>
@@ -12,9 +14,12 @@
         <Compile Include="WorkflowFamily.fs"/>
     </ItemGroup>
     <ItemGroup>
+        <PackageReference Include="FSharp.Core" Version="8.0.403"/>
+    </ItemGroup>
+    <ItemGroup>
         <ProjectReference Include="..\IllogicApps.Core\IllogicApps.Core.fsproj"/>
-        <ProjectReference Include="..\IllogicApps.Expression.Execution\IllogicApps.Expression.Execution.fsproj" />
-        <ProjectReference Include="..\IllogicApps.Expression.Parsing\IllogicApps.Expression.Parsing.fsproj" />
+        <ProjectReference Include="..\IllogicApps.Expression.Execution\IllogicApps.Expression.Execution.fsproj"/>
+        <ProjectReference Include="..\IllogicApps.Expression.Parsing\IllogicApps.Expression.Parsing.fsproj"/>
         <ProjectReference Include="..\IllogicApps.Json\IllogicApps.Json.fsproj"/>
     </ItemGroup>
 </Project>

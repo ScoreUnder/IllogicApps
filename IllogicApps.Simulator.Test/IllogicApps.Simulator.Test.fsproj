@@ -5,6 +5,8 @@
         <GenerateProgramFile>true</GenerateProgramFile>
         <IsTestProject>true</IsTestProject>
         <TailCalls>true</TailCalls>
+        <LangVersion>8</LangVersion>
+        <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="AssemblyInfo.fs"/>
@@ -30,6 +32,7 @@
         </PackageReference>
         <PackageReference Include="NUnit3TestAdapter" Version="4.6.0"/>
         <PackageReference Include="Unquote" Version="7.0.0"/>
+        <PackageReference Include="FSharp.Core" Version="8.0.403"/>
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\IllogicApps.Simulator\IllogicApps.Simulator.fsproj"/>

@@ -10,6 +10,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\IllogicApps.Compat.LogicAppUnit\IllogicApps.Compat.LogicAppUnit.fsproj" />
+        <ProjectReference Include="..\IllogicApps.Compat.LogicAppUnit\IllogicApps.Compat.LogicAppUnit.fsproj"/>
     </ItemGroup>
 </Project>
