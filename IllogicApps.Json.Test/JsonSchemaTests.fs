@@ -20,7 +20,7 @@ let simpleEnumSchema =
     """
 
 let parsedSimpleEnumSchema =
-    lazy trap <@ jsonSchemaOfJson (JsonParser.parse simpleEnumSchema) @>
+    lazy trap <@ JsonSchema.ofJson (JsonParser.parse simpleEnumSchema) @>
 
 [<Test>]
 let ``Test simple enum schema is as expected after parsing`` () =
@@ -42,7 +42,7 @@ let ``simple enum schema matching test cases`` =
 let ``Test matching jsons against simple enum schema`` json =
     let (Lazy schema) = parsedSimpleEnumSchema
 
-    test <@ validateJsonSchema schema json = { messages = []; isMatch = true } @>
+    test <@ validate schema json = { messages = []; isMatch = true } @>
 
 let ``simple enum schema non-matching test cases`` =
     [ Null; Integer 3; String "kirby is a pink guy" ] |> List.map TestCaseData
@@ -58,7 +58,7 @@ let ``Test non-matching jsons against simple enum schema`` json =
                 result = Error "Enum value not correct" } ]
           isMatch = false }
 
-    test <@ validateJsonSchema schema json = expectedResult @>
+    test <@ validate schema json = expectedResult @>
 
 let typeCheckedObjectAndArraySchema =
     """
@@ -83,7 +83,7 @@ let typeCheckedObjectAndArraySchema =
     """
 
 let parsedTypeCheckedObjectAndArraySchema =
-    lazy trap <@ jsonSchemaOfJson (JsonParser.parse typeCheckedObjectAndArraySchema) @>
+    lazy trap <@ JsonSchema.ofJson (JsonParser.parse typeCheckedObjectAndArraySchema) @>
 
 let ``type-checked object and array schema matching test cases`` =
     [ createObject [ "type", String "array"; "value", createArray [ Float 3.5; String "foo" ] ]
@@ -94,7 +94,7 @@ let ``type-checked object and array schema matching test cases`` =
 let ``Test matching jsons against type-checked object and array schema`` json =
     let (Lazy schema) = parsedTypeCheckedObjectAndArraySchema
 
-    test <@ validateJsonSchema schema json = { messages = []; isMatch = true } @>
+    test <@ validate schema json = { messages = []; isMatch = true } @>
 
 let ``type-checked object and array schema non-matching test cases`` =
     [ createObject [ "type", String "array"; "value", createObject [ "1", Integer 2; "", Null ] ],
@@ -193,7 +193,7 @@ let ``Test non-matching jsons against type-checked object and array schema`` jso
 
     test
         <@
-            let result = validateJsonSchema schema json
+            let result = validate schema json
 
             let expected =
                 { messages = List.sort errors
@@ -216,7 +216,7 @@ let notJapaneseSchema =
     """
 
 let parsedNotJapaneseSchema =
-    lazy trap <@ jsonSchemaOfJson (JsonParser.parse notJapaneseSchema) @>
+    lazy trap <@ JsonSchema.ofJson (JsonParser.parse notJapaneseSchema) @>
 
 [<TestCase("de donde eres")>]
 [<TestCase("radfahren")>]
@@ -225,7 +225,7 @@ let parsedNotJapaneseSchema =
 let ``Test non-Japanese strings against not-Japanese schema`` json =
     let (Lazy schema) = parsedNotJapaneseSchema
 
-    test <@ validateJsonSchema schema (String json) = { messages = []; isMatch = true } @>
+    test <@ validate schema (String json) = { messages = []; isMatch = true } @>
 
 [<TestCase("chotto matte")>]
 [<TestCase("shunkashuutou")>]
@@ -241,7 +241,7 @@ let ``Test Japanese strings against not-Japanese schema`` json =
                 result = Error "should not have validated, but did" } ]
           isMatch = false }
 
-    test <@ validateJsonSchema schema (String json) = expectedResult @>
+    test <@ validate schema (String json) = expectedResult @>
 
 let ``one good turn deserves another schema`` =
     """
@@ -253,7 +253,7 @@ let ``one good turn deserves another schema`` =
     """
 
 let ``parsed one good turn deserves another schema`` =
-    lazy trap <@ jsonSchemaOfJson (JsonParser.parse ``one good turn deserves another schema``) @>
+    lazy trap <@ JsonSchema.ofJson (JsonParser.parse ``one good turn deserves another schema``) @>
 
 let ``one good turn deserves another schema matching test cases`` =
     [ createObject [ "one good turn", Null; "another good turn", Integer 1 ]
@@ -274,7 +274,7 @@ let ``one good turn deserves another schema matching test cases`` =
 let ``Test matching jsons against one good turn deserves another schema`` json =
     let (Lazy schema) = ``parsed one good turn deserves another schema``
 
-    test <@ validateJsonSchema schema json = { messages = []; isMatch = true } @>
+    test <@ validate schema json = { messages = []; isMatch = true } @>
 
 let ``one good turn deserves another schema non-matching test cases`` =
     [ createObject [ "one good turn", Null ]
@@ -295,7 +295,7 @@ let ``Test non-matching jsons against one good turn deserves another schema`` js
                 result = Error "Object is missing required properties" } ]
           isMatch = false }
 
-    test <@ validateJsonSchema schema json = expectedResult @>
+    test <@ validate schema json = expectedResult @>
 
 let ``array with prefix items schema`` =
     """
@@ -310,7 +310,7 @@ let ``array with prefix items schema`` =
     """
 
 let ``parsed array with prefix items schema`` =
-    lazy trap <@ jsonSchemaOfJson (JsonParser.parse ``array with prefix items schema``) @>
+    lazy trap <@ JsonSchema.ofJson (JsonParser.parse ``array with prefix items schema``) @>
 
 let ``array with prefix items schema matching test cases`` =
     [ createArray [ String "hello"; Integer 1; Boolean true; Null ]
@@ -322,7 +322,7 @@ let ``array with prefix items schema matching test cases`` =
 let ``Test matching jsons against array with prefix items schema`` json =
     let (Lazy schema) = ``parsed array with prefix items schema``
 
-    test <@ validateJsonSchema schema json = { messages = []; isMatch = true } @>
+    test <@ validate schema json = { messages = []; isMatch = true } @>
 
 let ``array with prefix items schema non-matching test cases`` =
     [ createArray [ String "hello"; Integer 1; Boolean true ],
@@ -347,7 +347,7 @@ let ``Test non-matching jsons against array with prefix items schema`` json erro
         { messages = [ error ]
           isMatch = false }
 
-    test <@ validateJsonSchema schema json = expectedResult @>
+    test <@ validate schema json = expectedResult @>
 
 
 let ``refs test schema`` =
@@ -374,7 +374,7 @@ let ``refs test schema`` =
     """
 
 let ``parsed refs test schema`` =
-    lazy trap <@ jsonSchemaOfJson (JsonParser.parse ``refs test schema``) @>
+    lazy trap <@ JsonSchema.ofJson (JsonParser.parse ``refs test schema``) @>
 
 let ``refs test schema matching test cases`` =
     [ emptyObject
@@ -388,7 +388,7 @@ let ``Test matching jsons against refs test schema`` json =
     let (Lazy schema) = ``parsed refs test schema``
 
     let expectedResult = { messages = []; isMatch = true }
-    test <@ validateJsonSchema schema json = expectedResult @>
+    test <@ validate schema json = expectedResult @>
 
 let ``refs test schema non-matching test cases`` =
     [ createObject [ "fail", Boolean true; "recursive", emptyObject; "foo", emptyArray ],
@@ -417,4 +417,4 @@ let ``Test non-matching jsons against refs test schema`` json error =
         { messages = [ error ]
           isMatch = false }
 
-    test <@ validateJsonSchema schema json = expectedResult @>
+    test <@ validate schema json = expectedResult @>

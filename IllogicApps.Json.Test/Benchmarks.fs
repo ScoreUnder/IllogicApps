@@ -133,7 +133,7 @@ type SchemaValidatorBenchmark() =
         """
 
     let parsedTypeCheckedObjectAndArraySchema =
-        SchemaValidator.jsonSchemaOfJson (JsonParser.parse typeCheckedObjectAndArraySchema)
+        JsonSchema.ofJson (JsonParser.parse typeCheckedObjectAndArraySchema)
 
     let testDataGood =
         createObject [ "type", String "object"; "value", createObject [ "1", Integer 2; "", Null ] ]
@@ -165,7 +165,7 @@ type SchemaValidatorBenchmark() =
         """
 
     let ``parsed refs test schema`` =
-        SchemaValidator.jsonSchemaOfJson (JsonParser.parse ``refs test schema``)
+        JsonSchema.ofJson (JsonParser.parse ``refs test schema``)
 
     let testDataGoodWithRefs =
         createObject [ "foo", createArray [ emptyArray; createArray [ emptyArray ]; emptyArray ] ]
@@ -175,19 +175,19 @@ type SchemaValidatorBenchmark() =
 
     [<Benchmark(Baseline = true)>]
     member _.ValidateGood() =
-        SchemaValidator.validateJsonSchema parsedTypeCheckedObjectAndArraySchema testDataGood
+        SchemaValidator.validate parsedTypeCheckedObjectAndArraySchema testDataGood
 
     [<Benchmark>]
     member _.ValidateBad() =
-        SchemaValidator.validateJsonSchema parsedTypeCheckedObjectAndArraySchema testDataBad
+        SchemaValidator.validate parsedTypeCheckedObjectAndArraySchema testDataBad
 
     [<Benchmark>]
     member _.ValidateGoodWithRefs() =
-        SchemaValidator.validateJsonSchema ``parsed refs test schema`` testDataGoodWithRefs
+        SchemaValidator.validate ``parsed refs test schema`` testDataGoodWithRefs
 
     [<Benchmark>]
     member _.ValidateBadWithRefs() =
-        SchemaValidator.validateJsonSchema ``parsed refs test schema`` testDataBadWithRefs
+        SchemaValidator.validate ``parsed refs test schema`` testDataBadWithRefs
 
 type SchemaParserBenchmark() =
     let typeCheckedObjectAndArraySchema =
@@ -242,8 +242,8 @@ type SchemaParserBenchmark() =
 
     [<Benchmark(Baseline = true)>]
     member _.ParseSchema() =
-        SchemaValidator.jsonSchemaOfJson halfParsedTypeCheckedObjectAndArraySchema
+        JsonSchema.ofJson halfParsedTypeCheckedObjectAndArraySchema
 
     [<Benchmark>]
     member _.ParseSchemaWithRefs() =
-        SchemaValidator.jsonSchemaOfJson ``half-parsed refs test schema``
+        JsonSchema.ofJson ``half-parsed refs test schema``

@@ -493,8 +493,8 @@ type ParseJson(json) =
 
         printfn "ParseJson Result: %s" (Conversions.prettyStringOfJson result)
 
-        let parsedSchema = SchemaValidator.jsonSchemaOfJson evaluatedSchema
-        let validationResult = SchemaValidator.validateJsonSchema parsedSchema result
+        let parsedSchema = JsonSchema.ofJson evaluatedSchema
+        let validationResult = SchemaValidator.validate parsedSchema result
 
         { ActionResult.Default with
             status = if validationResult.isMatch then Succeeded else Failed
