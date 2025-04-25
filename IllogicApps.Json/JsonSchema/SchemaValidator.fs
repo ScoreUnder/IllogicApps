@@ -21,17 +21,12 @@ type JsonSchemaSingleResult =
     | Warning of string
 
 type JsonSchemaResultMessage =
-    { [<CompiledName("SchemaPath")>]
-      schemaPath: string
-      [<CompiledName("JsonPath")>]
+    { schemaPath: string
       jsonPath: string
-      [<CompiledName("Result")>]
       result: JsonSchemaSingleResult }
 
 type JsonSchemaResult =
-    { [<CompiledName("Messages")>]
-      messages: JsonSchemaResultMessage list
-      [<CompiledName("IsMatch")>]
+    { messages: JsonSchemaResultMessage list
       isMatch: bool }
 
 module JsonSchemaResult =
