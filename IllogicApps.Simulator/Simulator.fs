@@ -529,7 +529,7 @@ and Simulator private (creationOptions: SimulatorCreationOptions) as this =
             | true, key -> key
             | _ ->
                 // Creating a new variable
-                if isBugForBugAccurate && scopeContextStack.Count <> 0 then
+                if isBugForBugAccurate && scopeContextStack.Count > 1 then
                     // TODO: This would normally fail at validation time, not runtime
                     failwith
                         "Cannot initialise a new variable inside a scope. This must be done at the root of the workflow."
