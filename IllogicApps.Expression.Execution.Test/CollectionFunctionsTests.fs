@@ -278,3 +278,23 @@ let ``take test cases`` =
 
 [<TestCaseSource(nameof ``take test cases``)>]
 let ``Test take`` expr expected = jsonOrFailTest expr expected
+
+let ``reverse test cases`` =
+    [ "@reverse(json('[]'))", Ok emptyArray
+      "@reverse(json('{}'))", Error "be of type array"
+      "@reverse('tacocat racecar')", Error "be of type array"
+      "@reverse(json('[9,\"yippee\",null,-1,-1,9,true]'))",
+      Ok(
+          createArray
+              [ Boolean true
+                Integer 9
+                Integer -1
+                Integer -1
+                Null
+                String "yippee"
+                Integer 9 ]
+      ) ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``reverse test cases``)>]
+let ``Test reverse`` expr expected = jsonOrFailTest expr expected

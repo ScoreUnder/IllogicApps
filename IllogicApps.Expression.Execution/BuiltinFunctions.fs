@@ -513,6 +513,14 @@ let f_last _ (args: Args) : JsonTree =
     | [ _ ] -> failwith "Expected parameter to be an array or a string"
     | _ -> failwith "This function expects one parameter"
 
+let f_reverse _ (args: Args) : JsonTree =
+    match expectSingleArg args with
+    | Array a ->
+        let builder = a.ToBuilder()
+        builder.Reverse()
+        Array(builder.DrainToImmutable())
+    | _ -> failwith "Expected parameter to be of type array"
+
 let f_take _ (args: Args) : JsonTree =
     match args with
     | [ _; Integer i ] when i < 0 -> failwith "Second argument must be a positive integer"
@@ -1125,6 +1133,7 @@ let functions: OrderedMap<string, LanguageFunction> =
       "item", f_item
       "join", f_join
       "last", f_last
+      "reverse", f_reverse
       "take", f_take
       "union", f_union
       "equals", f_equals
