@@ -257,3 +257,24 @@ let ``union test cases`` =
 
 [<TestCaseSource(nameof ``union test cases``)>]
 let ``Test union`` expr expected = jsonOrFailTest expr expected
+
+let ``take test cases`` =
+    [ "@take(json('{\"z\":26,\"a\":1}'),1)", Error "be an array or a string"
+      "@take(json('[9,7,5,3]'),1)", Ok(createArray [ Integer 9 ])
+      "@take(json('[9,7,5,3]'),0)", Ok emptyArray
+      "@take(json('[9,7,5,3]'),-1)", Error "be a positive integer"
+      "@take(json('[9,7,5,3]'),2)", Ok(createArray [ Integer 9; Integer 7 ])
+      "@take('meow',1)", Ok(String "m")
+      "@take('meow',0)", Ok(String "")
+      "@take('meow',-1)", Error "be a positive integer"
+      "@take('meow',2)", Ok(String "me")
+      "@take(json('[]'),3)", Ok emptyArray
+      "@take('meow',10)", Ok(String "meow")
+      "@take(0,3)", Error "an array or a string"
+      "@take(null,3)", Error "an array or a string"
+      "@take(false,3)", Error "an array or a string"
+      "@take(-1,3)", Error "an array or a string" ]
+    |> List.map TestCaseData
+
+[<TestCaseSource(nameof ``take test cases``)>]
+let ``Test take`` expr expected = jsonOrFailTest expr expected

@@ -513,6 +513,15 @@ let f_last _ (args: Args) : JsonTree =
     | [ _ ] -> failwith "Expected parameter to be an array or a string"
     | _ -> failwith "This function expects one parameter"
 
+let f_take _ (args: Args) : JsonTree =
+    match args with
+    | [ _; Integer i ] when i < 0 -> failwith "Second argument must be a positive integer"
+    | [ Array a; Integer i ] -> Array(a.Slice(0, int (min i (int64 a.Length))))
+    | [ String s; Integer i ] -> String(s.[0 .. int (min i (int64 s.Length)) - 1])
+    | [ _; Integer _ ] -> failwith "First argument must be an array or a string"
+    | [ _; _ ] -> failwith "Second argument must be of type integer"
+    | _ -> failwith "This function expects two parameters"
+
 let f_union _ (args: Args) : JsonTree =
     match args with
     | []
@@ -1116,6 +1125,7 @@ let functions: OrderedMap<string, LanguageFunction> =
       "item", f_item
       "join", f_join
       "last", f_last
+      "take", f_take
       "union", f_union
       "equals", f_equals
       "greater", f_greater
